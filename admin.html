@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>Admin Setup</h1>
+  <form id="setupForm">
+    <h2>Add Society</h2>
+    <input type="text" id="newSociety" placeholder="Society Name" required />
+    <button type="button" onclick="addSociety()">Add Society</button>
+    <ul id="societyList"></ul>
+
+    <h2>Set Milling Prices (₹/kg)</h2>
+    <label>Wheat:</label><input type="number" id="wheatPrice" /><br />
+    <label>Jowar:</label><input type="number" id="jowarPrice" /><br />
+    <label>Bajra:</label><input type="number" id="bajraPrice" /><br />
+    <label>Dal:</label><input type="number" id="dalPrice" /><br />
+    <button type="submit">Save Setup</button>
+  </form>
+
+  <script src="script.js"></script>
+</body>
+</html>
