@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login - Quality Mill</title>
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="loginForm">
+    <label for="phone">Phone Number:</label><br>
+    <input type="text" id="phone" name="phone"><br><br>
+
+    <label for="password">Password:</label><br>
+    <input type="password" id="password" name="password"><br><br>
+
+    <label for="role">Role:</label><br>
+    <select id="role" name="role">
+      <option value="admin">Admin</option>
+      <option value="manager">Manager</option>
+      <option value="operator">Operator</option>
+      <option value="delivery">Delivery Partner</option>
+    </select><br><br>
+
+    <button type="submit">Login</button>
+  </form>
+
+  <script>
+    // You’ll plug in the login logic later (via Supabase or n8n webhook)
+    document.getElementById("loginForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      alert("Login feature coming soon.");
+    });
+  </script>
+</body>
+</html>
