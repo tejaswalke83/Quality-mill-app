@@ -3,134 +3,118 @@
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>User Registration</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-    }
-
-    input, select, button {
-      display: block;
-      margin-bottom: 1rem;
-      padding: 0.5rem;
-      width: 100%;
-      max-width: 300px;
-    }
-
-    .error {
-      color: red;
-      font-size: 0.9rem;
-    }
-
-    .spinner {
-      display: none;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .icon-button {
-      font-size: 1.5rem;
-      cursor: pointer;
-      background: none;
-      border: none;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .form-group { margin-bottom: 15px; }
+    .hidden { display: none; }
+    .error { color: red; font-size: 14px; }
+    button { padding: 8px 16px; }
   </style>
 </head>
 <body>
 
   <h2>User Registration</h2>
 
-  <!-- Initial Phone Number Input -->
-  <div id="phone-form">
-    <input type="text" id="phoneNumber" placeholder="Enter Mobile Number" />
-    <span id="phone-error" class="error"></span>
-    <button class="icon-button" onclick="checkUser()">
-      ➡️
-    </button>
-    <div class="spinner" id="spinner">Checking...</div>
+  <!-- Mobile number input -->
+  <div id="mobile-section" class="form-group">
+    <label for="mobile">Mobile Number</label><br/>
+    <input type="text" id="mobile" />
+    <div id="mobile-error" class="error"></div><br/>
+    <button onclick="checkUser()">Proceed</button>
   </div>
 
-  <!-- Extra fields if user does not exist -->
-  <div id="registration-form" class="hidden">
-    <input type="text" id="name" placeholder="Name" />
-    <span id="name-error" class="error"></span>
+  <!-- Registration form (hidden by default) -->
+  <div id="register-section" class="hidden">
+    <div class="form-group">
+      <label for="name">Full Name</label><br/>
+      <input type="text" id="name" />
+      <div id="name-error" class="error"></div>
+    </div>
 
-    <select id="societyDropdown">
-      <option value="">Select Society</option>
-    </select>
-    <span id="society-error" class="error"></span>
+    <div class="form-group">
+      <label for="society">Society</label><br/>
+      <select id="society">
+        <option value="">Select</option>
+      </select>
+      <div id="society-error" class="error"></div>
+    </div>
 
-    <input type="text" id="flatNumber" placeholder="Flat Number" />
-    <span id="flat-error" class="error"></span>
+    <div class="form-group">
+      <label for="wing">Wing</label><br/>
+      <input type="text" id="wing" />
+      <div id="wing-error" class="error"></div>
+    </div>
 
-    <input type="text" id="wing" placeholder="Wing" />
-    <span id="wing-error" class="error"></span>
+    <div class="form-group">
+      <label for="flat">Flat Number</label><br/>
+      <input type="text" id="flat" />
+      <div id="flat-error" class="error"></div>
+    </div>
 
-    <select id="millingPreference">
-      <option value="">Milling Preference</option>
-      <option value="fine">Fine</option>
-      <option value="medium">Medium</option>
-      <option value="coarse">Coarse</option>
-    </select>
+    <div class="form-group">
+      <label for="milling">Milling Preference</label><br/>
+      <select id="milling">
+        <option value="">Select</option>
+        <option value="fine">Fine</option>
+        <option value="medium">Medium</option>
+        <option value="coarse">Coarse</option>
+      </select>
+      <div id="milling-error" class="error"></div>
+    </div>
 
     <button onclick="registerUser()">Register</button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- Output -->
+  <div id="status" class="form-group"></div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
-   // const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-
     async function checkUser() {
-      const phoneInput = document.getElementById('phoneNumber');
-      const phone = phoneInput.value.trim();
-      const errorSpan = document.getElementById('phone-error');
-      const spinner = document.getElementById('spinner');
-
-      errorSpan.textContent = '';
-      document.getElementById('registration-form').classList.add('hidden');
-
-      if (!phone || !/^\d{10}$/.test(phone)) {
-        errorSpan.textContent = 'Enter a valid 10-digit number';
+      const mobile = document.getElementById('mobile').value.trim();
+      clearErrors();
+      if (!/^\d{10}$/.test(mobile)) {
+        document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
         return;
       }
 
-      spinner.style.display = 'block';
-
+      document.getElementById('status').innerText = "Checking user...";
       try {
         const { data, error } = await supabase
           .from('customers')
           .select('*')
-          .eq('phone_number', phone)
-          .single();
+          .eq('phone_number', mobile)
+          .maybeSingle();
 
-        spinner.style.display = 'none';
+        if (error) throw error;
 
         if (data) {
-          alert('Welcome back! You are already registered.');
+          document.getElementById('status').innerText = "User already exists.";
+          // Redirect or proceed
         } else {
-          await populateSocieties();
-          document.getElementById('registration-form').classList.remove('hidden');
+          document.getElementById('status').innerText = "New user. Please register.";
+          document.getElementById('register-section').classList.remove('hidden');
+          loadSocieties();
         }
       } catch (err) {
-        spinner.style.display = 'none';
         console.error('Error checking user:', err);
-        alert('Something went wrong while checking the user. Please try again.');
+        alert("Something went wrong while checking the user. Please try again.");
+        document.getElementById('status').innerText = "";
       }
     }
 
-    async function populateSocieties() {
+    async function loadSocieties() {
       try {
         const { data, error } = await supabase
           .from('societies')
@@ -138,79 +122,59 @@
 
         if (error) throw error;
 
-        const dropdown = document.getElementById('societyDropdown');
-        dropdown.innerHTML = `<option value="">Select Society</option>`;
+        const dropdown = document.getElementById('society');
+        dropdown.innerHTML = '<option value="">Select</option>';
         data.forEach(soc => {
-          const option = document.createElement('option');
-          option.value = soc.name || soc.id;
-          option.textContent = soc.name;
-          dropdown.appendChild(option);
+          const opt = document.createElement('option');
+          opt.value = soc.id;
+          opt.text = soc.name;
+          dropdown.appendChild(opt);
         });
       } catch (err) {
-        console.error('Error fetching societies:', err);
-        alert('Failed to load societies. Check console for details.');
+        console.error('Error loading societies:', err);
+        alert("Error loading societies. Check console for details.");
       }
     }
 
     async function registerUser() {
-      const phone = document.getElementById('phoneNumber').value.trim();
+      clearErrors();
+
+      const phone_number = document.getElementById('mobile').value.trim();
       const name = document.getElementById('name').value.trim();
-      const society = document.getElementById('societyDropdown').value;
-      const flat = document.getElementById('flatNumber').value.trim();
+      const society = document.getElementById('society').value;
       const wing = document.getElementById('wing').value.trim();
-      const milling = document.getElementById('millingPreference').value;
+      const flat = document.getElementById('flat').value.trim();
+      const milling = document.getElementById('milling').value;
 
-      // Clear all error spans
-      document.querySelectorAll('.error').forEach(el => el.textContent = '');
+      let valid = true;
 
-      let hasError = false;
-      if (!name) {
-        document.getElementById('name-error').textContent = 'Name is required';
-        hasError = true;
-      }
+      if (!name) { valid = false; document.getElementById('name-error').innerText = "Enter name"; }
+      if (!society) { valid = false; document.getElementById('society-error').innerText = "Select society"; }
+      if (!wing) { valid = false; document.getElementById('wing-error').innerText = "Enter wing"; }
+      if (!flat) { valid = false; document.getElementById('flat-error').innerText = "Enter flat number"; }
+      if (!milling) { valid = false; document.getElementById('milling-error').innerText = "Select milling preference"; }
 
-      if (!society) {
-        document.getElementById('society-error').textContent = 'Select a society';
-        hasError = true;
-      }
-
-      if (!flat) {
-        document.getElementById('flat-error').textContent = 'Flat number required';
-        hasError = true;
-      }
-
-      if (!wing) {
-        document.getElementById('wing-error').textContent = 'Wing is required';
-        hasError = true;
-      }
-
-      if (hasError) return;
+      if (!valid) return;
 
       try {
-        const { data, error } = await supabase
-          .from('customers')
-          .insert([{
-            phone_number: phone,
-            name: name,
-            society_name: society,
-            flat_number: flat,
-            wing: wing,
-            milling_preference: milling,
-            area: null,
-            city: null
-          }]);
+        const { error } = await supabase.from('customers').insert([{
+          phone_number, name, society_id: society, wing, flat_number: flat, milling_preference: milling
+        }]);
 
-        if (error) {
-          console.error('Insert error:', error);
-          alert('Registration failed. Check console.');
-        } else {
-          alert('Registered successfully!');
-          location.reload();
-        }
+        if (error) throw error;
+
+        alert("User registered successfully!");
+        document.getElementById('register-section').classList.add('hidden');
+        document.getElementById('status').innerText = "Registration complete.";
       } catch (err) {
-        console.error('Unexpected error during registration:', err);
-        alert('Something went wrong while registering. Please try again.');
+        console.error('Error registering user:', err);
+        alert("Something went wrong during registration. Check console for details.");
       }
+    }
+
+    function clearErrors() {
+      ['mobile-error', 'name-error', 'society-error', 'wing-error', 'flat-error', 'milling-error']
+        .forEach(id => document.getElementById(id).innerText = '');
     }
   </script>
 </body>
