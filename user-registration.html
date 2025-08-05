@@ -1,199 +1,215 @@
 
-   
- 
-   
- <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>User Registration</title>
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    .hidden { display: none; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #ccc; border-top: 3px solid #333; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-    .error { color: red; font-size: 13px; }
-    .field { margin-bottom: 12px; }
-  </style>
-</head>
-<body>
-
-
-   
-<h2>User Registration</h2>
-
-<div id="step1">
-  <div class="field">
-    <label for="mobile">Enter Mobile Number:</label><br>
-    <input type="text" id="mobile" />
-    <div id="mobile-error" class="error"></div>
-  </div>
-  <button id="check-btn">➡️</button>
-  <div id="spinner1" class="spinner hidden"></div>
-</div>
-
-<div id="step2" class="hidden">
-  <div class="field">
-    <label>Name:</label><br>
-    <input type="text" id="name" />
-    <div id="name-error" class="error"></div>
-  </div>
-
-  <div class="field">
-    <label>Society:</label><br>
-    <select id="society-dropdown"></select>
-    <div id="society-error" class="error"></div>
-  </div>
-
-  <div class="field">
-    <label>Flat Number:</label><br>
-    <input type="text" id="flat" />
-    <div id="flat-error" class="error"></div>
-  </div>
-
-  <div class="field">
-    <label>Wing:</label><br>
-    <input type="text" id="wing" />
-    <div id="wing-error" class="error"></div>
-  </div>
-
-  <button id="register-btn">Register</button>
-  <div id="spinner2" class="spinner hidden"></div>
-</div>
-
-<script type="module">
-  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
-
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.com';
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const checkBtn = document.getElementById("check-btn");
-  const spinner1 = document.getElementById("spinner1");
-  const spinner2 = document.getElementById("spinner2");
-
-  const mobileInput = document.getElementById("mobile");
-  const nameInput = document.getElementById("name");
-  const societyDropdown = document.getElementById("society-dropdown");
-  const flatInput = document.getElementById("flat");
-  const wingInput = document.getElementById("wing");
-
-  function clearErrors() {
-    document.querySelectorAll('.error').forEach(e => e.textContent = '');
-  }
-
-  function validateMobile() {
-    const mobile = mobileInput.value.trim();
-    if (!/^\d{10}$/.test(mobile)) {
-      document.getElementById("mobile-error").textContent = "Enter valid 10-digit number";
-      return false;
-    }
-    return true;
-  }
-
-  function validateForm() {
-    let valid = true;
-    clearErrors();
-
-    if (nameInput.value.trim() === '') {
-      document.getElementById("name-error").textContent = "Name is required";
-      valid = false;
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Registration</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
     }
 
-    if (!societyDropdown.value) {
-      document.getElementById("society-error").textContent = "Select a society";
-      valid = false;
+    input, select, button {
+      display: block;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      width: 100%;
+      max-width: 300px;
     }
 
-    if (flatInput.value.trim() === '') {
-      document.getElementById("flat-error").textContent = "Flat number required";
-      valid = false;
+    .error {
+      color: red;
+      font-size: 0.9rem;
     }
 
-    if (wingInput.value.trim() === '') {
-      document.getElementById("wing-error").textContent = "Wing is required";
-      valid = false;
+    .spinner {
+      display: none;
     }
 
-    return valid;
-  }
-
-  async function loadSocieties() {
-    const { data, error } = await supabase.from("societies").select("*");
-    if (error) {
-      alert("Error fetching societies");
-      return;
+    .hidden {
+      display: none;
     }
-    societyDropdown.innerHTML = `<option value="">-- Select --</option>`;
-    data.forEach(society => {
-      const opt = document.createElement("option");
-      opt.value = society.society_name;
-      opt.textContent = society.society_name;
-      societyDropdown.appendChild(opt);
-    });
-  }
 
-  checkBtn.addEventListener("click", async () => {
-    clearErrors();
-    if (!validateMobile()) return;
+    .icon-button {
+      font-size: 1.5rem;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+  </style>
+</head>
+<body>
 
-    spinner1.classList.remove("hidden");
+  <h2>User Registration</h2>
 
-    try {
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("phone_number", mobileInput.value.trim())
+  <!-- Initial Phone Number Input -->
+  <div id="phone-form">
+    <input type="text" id="phoneNumber" placeholder="Enter Mobile Number" />
+    <span id="phone-error" class="error"></span>
+    <button class="icon-button" onclick="checkUser()">
+      ➡️
+    </button>
+    <div class="spinner" id="spinner">Checking...</div>
+  </div>
 
-          alert("customers " + data);
-        .single();
+  <!-- Extra fields if user does not exist -->
+  <div id="registration-form" class="hidden">
+    <input type="text" id="name" placeholder="Name" />
+    <span id="name-error" class="error"></span>
 
-      spinner1.classList.add("hidden");
+    <select id="societyDropdown">
+      <option value="">Select Society</option>
+    </select>
+    <span id="society-error" class="error"></span>
 
-      if (data) {
-        alert("User already registered.");
-        // redirect to order page if needed
-        // window.location.href = "place-order.html?mobile=" + mobileInput.value.trim();
-      } else {
-        document.getElementById("step2").classList.remove("hidden");
-        loadSocieties();
+    <input type="text" id="flatNumber" placeholder="Flat Number" />
+    <span id="flat-error" class="error"></span>
+
+    <input type="text" id="wing" placeholder="Wing" />
+    <span id="wing-error" class="error"></span>
+
+    <select id="millingPreference">
+      <option value="">Milling Preference</option>
+      <option value="fine">Fine</option>
+      <option value="medium">Medium</option>
+      <option value="coarse">Coarse</option>
+    </select>
+
+    <button onclick="registerUser()">Register</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.com';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function checkUser() {
+      const phoneInput = document.getElementById('phoneNumber');
+      const phone = phoneInput.value.trim();
+      const errorSpan = document.getElementById('phone-error');
+      const spinner = document.getElementById('spinner');
+
+      errorSpan.textContent = '';
+      document.getElementById('registration-form').classList.add('hidden');
+
+      if (!phone || !/^\d{10}$/.test(phone)) {
+        errorSpan.textContent = 'Enter a valid 10-digit number';
+        return;
       }
 
-    } catch (e) {
-      spinner1.classList.add("hidden");
-      alert("Error checking mobile: " + e.message);
+      spinner.style.display = 'block';
+
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone_number', phone)
+          .single();
+
+        spinner.style.display = 'none';
+
+        if (data) {
+          alert('Welcome back! You are already registered.');
+        } else {
+          await populateSocieties();
+          document.getElementById('registration-form').classList.remove('hidden');
+        }
+      } catch (err) {
+        spinner.style.display = 'none';
+        console.error('Error checking user:', err);
+        alert('Something went wrong while checking the user. Please try again.');
+      }
     }
-  });
 
-  document.getElementById("register-btn").addEventListener("click", async () => {
-    if (!validateForm()) return;
+    async function populateSocieties() {
+      try {
+        const { data, error } = await supabase
+          .from('societies')
+          .select('*');
 
-    spinner2.classList.remove("hidden");
+        if (error) throw error;
 
-    try {
-      const { error } = await supabase.from("customers").insert([{
-        phone_number: mobileInput.value.trim(),
-        name: nameInput.value.trim(),
-        society_name: societyDropdown.value,
-        flat_number: flatInput.value.trim(),
-        wing: wingInput.value.trim(),
-        city: 'YourCity',
-        area: 'YourArea'
-      }]);
-
-      spinner2.classList.add("hidden");
-
-      if (error) throw error;
-
-      alert("User registered successfully!");
-      window.location.href = "place-order.html?mobile=" + mobileInput.value.trim();
-
-    } catch (e) {
-      spinner2.classList.add("hidden");
-      alert("Registration error: " + e.message);
+        const dropdown = document.getElementById('societyDropdown');
+        dropdown.innerHTML = `<option value="">Select Society</option>`;
+        data.forEach(soc => {
+          const option = document.createElement('option');
+          option.value = soc.name || soc.id;
+          option.textContent = soc.name;
+          dropdown.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Error fetching societies:', err);
+        alert('Failed to load societies. Check console for details.');
+      }
     }
-  });
-</script>
 
+    async function registerUser() {
+      const phone = document.getElementById('phoneNumber').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const society = document.getElementById('societyDropdown').value;
+      const flat = document.getElementById('flatNumber').value.trim();
+      const wing = document.getElementById('wing').value.trim();
+      const milling = document.getElementById('millingPreference').value;
+
+      // Clear all error spans
+      document.querySelectorAll('.error').forEach(el => el.textContent = '');
+
+      let hasError = false;
+      if (!name) {
+        document.getElementById('name-error').textContent = 'Name is required';
+        hasError = true;
+      }
+
+      if (!society) {
+        document.getElementById('society-error').textContent = 'Select a society';
+        hasError = true;
+      }
+
+      if (!flat) {
+        document.getElementById('flat-error').textContent = 'Flat number required';
+        hasError = true;
+      }
+
+      if (!wing) {
+        document.getElementById('wing-error').textContent = 'Wing is required';
+        hasError = true;
+      }
+
+      if (hasError) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .insert([{
+            phone_number: phone,
+            name: name,
+            society_name: society,
+            flat_number: flat,
+            wing: wing,
+            milling_preference: milling,
+            area: null,
+            city: null
+          }]);
+
+        if (error) {
+          console.error('Insert error:', error);
+          alert('Registration failed. Check console.');
+        } else {
+          alert('Registered successfully!');
+          location.reload();
+        }
+      } catch (err) {
+        console.error('Unexpected error during registration:', err);
+        alert('Something went wrong while registering. Please try again.');
+      }
+    }
+  </script>
 </body>
 </html>
