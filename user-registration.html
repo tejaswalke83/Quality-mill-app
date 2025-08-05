@@ -26,11 +26,13 @@
       display: none;
       font-size: 18px;
       margin-top: 10px;
+      color: #555;
     }
   </style>
 </head>
 <body>
 
+  <!-- Step 1: Mobile Number -->
   <div id="step1">
     <h2>Enter Mobile Number</h2>
     <input type="text" id="mobile" placeholder="Mobile Number" />
@@ -38,6 +40,7 @@
     <div id="spinner" class="spinner">Checking...</div>
   </div>
 
+  <!-- Step 2: Registration Form -->
   <div id="step2" style="display: none;">
     <h2>Complete Your Details</h2>
     <input type="text" id="name" placeholder="Name" />
@@ -51,12 +54,15 @@
     <button onclick="registerUser()">Register</button>
   </div>
 
+  <!-- Supabase + Logic -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    const supabaseUrl = 'https://your-project.supabase.co'; // Replace with your project URL
-    const supabaseKey = 'public-anon-key'; // Replace with your anon/public key
+    // 🧩 Replace these with your actual Supabase values
+    const supabaseUrl = 'https://your-project.supabase.co';
+    const supabaseKey = 'public-anon-key';
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+    // 🧠 Step 1: Check if user exists
     async function checkUser() {
       const mobile = document.getElementById('mobile').value.trim();
       const spinner = document.getElementById('spinner');
@@ -78,14 +84,17 @@
 
       if (data) {
         alert('Welcome back ' + data.name + '!');
-        // Redirect or proceed to next section
+        // ✅ Redirect to order page
+        window.location.href = 'place-order.html?mobile=' + mobile;
       } else {
+        // 🚧 Show registration form
         document.getElementById('step1').style.display = 'none';
         document.getElementById('step2').style.display = 'block';
         loadSocieties();
       }
     }
 
+    // 🧠 Step 2: Load societies from Supabase
     async function loadSocieties() {
       const { data, error } = await supabase.from('society').select('*');
       const dropdown = document.getElementById('society');
@@ -104,6 +113,7 @@
       });
     }
 
+    // 🧠 Step 3: Register new user
     async function registerUser() {
       const name = document.getElementById('name').value.trim();
       const mobile = document.getElementById('mobile').value.trim();
@@ -130,7 +140,8 @@
         alert('Error registering user: ' + error.message);
       } else {
         alert('Registration successful!');
-        // Redirect or show success message
+        // ✅ Redirect after registration
+        window.location.href = 'place-order.html?mobile=' + mobile;
       }
     }
   </script>
