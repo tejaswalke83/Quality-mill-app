@@ -124,16 +124,14 @@
         <div id="flat-error" class="error"></div>
       </div>
 
-      <div class="form-group">
-        <label for="milling">Milling Preference</label>
-        <select id="milling">
-          <option value="">Select</option>
-          <option value="fine">Fine</option>
-          <option value="medium">Medium</option>
-          <option value="coarse">Coarse</option>
-        </select>
-        <div id="milling-error" class="error"></div>
-      </div>
+    <div class="form-group">
+  <label>Milling Preference</label><br/>
+  <label><input type="radio" name="milling" value="fine" /> Fine</label><br/>
+  <label><input type="radio" name="milling" value="medium" /> Medium</label><br/>
+  <label><input type="radio" name="milling" value="coarse" /> Coarse</label>
+  <div id="milling-error" class="error"></div>
+</div>
+
 
       <button onclick="registerUser()">Register</button>
     </div>
@@ -210,7 +208,8 @@
       const societyId = document.getElementById('society').value;
       const flatNumber = document.getElementById('flat').value.trim();
       const wing = document.getElementById('wing').value.trim();
-      const millingPreference = document.getElementById('milling').value;
+      const millingPreference = document.querySelector('input[name="milling"]:checked')?.value || '';
+
 
       clearErrors();
 
