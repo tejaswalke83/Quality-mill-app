@@ -1,6 +1,13 @@
-<!DOCTYPE html>
+
+   
+   <!DOCTYPE html>
 <html>
+  
 <head>
+   //const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.com'; // replace
+    //const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'; // replace
+  //  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
   <title>User Registration</title>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -33,7 +40,7 @@
 
   <div id="step1">
     <h2>Enter Mobile Number</h2>
-    <input type="text" id="phone" placeholder="Mobile Number" />
+    <input type="text" id="mobile" placeholder="Mobile Number" />
     <i class="fas fa-arrow-circle-right icon-button" onclick="checkUser()"></i>
     <div id="spinner" class="spinner">Checking...</div>
   </div>
@@ -47,13 +54,13 @@
     <input type="text" id="flat" placeholder="Flat Number" />
     <input type="text" id="wing" placeholder="Wing" />
     
-    <select id="millingPreference">
+    <select id="milling">
       <option value="">Select Milling Preference</option>
       <option value="fine">Fine</option>
       <option value="medium">Medium</option>
       <option value="coarse">Coarse</option>
     </select>
-
+    
     <button onclick="registerUser()">Register</button>
   </div>
 
@@ -64,67 +71,79 @@
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     async function checkUser() {
-      const phone = document.getElementById('phone').value.trim();
+      const mobile = document.getElementById('mobile').value.trim();
       const spinner = document.getElementById('spinner');
-       alert("before spinner");
       spinner.style.display = 'block';
- alert("after spinner");
-      if (!phone) {
+
+      if (!mobile) {
         alert("Please enter a mobile number");
         spinner.style.display = 'none';
         return;
       }
 
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone_number', phone)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone_number', mobile)
+          .maybeSingle(); // returns null if not found
 
-      spinner.style.display = 'none';
+        spinner.style.display = 'none';
 
-      if (data) {
-        alert('Welcome back ' + (data.name || 'user') + '!');
-        // You can redirect or show another message here
-      } else {
-        document.getElementById('step1').style.display = 'none';
-        document.getElementById('step2').style.display = 'block';
+        if (error) {
+          console.error(error);
+          alert('Something went wrong while checking user.');
+          return;
+        }
+
+        if (data) {
+          alert('Welcome back, ' + (data.name || 'user') + '!');
+          // You can redirect or continue here
+        } else {
+          document.getElementById('step1').style.display = 'none';
+          document.getElementById('step2').style.display = 'block';
+        }
+      } catch (err) {
+        spinner.style.display = 'none';
+        console.error(err);
+        alert('Unexpected error occurred.');
       }
     }
 
     async function registerUser() {
       const name = document.getElementById('name').value.trim();
-      const phone = document.getElementById('phone').value.trim();
-      const society = document.getElementById('society').value.trim();
+      const phone_number = document.getElementById('mobile').value.trim();
+      const society_name = document.getElementById('society').value.trim();
       const area = document.getElementById('area').value.trim();
       const city = document.getElementById('city').value.trim();
-      const flat = document.getElementById('flat').value.trim();
+      const flat_number = document.getElementById('flat').value.trim();
       const wing = document.getElementById('wing').value.trim();
-      const millingPref = document.getElementById('millingPreference').value;
+      const milling_preference = document.getElementById('milling').value;
 
-      if (!name || !phone || !society || !area || !city || !flat || !wing || !millingPref) {
+      if (!name || !phone_number || !society_name || !area || !city || !flat_number || !wing || !milling_preference) {
         alert("Please fill all fields.");
         return;
       }
 
       const { error } = await supabase.from('customers').insert([
         {
-          name: name,
-          phone_number: phone,
-          society_name: society,
-          area: area,
-          city: city,
-          flat_number: flat,
-          wing: wing,
-          milling_preference: millingPref
+          phone_number,
+          name,
+          society_name,
+          area,
+          city,
+          flat_number,
+          wing,
+          milling_preference
         }
       ]);
 
       if (error) {
         alert('Error registering user: ' + error.message);
+        console.error(error);
       } else {
         alert('Registration successful!');
-        // Redirect or show confirmation
+        location.reload(); // or redirect
       }
     }
   </script>
