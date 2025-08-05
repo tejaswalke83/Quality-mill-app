@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Registration</title>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input, select {
+      padding: 10px;
+      margin: 10px 0;
+      width: 100%;
+      max-width: 300px;
+      font-size: 16px;
+    }
+    .icon-button {
+      cursor: pointer;
+      font-size: 28px;
+      color: #007bff;
+      margin-left: 10px;
+    }
+    .spinner {
+      display: none;
+      font-size: 18px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="step1">
+    <h2>Enter Mobile Number</h2>
+    <input type="text" id="mobile" placeholder="Mobile Number" />
+    <i class="fas fa-arrow-circle-right icon-button" onclick="checkUser()"></i>
+    <div id="spinner" class="spinner">Checking...</div>
+  </div>
+
+  <div id="step2" style="display: none;">
+    <h2>Complete Your Details</h2>
+    <input type="text" id="name" placeholder="Name" />
+    
+    <select id="society">
+      <option>Loading societies...</option>
+    </select>
+    
+    <input type="text" id="flat" placeholder="Flat Number" />
+    <input type="text" id="wing" placeholder="Wing" />
+    <button onclick="registerUser()">Register</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const supabaseUrl = 'https://your-project.supabase.co'; // Replace with your project URL
+    const supabaseKey = 'public-anon-key'; // Replace with your anon/public key
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function checkUser() {
+      const mobile = document.getElementById('mobile').value.trim();
+      const spinner = document.getElementById('spinner');
+      spinner.style.display = 'block';
+
+      if (!mobile) {
+        alert("Please enter a mobile number");
+        spinner.style.display = 'none';
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('customer')
+        .select('*')
+        .eq('mobile', mobile)
+        .single();
+
+      spinner.style.display = 'none';
+
+      if (data) {
+        alert('Welcome back ' + data.name + '!');
+        // Redirect or proceed to next section
+      } else {
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+        loadSocieties();
+      }
+    }
+
+    async function loadSocieties() {
+      const { data, error } = await supabase.from('society').select('*');
+      const dropdown = document.getElementById('society');
+      dropdown.innerHTML = '';
+
+      if (error) {
+        dropdown.innerHTML = '<option>Error loading societies</option>';
+        return;
+      }
+
+      data.forEach((s) => {
+        const option = document.createElement('option');
+        option.value = s.id;
+        option.textContent = s.name;
+        dropdown.appendChild(option);
+      });
+    }
+
+    async function registerUser() {
+      const name = document.getElementById('name').value.trim();
+      const mobile = document.getElementById('mobile').value.trim();
+      const societyId = document.getElementById('society').value;
+      const flat = document.getElementById('flat').value.trim();
+      const wing = document.getElementById('wing').value.trim();
+
+      if (!name || !mobile || !flat || !wing || !societyId) {
+        alert("Please fill all fields.");
+        return;
+      }
+
+      const { error } = await supabase.from('customer').insert([
+        {
+          name: name,
+          mobile: mobile,
+          society_id: societyId,
+          flat_number: flat,
+          wing: wing,
+        }
+      ]);
+
+      if (error) {
+        alert('Error registering user: ' + error.message);
+      } else {
+        alert('Registration successful!');
+        // Redirect or show success message
+      }
+    }
+  </script>
+
+</body>
+</html>
