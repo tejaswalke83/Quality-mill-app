@@ -59,15 +59,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    const supabaseUrl = ' https://odczzymxgjsjhbufffxm.supabase.com'; // replace
+    const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.com'; // replace
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'; // replace
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     async function checkUser() {
       const phone = document.getElementById('phone').value.trim();
       const spinner = document.getElementById('spinner');
+       alert("before spinner");
       spinner.style.display = 'block';
-
+ alert("after spinner");
       if (!phone) {
         alert("Please enter a mobile number");
         spinner.style.display = 'none';
