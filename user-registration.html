@@ -1,8 +1,4 @@
 
-  const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,12 +18,22 @@
   <h2>User Registration</h2>
 
   <!-- Mobile number input -->
-  <div id="mobile-section" class="form-group">
+<!--   <div id="mobile-section" class="form-group">
     <label for="mobile">Mobile Number</label><br/>
     <input type="text" id="mobile" />
     <div id="mobile-error" class="error"></div><br/>
     <button onclick="checkUser()">Proceed</button>
+  </div> -->
+
+<div id="mobile-section" class="form-group">
+  <label for="mobile">Mobile Number</label><br/>
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <input type="text" id="mobile" />
+    <button onclick="checkUser()">Proceed</button>
   </div>
+  <div id="mobile-error" class="error"></div>
+</div>
+  
 
   <!-- Registration form (hidden by default) -->
   <div id="register-section" class="hidden">
