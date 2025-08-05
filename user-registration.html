@@ -300,15 +300,15 @@
 
   <h2>User Registration</h2>
 
-<!--   <!-- Mobile number input -->
-<div id="mobile-section" class="form-group">
+<!--    Mobile number input -->
+<!-- <div id="mobile-section" class="form-group">
   <label for="mobile">Mobile Number</label><br/>
   <div style="display: flex; align-items: center; gap: 10px;">
     <input type="text" id="mobile" />
     <button onclick="checkUser()">Proceed</button>
   </div>
   <div id="mobile-error" class="error"></div>
-</div>
+</div> -->
    -->
 
   <!-- Registration form (hidden by default) -->
@@ -354,10 +354,10 @@
   </div>
 
   <!-- Output -->
-  <div id="status" class="form-group"></div>
+<!--   <div id="status" class="form-group"></div> -->
 
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!--   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
@@ -370,7 +370,7 @@
         document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
         return;
       }
-
+ -->
       document.getElementById('status').innerText = "Checking user...";
       try {
         const { data, error } = await supabase
@@ -405,7 +405,7 @@
         if (error) throw error;
 
         const dropdown = document.getElementById('society');
-        dropdown.innerHTML = '<option value="">Select</option>';
+<!--         dropdown.innerHTML = '<option value="">Select</option>'; -->
         data.forEach(soc => {
           const opt = document.createElement('option');
           opt.value = soc.id;
@@ -528,7 +528,7 @@
 //       ['mobile-error', 'name-error', 'society-error', 'wing-error', 'flat-error', 'milling-error']
 //         .forEach(id => document.getElementById(id).innerText = '');
 //     }
-//   </script>
+<!-- //   </script>
 // </body>
-// </html>
+// </html> -->
  -->
