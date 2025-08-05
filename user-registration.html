@@ -26,113 +26,96 @@
       display: none;
       font-size: 18px;
       margin-top: 10px;
-      color: #555;
     }
   </style>
 </head>
 <body>
 
-  <!-- Step 1: Mobile Number -->
   <div id="step1">
     <h2>Enter Mobile Number</h2>
-    <input type="text" id="mobile" placeholder="Mobile Number" />
+    <input type="text" id="phone" placeholder="Mobile Number" />
     <i class="fas fa-arrow-circle-right icon-button" onclick="checkUser()"></i>
     <div id="spinner" class="spinner">Checking...</div>
   </div>
 
-  <!-- Step 2: Registration Form -->
   <div id="step2" style="display: none;">
     <h2>Complete Your Details</h2>
     <input type="text" id="name" placeholder="Name" />
-    
-    <select id="society">
-      <option>Loading societies...</option>
-    </select>
-    
+    <input type="text" id="society" placeholder="Society Name" />
+    <input type="text" id="area" placeholder="Area" />
+    <input type="text" id="city" placeholder="City" />
     <input type="text" id="flat" placeholder="Flat Number" />
     <input type="text" id="wing" placeholder="Wing" />
+    
+    <select id="millingPreference">
+      <option value="">Select Milling Preference</option>
+      <option value="fine">Fine</option>
+      <option value="medium">Medium</option>
+      <option value="coarse">Coarse</option>
+    </select>
+
     <button onclick="registerUser()">Register</button>
   </div>
 
-  <!-- Supabase + Logic -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    // 🧩 Replace these with your actual Supabase values
-    const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+    const supabaseUrl = ' https://odczzymxgjsjhbufffxm.supabase.com'; // replace
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'; // replace
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    // 🧠 Step 1: Check if user exists
     async function checkUser() {
-      const mobile = document.getElementById('mobile').value.trim();
+      const phone = document.getElementById('phone').value.trim();
       const spinner = document.getElementById('spinner');
       spinner.style.display = 'block';
 
-      if (!mobile) {
+      if (!phone) {
         alert("Please enter a mobile number");
         spinner.style.display = 'none';
         return;
       }
 
       const { data, error } = await supabase
-        .from('customer')
+        .from('customers')
         .select('*')
-        .eq('mobile', mobile)
+        .eq('phone_number', phone)
         .single();
 
       spinner.style.display = 'none';
 
       if (data) {
-        alert('Welcome back ' + data.name + '!');
-        // ✅ Redirect to order page
-        window.location.href = 'place-order.html?mobile=' + mobile;
+        alert('Welcome back ' + (data.name || 'user') + '!');
+        // You can redirect or show another message here
       } else {
-        // 🚧 Show registration form
         document.getElementById('step1').style.display = 'none';
         document.getElementById('step2').style.display = 'block';
-        loadSocieties();
       }
     }
 
-    // 🧠 Step 2: Load societies from Supabase
-    async function loadSocieties() {
-      const { data, error } = await supabase.from('society').select('*');
-      const dropdown = document.getElementById('society');
-      dropdown.innerHTML = '';
-
-      if (error) {
-        dropdown.innerHTML = '<option>Error loading societies</option>';
-        return;
-      }
-
-      data.forEach((s) => {
-        const option = document.createElement('option');
-        option.value = s.id;
-        option.textContent = s.name;
-        dropdown.appendChild(option);
-      });
-    }
-
-    // 🧠 Step 3: Register new user
     async function registerUser() {
       const name = document.getElementById('name').value.trim();
-      const mobile = document.getElementById('mobile').value.trim();
-      const societyId = document.getElementById('society').value;
+      const phone = document.getElementById('phone').value.trim();
+      const society = document.getElementById('society').value.trim();
+      const area = document.getElementById('area').value.trim();
+      const city = document.getElementById('city').value.trim();
       const flat = document.getElementById('flat').value.trim();
       const wing = document.getElementById('wing').value.trim();
+      const millingPref = document.getElementById('millingPreference').value;
 
-      if (!name || !mobile || !flat || !wing || !societyId) {
+      if (!name || !phone || !society || !area || !city || !flat || !wing || !millingPref) {
         alert("Please fill all fields.");
         return;
       }
 
-      const { error } = await supabase.from('customer').insert([
+      const { error } = await supabase.from('customers').insert([
         {
           name: name,
-          mobile: mobile,
-          society_id: societyId,
+          phone_number: phone,
+          society_name: society,
+          area: area,
+          city: city,
           flat_number: flat,
           wing: wing,
+          milling_preference: millingPref
         }
       ]);
 
@@ -140,8 +123,7 @@
         alert('Error registering user: ' + error.message);
       } else {
         alert('Registration successful!');
-        // ✅ Redirect after registration
-        window.location.href = 'place-order.html?mobile=' + mobile;
+        // Redirect or show confirmation
       }
     }
   </script>
