@@ -188,14 +188,44 @@ async function registerUser() {
 
     try {
       alert("societyId"+ societyId);
-        const { error } = await supabase.from('customers').insert([{
-            phone_number: phoneNumber,
-            name: name,
-            society_id: societyId,
-            flat_number: flatNumber,
-            wing: wing,
-            milling_preference: millingPreference
-        }]);
+
+    // Fetch society name from selected society ID
+const { data: societyData, error: societyFetchError } = await supabase
+  .from('societies')
+  .select('name')
+  .eq('id', societyId)
+  .single();
+
+if (societyFetchError || !societyData) {
+    console.error("Error fetching society name:", societyFetchError);
+    showError("Failed to fetch society details.");
+    return;
+}
+
+const societyName = societyData.name;
+
+// Now insert with both society_id and society_name
+const { error } = await supabase.from('customers').insert([{
+    phone_number: phoneNumber,
+    name: name,
+    society_id: societyId,
+    society_name: societyName, // this fixes your problem
+    flat_number: flatNumber,
+    wing: wing,
+    milling_preference: millingPreference
+}]);
+
+
+
+      
+        // const { error } = await supabase.from('customers').insert([{
+        //     phone_number: phoneNumber,
+        //     name: name,
+        //     society_id: societyId,
+        //     flat_number: flatNumber,
+        //     wing: wing,
+        //     milling_preference: millingPreference
+        // }]);
 
         if (error) {
             console.error("Error registering user: ", error);
