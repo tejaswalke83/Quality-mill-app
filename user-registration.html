@@ -300,7 +300,7 @@
 
   <h2>User Registration</h2>
 
-  <!-- Mobile number input -->
+<!--   <!-- Mobile number input -->
 <div id="mobile-section" class="form-group">
   <label for="mobile">Mobile Number</label><br/>
   <div style="display: flex; align-items: center; gap: 10px;">
@@ -309,10 +309,10 @@
   </div>
   <div id="mobile-error" class="error"></div>
 </div>
-  
+   -->
 
   <!-- Registration form (hidden by default) -->
-  <div id="register-section" class="hidden">
+<!--   <div id="register-section" class="hidden">
     <div class="form-group">
       <label for="name">Full Name</label><br/>
       <input type="text" id="name" />
@@ -416,7 +416,7 @@
         console.error('Error loading societies:', err);
         alert("Error loading societies. Check console for details.");
       }
-    }
+    } -->
 
     // async function registerUser() {
     //   clearErrors();
@@ -454,48 +454,48 @@
     //   }
     // }
 
-async function registerUser() {
-    const phoneNumber = document.getElementById('mobile').value.trim();
-    const name = document.getElementById('name').value.trim();
-    const societyId = document.getElementById('society').value;
-    const flatNumber = document.getElementById('flat').value.trim();
-    const wing = document.getElementById('wing').value.trim();
-    const millingPreference = document.getElementById('milling').value;
+// async function registerUser() {
+//     const phoneNumber = document.getElementById('mobile').value.trim();
+//     const name = document.getElementById('name').value.trim();
+//     const societyId = document.getElementById('society').value;
+//     const flatNumber = document.getElementById('flat').value.trim();
+//     const wing = document.getElementById('wing').value.trim();
+//     const millingPreference = document.getElementById('milling').value;
 
-    // Inline validation
-    if (!phoneNumber || !name || !societyId || !flatNumber || !wing || !millingPreference) {
-        showError("Please fill in all required fields.");
-        return;
-    }
+//     // Inline validation
+//     if (!phoneNumber || !name || !societyId || !flatNumber || !wing || !millingPreference) {
+//         showError("Please fill in all required fields.");
+//         return;
+//     }
 
-    try {
-      alert("societyId"+ societyId);
+//     try {
+//       alert("societyId"+ societyId);
 
-    // Fetch society name from selected society ID
-const { data: societyData, error: societyFetchError } = await supabase
-  .from('societies')
-  .select('name')
-  .eq('id', societyId)
-  .single();
+//     // Fetch society name from selected society ID
+// const { data: societyData, error: societyFetchError } = await supabase
+//   .from('societies')
+//   .select('name')
+//   .eq('id', societyId)
+//   .single();
 
-if (societyFetchError || !societyData) {
-    console.error("Error fetching society name:", societyFetchError);
-    showError("Failed to fetch society details.");
-    return;
-}
+// if (societyFetchError || !societyData) {
+//     console.error("Error fetching society name:", societyFetchError);
+//     showError("Failed to fetch society details.");
+//     return;
+// }
 
-const societyName = societyData.name;
+// const societyName = societyData.name;
 
-// Now insert with both society_id and society_name
-const { error } = await supabase.from('customers').insert([{
-    phone_number: phoneNumber,
-    name: name,
-    society_id: societyId,
-    society_name: societyName, // this fixes your problem
-    flat_number: flatNumber,
-    wing: wing,
-    milling_preference: millingPreference
-}]);
+// // Now insert with both society_id and society_name
+// const { error } = await supabase.from('customers').insert([{
+//     phone_number: phoneNumber,
+//     name: name,
+//     society_id: societyId,
+//     society_name: societyName, // this fixes your problem
+//     flat_number: flatNumber,
+//     wing: wing,
+//     milling_preference: millingPreference
+// }]);
 
 
 
@@ -509,26 +509,26 @@ const { error } = await supabase.from('customers').insert([{
         //     milling_preference: millingPreference
         // }]);
 
-        if (error) {
-            console.error("Error registering user: ", error);
-            showError("Error registering user. Please try again.");
-            return;
-        }
+//         if (error) {
+//             console.error("Error registering user: ", error);
+//             showError("Error registering user. Please try again.");
+//             return;
+//         }
 
-        alert("User registered successfully!");
-        location.reload();
-    } catch (err) {
-        console.error("Unexpected error during registration:", err);
-        showError("Unexpected error. Please try again.");
-    }
-}
+//         alert("User registered successfully!");
+//         location.reload();
+//     } catch (err) {
+//         console.error("Unexpected error during registration:", err);
+//         showError("Unexpected error. Please try again.");
+//     }
+// }
 
     
-    function clearErrors() {
-      ['mobile-error', 'name-error', 'society-error', 'wing-error', 'flat-error', 'milling-error']
-        .forEach(id => document.getElementById(id).innerText = '');
-    }
-  </script>
-</body>
-</html>
+//     function clearErrors() {
+//       ['mobile-error', 'name-error', 'society-error', 'wing-error', 'flat-error', 'milling-error']
+//         .forEach(id => document.getElementById(id).innerText = '');
+//     }
+//   </script>
+// </body>
+// </html>
  -->
