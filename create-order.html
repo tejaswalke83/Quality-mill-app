@@ -124,7 +124,7 @@
 
    <button class="outlined" onclick="addRow()">+ Add Grain</button>
 
-  <hr><br>
+ <br> <hr>
     <div class="total-section">
       Total Price: ₹<span id="total-price">0</span>
     </div>
@@ -182,10 +182,20 @@
     }
 
 
-  window.addRow = function () {
+ window.addRow = function () {
   const row = document.createElement('div');
   row.className = 'row';
-  row.style.marginBottom = "10px"; // space between rows
+  row.style.marginBottom = "12px";
+
+  // Card-like styling
+  row.style.border = "1px solid #ccc";
+  row.style.padding = "12px";
+  row.style.borderRadius = "8px";
+  row.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.05)";
+  row.style.display = "flex";
+  row.style.flexWrap = "wrap";
+  row.style.gap = "10px";
+  row.style.alignItems = "center";
 
   row.innerHTML = `
     <select onchange="updatePrice(this)">
@@ -195,15 +205,16 @@
 
     <div class="price">₹<span>0</span>/kg</div>
 
-    <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
+    <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" style="flex: 1; min-width: 80px;" />
 
     <div class="total">₹<span>0</span></div>
 
-    <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+    <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" 
+      style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
       <i class="fas fa-trash-alt"></i>
     </button>
 
-    <div class="error"></div>
+    <div class="error" style="flex-basis: 100%; color: red;"></div>
   `;
 
   orderRows.appendChild(row);
