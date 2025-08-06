@@ -181,33 +181,63 @@
       for (let i = 0; i < 1; i++) addRow();
     }
 
-   window.addRow = function () {
 
-      const row = document.createElement('div');
-      row.className = 'row';
+  window.addRow = function () {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.style.marginBottom = "10px"; // space between rows
 
-      row.innerHTML = `
-        <select onchange="updatePrice(this)">
-          <option value="">Select Grain</option>
-          ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-        </select>
+  row.innerHTML = `
+    <select onchange="updatePrice(this)">
+      <option value="">Select Grain</option>
+      ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+    </select>
 
-       // <div class="price">₹<span>0</span>/kg</div>
+    <div class="price">₹<span>0</span>/kg</div>
 
-        <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
+    <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
 
-        <div class="total">₹<span>0</span></div>
+    <div class="total">₹<span>0</span></div>
 
-       <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
-  <i class="fas fa-trash-alt"></i>
-</button>
+    <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+      <i class="fas fa-trash-alt"></i>
+    </button>
+
+    <div class="error"></div>
+  `;
+
+  orderRows.appendChild(row);
+}
+
+    
+
+//    window.addRow = function () {
+
+//       const row = document.createElement('div');
+//       row.className = 'row';
+
+//       row.innerHTML = `
+//         <select onchange="updatePrice(this)">
+//           <option value="">Select Grain</option>
+//           ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+//         </select>
+
+//        // <div class="price">₹<span>0</span>/kg</div>
+
+//         <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
+
+//         <div class="total">₹<span>0</span></div>
+
+//        <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+//   <i class="fas fa-trash-alt"></i>
+// </button>
 
 
-        <div class="error"></div>
-      `;
+//         <div class="error"></div>
+//       `;
 
-      orderRows.appendChild(row);
-    }
+//       orderRows.appendChild(row);
+//     }
 
     window.updatePrice = function(selectEl) {
       const price = selectEl.selectedOptions[0]?.dataset.price || 0;
