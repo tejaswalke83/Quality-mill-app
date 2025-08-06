@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Dashboard</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1rem;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .search-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .search-filter input[type="text"] {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    .status-filters label {
+      margin-right: 1rem;
+    }
+    .orders {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .card {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .card-header {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .card p {
+      margin: 0.2rem 0;
+    }
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Order Dashboard</h1>
+  <div class="search-filter">
+    <input type="text" id="searchInput" placeholder="Search by name or phone..." oninput="filterOrders()" />
+    <button onclick="resetSearch()">Reset</button>
+  </div>
+
+  <div class="status-filters">
+    <label><input type="radio" name="statusFilter" value="all" checked onchange="filterOrders()" /> All</label>
+    <label><input type="radio" name="statusFilter" value="new" onchange="filterOrders()" /> New</label>
+    <label><input type="radio" name="statusFilter" value="in_progress" onchange="filterOrders()" /> In Progress</label>
+    <label><input type="radio" name="statusFilter" value="milling_completed" onchange="filterOrders()" /> Milling Completed</label>
+    <label><input type="radio" name="statusFilter" value="delivered" onchange="filterOrders()" /> Delivered</label>
+  </div>
+
+  <div class="orders" id="ordersContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const supabase = supabase.createClient('https://YOUR_PROJECT.supabase.co', 'YOUR_PUBLIC_ANON_KEY');
+    let allOrders = [];
+
+    async function fetchOrders() {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id, total_price, grain_details, status, created_at,
+          customer:customer_id(name, phone)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching orders:', error);
+        return;
+      }
+
+      allOrders = data;
+      renderOrders();
+    }
+
+    function getStatusButtonText(status) {
+      switch (status) {
+        case 'new': return 'Mark In Progress';
+        case 'in_progress': return 'Milling Completed';
+        case 'milling_completed': return 'Delivery Completed';
+        default: return null;
+      }
+    }
+
+    async function updateStatus(orderId, newStatus) {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+      if (!error) fetchOrders();
+    }
+
+    function renderOrders() {
+      const container = document.getElementById('ordersContainer');
+      container.innerHTML = '';
+
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const selectedStatus = document.querySelector('input[name="statusFilter"]:checked').value;
+
+      const filtered = allOrders.filter(order => {
+        const matchSearch =
+          order.customer?.name?.toLowerCase().includes(searchTerm) ||
+          order.customer?.phone?.includes(searchTerm);
+        const matchStatus = selectedStatus === 'all' || order.status === selectedStatus;
+        return matchSearch && matchStatus;
+      });
+
+      filtered.forEach(order => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const grains = order.grain_details?.map(g => `${g.grain}: ${g.quantity}kg`).join(', ') || 'N/A';
+        const btnText = getStatusButtonText(order.status);
+        const nextStatus =
+          order.status === 'new' ? 'in_progress' :
+          order.status === 'in_progress' ? 'milling_completed' :
+          order.status === 'milling_completed' ? 'delivered' : null;
+
+        card.innerHTML = `
+          <div class="card-header">Order #${order.token_number || 'N/A'} - ${order.customer?.name || 'Unknown'}</div>
+          <p>Phone: ${order.customer?.phone || 'N/A'}</p>
+          <p>Grains: ${grains}</p>
+          <p>Total: ₹${order.total_price || 0}</p>
+          <p>Status: ${order.status.replace('_', ' ')}</p>
+          <p>Created: ${new Date(order.created_at).toLocaleString()}</p>
+          ${btnText ? `<button onclick="updateStatus('${order.id}', '${nextStatus}')">${btnText}</button>` : ''}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function filterOrders() {
+      renderOrders();
+    }
+
+    function resetSearch() {
+      document.getElementById('searchInput').value = '';
+      renderOrders();
+    }
+
+    fetchOrders();
+  </script>
+</body>
+</html>
