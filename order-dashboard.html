@@ -2,172 +2,175 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Order Dashboard</title>
   <style>
     body {
-      font-family: sans-serif;
-      padding: 1rem;
-      background-color: #f9f9f9;
+      font-family: Arial, sans-serif;
+      padding: 20px;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 1rem;
+    .search-filter-bar {
+      margin-bottom: 20px;
     }
-    .search-filter {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-    }
-    .search-filter input[type="text"] {
-      flex: 1;
-      padding: 0.5rem;
-      font-size: 1rem;
-    }
-    .status-filters label {
-      margin-right: 1rem;
-    }
-    .orders {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .card {
-      background: white;
-      padding: 1rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    .card-header {
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-    }
-    .card p {
-      margin: 0.2rem 0;
+    input[type="text"] {
+      padding: 8px;
+      width: 200px;
+      margin-right: 10px;
     }
     button {
-      margin-top: 0.5rem;
-      padding: 0.5rem 1rem;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+      padding: 8px 12px;
+      margin-left: 5px;
     }
-    button:hover {
-      background-color: #0056b3;
+    .radio-group label {
+      margin-right: 15px;
+    }
+    .card {
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 2px 2px 5px #eee;
+    }
+    .card h3 {
+      margin: 0 0 10px;
+    }
+    .status {
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
+
   <h1>Order Dashboard</h1>
-  <div class="search-filter">
-    <input type="text" id="searchInput" placeholder="Search by name or phone..." oninput="filterOrders()" />
-    <button onclick="resetSearch()">Reset</button>
+
+ <div class="search-filter-section">
+    <div>
+      <input type="text" id="searchInput" placeholder="Search by name or phone">
+      <button onclick="resetSearch()">Reset</button>
+    </div>
+
+    <div class="filter-section">
+      <span><strong>Filter by:</strong></span>
+      <label><input type="radio" name="statusFilter" value="all" checked onchange="filterOrders()"> All</label>
+      <label><input type="radio" name="statusFilter" value="new" onchange="filterOrders()"> New</label>
+      <label><input type="radio" name="statusFilter" value="in_progress" onchange="filterOrders()"> In Progress</label>
+      <label><input type="radio" name="statusFilter" value="milling_completed" onchange="filterOrders()"> Milling Completed</label>
+      <label><input type="radio" name="statusFilter" value="delivered" onchange="filterOrders()"> Delivered</label>
+    </div>
   </div>
 
-  <div class="status-filters">
-    <label><input type="radio" name="statusFilter" value="all" checked onchange="filterOrders()" /> All</label>
-    <label><input type="radio" name="statusFilter" value="new" onchange="filterOrders()" /> New</label>
-    <label><input type="radio" name="statusFilter" value="in_progress" onchange="filterOrders()" /> In Progress</label>
-    <label><input type="radio" name="statusFilter" value="milling_completed" onchange="filterOrders()" /> Milling Completed</label>
-    <label><input type="radio" name="statusFilter" value="delivered" onchange="filterOrders()" /> Delivered</label>
-  </div>
+  <div id="orderList"></div>
 
-  <div class="orders" id="ordersContainer"></div>
+  <!-- Supabase CDN -->
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script>
-    const supabase = supabase.createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
+    const SUPABASE_URL = "https://odczzymxgjsjhbufffxm.supabase.co"; // ✅ Replace with your actual Supabase URL
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI"; // ✅ Replace with your actual anon key
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     let allOrders = [];
 
-    async function fetchOrders() {
+    async function loadOrders() {
       const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id, total_price, grain_details, status, created_at,
-          customer:customer_id(name, phone)
-        `)
-        .order('created_at', { ascending: false });
+        .from("orders")
+        .select("*, customers(name, phone)");
 
       if (error) {
-        console.error('Error fetching orders:', error);
+        console.error("Error loading orders:", error);
         return;
       }
 
       allOrders = data;
-      renderOrders();
+      displayOrders(data);
     }
 
-    function getStatusButtonText(status) {
-      switch (status) {
-        case 'new': return 'Mark In Progress';
-        case 'in_progress': return 'Milling Completed';
-        case 'milling_completed': return 'Delivery Completed';
-        default: return null;
+    function displayOrders(orders) {
+      const container = document.getElementById("orderList");
+      container.innerHTML = "";
+
+      if (orders.length === 0) {
+        container.innerHTML = "<p>No orders found.</p>";
+        return;
       }
-    }
 
-    async function updateStatus(orderId, newStatus) {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-      if (!error) fetchOrders();
-    }
+      orders.forEach(order => {
+        const card = document.createElement("div");
+        card.className = "card";
 
-    function renderOrders() {
-      const container = document.getElementById('ordersContainer');
-      container.innerHTML = '';
+        const customer = order.customers || {};
+        const status = order.status;
 
-      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-      const selectedStatus = document.querySelector('input[name="statusFilter"]:checked').value;
+        let nextAction = "";
+        let nextStatus = "";
 
-      const filtered = allOrders.filter(order => {
-        const matchSearch =
-          order.customer?.name?.toLowerCase().includes(searchTerm) ||
-          order.customer?.phone?.includes(searchTerm);
-        const matchStatus = selectedStatus === 'all' || order.status === selectedStatus;
-        return matchSearch && matchStatus;
-      });
-
-      filtered.forEach(order => {
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        const grains = order.grain_details?.map(g => `${g.grain}: ${g.quantity}kg`).join(', ') || 'N/A';
-        const btnText = getStatusButtonText(order.status);
-        const nextStatus =
-          order.status === 'new' ? 'in_progress' :
-          order.status === 'in_progress' ? 'milling_completed' :
-          order.status === 'milling_completed' ? 'delivered' : null;
+        if (status === "new") {
+          nextAction = "Mark In Progress";
+          nextStatus = "in_progress";
+        } else if (status === "in_progress") {
+          nextAction = "Milling Completed";
+          nextStatus = "milling_completed";
+        } else if (status === "milling_completed") {
+          nextAction = "Delivery Completed";
+          nextStatus = "delivered";
+        }
 
         card.innerHTML = `
-          <div class="card-header">Order #${order.token_number || 'N/A'} - ${order.customer?.name || 'Unknown'}</div>
-          <p>Phone: ${order.customer?.phone || 'N/A'}</p>
-          <p>Grains: ${grains}</p>
-          <p>Total: ₹${order.total_price || 0}</p>
-          <p>Status: ${order.status.replace('_', ' ')}</p>
-          <p>Created: ${new Date(order.created_at).toLocaleString()}</p>
-          ${btnText ? `<button onclick="updateStatus('${order.id}', '${nextStatus}')">${btnText}</button>` : ''}
+          <h3>${customer.name || "Unknown"} (${customer.phone || "-"})</h3>
+          <p><strong>Token:</strong> ${order.token_number}</p>
+          <p><strong>Status:</strong> <span class="status">${status.replace("_", " ").toUpperCase()}</span></p>
+          <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+          ${nextAction ? `<button onclick="updateOrderStatus('${order.id}', '${nextStatus}')">${nextAction}</button>` : ""}
         `;
 
         container.appendChild(card);
       });
     }
 
-    function filterOrders() {
-      renderOrders();
+    async function updateOrderStatus(orderId, newStatus) {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", orderId);
+
+      if (error) {
+        alert("Failed to update status");
+        console.error(error);
+      } else {
+        loadOrders();
+      }
+    }
+
+    function applyFilters() {
+      const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
+      const selectedStatus = document.querySelector('input[name="statusFilter"]:checked').value;
+
+      let filtered = allOrders;
+
+      if (searchText !== "") {
+        filtered = filtered.filter(o => {
+          const name = o.customers?.name?.toLowerCase() || "";
+          const phone = o.customers?.phone || "";
+          return name.includes(searchText) || phone.includes(searchText);
+        });
+      }
+
+      if (selectedStatus !== "all") {
+        filtered = filtered.filter(o => o.status === selectedStatus);
+      }
+
+      displayOrders(filtered);
     }
 
     function resetSearch() {
-      document.getElementById('searchInput').value = '';
-      renderOrders();
+      document.getElementById("searchInput").value = "";
+      document.querySelector('input[value="all"]').checked = true;
+      displayOrders(allOrders);
     }
 
-    fetchOrders();
+    // Initial load
+    loadOrders();
   </script>
+
 </body>
 </html>
