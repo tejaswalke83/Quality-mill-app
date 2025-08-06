@@ -173,7 +173,7 @@ async function checkUser() {
     
     console.log('Checking data from db:', data);
 
-    const { data1, error } = await supabase
+    const { data1, error1 } = await supabase
   .from('customers')
   .select('*');
 
