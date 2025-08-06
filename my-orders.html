@@ -164,6 +164,7 @@
     // Load on start
     await fetchCustomer();
     if (user) loadOrders();
+    window.loadOrders = loadOrders;
   </script>
 </body>
 </html>
