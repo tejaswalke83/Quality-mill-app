@@ -4,46 +4,83 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Order Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
+      padding: 1rem;
+      margin: 0;
     }
-    .search-filter-bar {
-      margin-bottom: 20px;
+
+    h1 {
+      text-align: center;
     }
-    input[type="text"] {
-      padding: 8px;
-      width: 200px;
-      margin-right: 10px;
+
+    .search-filter-section {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
-    button {
-      padding: 8px 12px;
-      margin-left: 5px;
+
+    .search-filter-section input[type="text"] {
+      padding: 0.5rem;
+      width: 100%;
+      max-width: 250px;
     }
-    .radio-group label {
-      margin-right: 15px;
+
+    .order-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
     }
-    .card {
+
+    .order-card {
       border: 1px solid #ccc;
       border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 15px;
-      box-shadow: 2px 2px 5px #eee;
+      padding: 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
-    .card h3 {
-      margin: 0 0 10px;
+
+    .order-card strong {
+      display: inline-block;
+      width: 140px;
     }
-    .status {
-      font-weight: bold;
+
+    .order-card button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .order-card button:hover {
+      background-color: #0056b3;
+    }
+
+    .filter-section {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    @media (min-width: 600px) {
+      .order-list {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
     }
   </style>
 </head>
 <body>
-
   <h1>Order Dashboard</h1>
 
- <div class="search-filter-section">
+  <div class="search-filter-section">
     <div>
       <input type="text" id="searchInput" placeholder="Search by name or phone">
       <button onclick="resetSearch()">Reset</button>
@@ -59,25 +96,26 @@
     </div>
   </div>
 
-  <div id="orderList"></div>
+  <div class="order-list" id="orderList"></div>
 
-  <!-- Supabase CDN -->
-  <script type="module">
-    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-
-    const SUPABASE_URL = "https://odczzymxgjsjhbufffxm.supabase.co"; // ✅ Replace with your actual Supabase URL
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI"; // ✅ Replace with your actual anon key
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <script>
+    const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let allOrders = [];
 
-    async function loadOrders() {
+    async function fetchOrders() {
       const { data, error } = await supabase
-        .from("orders")
-        .select("*, customers(name, phone)");
+        .from('orders')
+        .select(`
+          *,
+          customers(name, phone_number)
+        `)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Error loading orders:", error);
+        console.error('Error fetching orders:', error);
         return;
       }
 
@@ -86,91 +124,91 @@
     }
 
     function displayOrders(orders) {
-      const container = document.getElementById("orderList");
-      container.innerHTML = "";
+      const list = document.getElementById('orderList');
+      list.innerHTML = '';
 
       if (orders.length === 0) {
-        container.innerHTML = "<p>No orders found.</p>";
+        list.innerHTML = '<p>No orders found.</p>';
         return;
       }
 
       orders.forEach(order => {
-        const card = document.createElement("div");
-        card.className = "card";
-
         const customer = order.customers || {};
-        const status = order.status;
+        const grains = Object.entries(order.grain_details || {})
+          .map(([grain, qty]) => `${grain}: ${qty} kg`).join(', ');
 
-        let nextAction = "";
-        let nextStatus = "";
+        let statusBtnText = '';
+        if (order.status === 'new') statusBtnText = 'Mark In Progress';
+        else if (order.status === 'in_progress') statusBtnText = 'Milling Completed';
+        else if (order.status === 'milling_completed') statusBtnText = 'Delivery Completed';
 
-        if (status === "new") {
-          nextAction = "Mark In Progress";
-          nextStatus = "in_progress";
-        } else if (status === "in_progress") {
-          nextAction = "Milling Completed";
-          nextStatus = "milling_completed";
-        } else if (status === "milling_completed") {
-          nextAction = "Delivery Completed";
-          nextStatus = "delivered";
-        }
+        const card = document.createElement('div');
+        card.className = 'order-card';
 
         card.innerHTML = `
-          <h3>${customer.name || "Unknown"} (${customer.phone || "-"})</h3>
-          <p><strong>Token:</strong> ${order.token_number}</p>
-          <p><strong>Status:</strong> <span class="status">${status.replace("_", " ").toUpperCase()}</span></p>
-          <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-          ${nextAction ? `<button onclick="updateOrderStatus('${order.id}', '${nextStatus}')">${nextAction}</button>` : ""}
+          <p><strong>Name:</strong> ${customer.name || ''}</p>
+          <p><strong>Phone:</strong> ${customer.phone_number || ''}</p>
+          <p><strong>Order:</strong> ${grains}</p>
+          <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+          <p><strong>Status:</strong> ${order.status.replace('_', ' ')}</p>
+          <p><strong>Total Price:</strong> ₹${order.total_price}</p>
+          ${statusBtnText ? `<button onclick="updateStatus('${order.id}', '${order.status}')">${statusBtnText}</button>` : ''}
         `;
 
-        container.appendChild(card);
+        list.appendChild(card);
       });
     }
 
-    async function updateOrderStatus(orderId, newStatus) {
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: newStatus })
-        .eq("id", orderId);
+    function filterOrders() {
+      const status = document.querySelector('input[name="statusFilter"]:checked').value;
+      const search = document.getElementById('searchInput').value.toLowerCase();
 
-      if (error) {
-        alert("Failed to update status");
-        console.error(error);
-      } else {
-        loadOrders();
-      }
-    }
+      let filtered = [...allOrders];
 
-    function applyFilters() {
-      const searchText = document.getElementById("searchInput").value.trim().toLowerCase();
-      const selectedStatus = document.querySelector('input[name="statusFilter"]:checked').value;
-
-      let filtered = allOrders;
-
-      if (searchText !== "") {
-        filtered = filtered.filter(o => {
-          const name = o.customers?.name?.toLowerCase() || "";
-          const phone = o.customers?.phone || "";
-          return name.includes(searchText) || phone.includes(searchText);
-        });
+      if (status !== 'all') {
+        filtered = filtered.filter(order => order.status === status);
       }
 
-      if (selectedStatus !== "all") {
-        filtered = filtered.filter(o => o.status === selectedStatus);
+      if (search) {
+        filtered = filtered.filter(order =>
+          (order.customers?.name?.toLowerCase().includes(search) || '') ||
+          (order.customers?.phone_number?.includes(search) || '')
+        );
       }
 
       displayOrders(filtered);
     }
 
     function resetSearch() {
-      document.getElementById("searchInput").value = "";
+      document.getElementById('searchInput').value = '';
       document.querySelector('input[value="all"]').checked = true;
-      displayOrders(allOrders);
+      filterOrders();
+    }
+
+    async function updateStatus(orderId, currentStatus) {
+      let nextStatus = '';
+      if (currentStatus === 'new') nextStatus = 'in_progress';
+      else if (currentStatus === 'in_progress') nextStatus = 'milling_completed';
+      else if (currentStatus === 'milling_completed') nextStatus = 'delivered';
+
+      if (!nextStatus) return;
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: nextStatus })
+        .eq('id', orderId);
+
+      if (error) {
+        alert('Error updating status');
+        console.error(error);
+        return;
+      }
+
+      fetchOrders(); // Refresh after update
     }
 
     // Initial load
-    loadOrders();
+    fetchOrders();
   </script>
-
 </body>
 </html>
