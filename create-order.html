@@ -1,189 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Create Order</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
-    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
-    .hidden { display: none; }
-    .grain-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-    .grain-row select, .grain-row input { padding: 5px; }
-    .total { font-weight: bold; margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #e6f0ff;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 700px;
+      margin: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #1a73e8;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    select, input[type="number"] {
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      flex: 1;
+    }
+
+    .price, .total {
+      min-width: 80px;
+    }
+
+    .error {
+      color: red;
+      font-size: 0.85em;
+    }
+
+    button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #155ab6;
+    }
+
+    .total-section {
+      text-align: right;
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+
+    .actions {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .remove-btn {
+      background: #ff4d4f;
+      padding: 6px 10px;
+    }
+
+    .remove-btn:hover {
+      background: #d9363e;
+    }
   </style>
 </head>
 <body>
-  <h2>Create Order</h2>
+  <div class="card">
+    <h2>Create New Order</h2>
+    
+    <div id="user-info"></div>
 
-  <div id="user-info"></div>
-  <hr>
+    <div id="order-rows"></div>
 
-  <div id="grain-entries"></div>
-  <button onclick="addGrainRow()">Add Grain</button>
+    <button onclick="addRow()">+ Add Grain</button>
 
-  <div class="total">
-    Total Price: ₹<span id="total-price">0</span>
+    <div class="total-section">
+      Total Price: ₹<span id="total-price">0</span>
+    </div>
+
+    <div class="actions">
+      <button onclick="submitOrder()">Submit Order</button>
+      <button onclick="window.location.reload()">Cancel</button>
+    </div>
   </div>
 
-  <button onclick="submitOrder()">Create Order</button>
-  <button onclick="window.location.href='index.html'">Cancel</button>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script>
-    const supabase = supabase.createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
-
-    let grainPrices = {};
+    const supabase = supabase.createClient('https://your-project.supabase.co', 'your-anon-key');
+    const mobile = localStorage.getItem('mobile');
+    let grainList = [];
     let user = null;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const phone = urlParams.get('phone');
+    const orderRows = document.getElementById('order-rows');
+    const totalPriceEl = document.getElementById('total-price');
 
-    async function init() {
-      // Fetch user details
-      const { data: customer, error: userError } = await supabase
+    async function fetchData() {
+      // Get user by mobile
+      const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('phone_number', phone)
+        .eq('phone_number', mobile)
         .maybeSingle();
 
-      if (!customer) {
-        document.getElementById('user-info').innerText = "User not found!";
-        return;
+      if (data) {
+        user = data;
+        document.getElementById('user-info').innerHTML = `
+          <p><strong>Name:</strong> ${user.name}</p>
+          <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+          <p><strong>Society:</strong> ${user.society_id}</p>
+        `;
       }
 
-      user = customer;
-      document.getElementById('user-info').innerHTML = `
-        <p><strong>Name:</strong> ${customer.name}</p>
-        <p><strong>Mobile:</strong> ${customer.phone_number}</p>
-        <p><strong>Flat:</strong> ${customer.flat_number} ${customer.wing}, ${customer.society_name}</p>
-      `;
-
-      // Fetch grain prices
-      const { data: grains, error: grainError } = await supabase
+      // Get grains
+      const { data: grains } = await supabase
         .from('grain_prices')
         .select('*');
+      grainList = grains;
 
-      if (grains) {
-        grains.forEach(g => grainPrices[g.grain] = g.price);
-      }
-
-      // Add 3 default rows
-      for (let i = 0; i < 3; i++) addGrainRow();
+      // Default 3 rows
+      for (let i = 0; i < 3; i++) addRow();
     }
 
-    function addGrainRow() {
-      const container = document.getElementById('grain-entries');
+    function addRow() {
+      const rowIndex = orderRows.children.length;
       const row = document.createElement('div');
-      row.className = 'grain-row';
+      row.className = 'row';
+      row.dataset.index = rowIndex;
 
-      const select = document.createElement('select');
-      select.innerHTML = `<option value="">Select grain</option>` +
-        Object.keys(grainPrices).map(grain => `<option value="${grain}">${grain}</option>`).join('');
-      select.onchange = () => updateRowPrice(row);
+      row.innerHTML = `
+        <select onchange="updatePrice(this)">
+          <option value="">Select Grain</option>
+          ${grainList.map(grain => `<option value="${grain.grain}" data-price="${grain.price}">${grain.grain}</option>`).join('')}
+        </select>
 
-      const qty = document.createElement('input');
-      qty.type = 'number';
-      qty.min = 1;
-      qty.placeholder = "Qty (kg)";
-      qty.oninput = () => updateRowPrice(row);
+        <div class="price">₹<span>0</span>/kg</div>
 
-      const priceSpan = document.createElement('span');
-      priceSpan.innerText = "₹0";
+        <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
 
-      const delBtn = document.createElement('button');
-      delBtn.innerText = "Delete";
-      delBtn.onclick = () => {
-        container.removeChild(row);
-        updateTotal();
-      };
+        <div class="total">₹<span>0</span></div>
 
-      row.appendChild(select);
-      row.appendChild(qty);
-      row.appendChild(priceSpan);
-      row.appendChild(delBtn);
-      container.appendChild(row);
+        <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();">Delete</button>
+
+        <div class="error"></div>
+      `;
+
+      orderRows.appendChild(row);
     }
 
-    function updateRowPrice(row) {
-      const select = row.querySelector('select');
-      const qty = row.querySelector('input');
-      const priceSpan = row.querySelector('span');
-
-      const grain = select.value;
-      const quantity = parseFloat(qty.value);
-
-      if (grain && quantity > 0 && grainPrices[grain]) {
-        const price = grainPrices[grain] * quantity;
-        priceSpan.innerText = `₹${price}`;
-      } else {
-        priceSpan.innerText = "₹0";
-      }
-
+    function updatePrice(selectEl) {
+      const price = selectEl.selectedOptions[0]?.dataset.price || 0;
+      const row = selectEl.closest('.row');
+      row.querySelector('.price span').textContent = price;
       updateTotal();
     }
 
     function updateTotal() {
-      let total = 0;
-      document.querySelectorAll('.grain-row').forEach(row => {
+      let grandTotal = 0;
+      [...orderRows.children].forEach(row => {
         const select = row.querySelector('select');
-        const qty = row.querySelector('input');
-        const grain = select.value;
-        const quantity = parseFloat(qty.value);
-        if (grain && quantity > 0 && grainPrices[grain]) {
-          total += grainPrices[grain] * quantity;
-        }
+        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+        const qty = parseFloat(row.querySelector('input').value || 0);
+        const rowTotal = price * qty;
+        row.querySelector('.total span').textContent = rowTotal.toFixed(2);
+        grandTotal += rowTotal;
       });
-      document.getElementById('total-price').innerText = total.toFixed(2);
+      totalPriceEl.textContent = grandTotal.toFixed(2);
     }
 
     async function submitOrder() {
+      const rows = [...orderRows.children];
       const grainDetails = [];
       let hasError = false;
 
-      document.querySelectorAll('.grain-row').forEach(row => {
+      rows.forEach(row => {
         const select = row.querySelector('select');
-        const qty = row.querySelector('input');
-
+        const quantityInput = row.querySelector('input');
+        const errorEl = row.querySelector('.error');
         const grain = select.value;
-        const quantity = parseFloat(qty.value);
+        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+        const qty = parseFloat(quantityInput.value || 0);
 
-        if (!grain || isNaN(quantity) || quantity <= 0) {
-          alert("Please fill all grain entries correctly.");
+        errorEl.textContent = '';
+
+        if (!grain || !qty) {
+          errorEl.textContent = 'Please select a grain and enter quantity.';
           hasError = true;
           return;
         }
 
-        grainDetails.push({
-          grain,
-          quantity,
-          price: grainPrices[grain],
-          total: grainPrices[grain] * quantity
-        });
+        grainDetails.push({ grain, quantity: qty, price_per_kg: price });
       });
 
-      if (hasError || grainDetails.length === 0) return;
+      if (hasError) return;
 
-      const totalPrice = grainDetails.reduce((sum, item) => sum + item.total, 0);
+      const total_price = parseFloat(totalPriceEl.textContent);
 
       const { error } = await supabase
         .from('orders')
         .insert([{
           customer_id: user.id,
           grain_details: grainDetails,
-          total_price: totalPrice,
+          total_price,
           status: 'new'
         }]);
 
       if (error) {
-        alert("Order failed to submit.");
+        alert('Failed to create order!');
         console.error(error);
       } else {
-        alert("Order placed successfully!");
-        window.location.href = "index.html";
+        alert('Order created successfully!');
+        window.location.href = 'success.html'; // or wherever you want
       }
     }
 
-    init();
+    fetchData();
   </script>
 </body>
 </html>
-
