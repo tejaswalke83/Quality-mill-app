@@ -155,6 +155,7 @@
 async function checkUser() {
   const mobile = document.getElementById('mobile').value.trim();
   clearErrors();
+  
   if (!/^\d{10}$/.test(mobile)) {
     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
     return;
@@ -163,33 +164,32 @@ async function checkUser() {
   document.getElementById('status').innerText = "Checking user...";
 
   try {
-    console.log('Checking mobile number:', mobile);
+    console.log('Checking mobile number:', mobile, '| Type:', typeof mobile);
 
     const { data, error } = await supabase
       .from('customers')
       .select('*')
-      .eq('phone_number', mobile)
+      .eq('phone_number', mobile)  // or Number(mobile) if your DB uses numbers
       .maybeSingle();
-    
-    console.log('Checking data from db:', data);
 
-    const { data1, error1 } = await supabase
-  .from('customers')
-  .select('*');
+    console.log('Supabase query result:', data);
+    console.log('Supabase query error:', error);
 
-console.log('All customers:', data1);
+    const { data: data1, error: error1 } = await supabase
+      .from('customers')
+      .select('*');
+
+    console.log('All customers:', data1);
+    console.log('Error fetching all customers:', error1);
 
     if (error) throw error;
 
     if (data) {
-      // ✅ User exists, redirect to create order page
       document.getElementById('status').innerText = "User found. Redirecting...";
-      // You can also pass the phone number or user id via URL if needed
       setTimeout(() => {
         window.location.href = `create-order.html?phone=${mobile}`;
       }, 1000);
     } else {
-      // 🆕 User, show registration
       document.getElementById('status').innerText = "New user. Please register.";
       document.getElementById('register-section').classList.remove('hidden');
       loadSocieties();
@@ -200,6 +200,63 @@ console.log('All customers:', data1);
     document.getElementById('status').innerText = "";
   }
 }
+
+
+
+
+
+
+
+    
+
+// async function checkUser() {
+//   const mobile = document.getElementById('mobile').value.trim();
+//   clearErrors();
+//   if (!/^\d{10}$/.test(mobile)) {
+//     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
+//     return;
+//   }
+
+//   document.getElementById('status').innerText = "Checking user...";
+
+//   try {
+//     console.log('Checking mobile number:', mobile);
+
+//     const { data, error } = await supabase
+//       .from('customers')
+//       .select('*')
+//       .eq('phone_number', mobile)
+//       .maybeSingle();
+    
+//     console.log('Checking data from db:', data);
+
+//     const { data1, error1 } = await supabase
+//   .from('customers')
+//   .select('*');
+
+// console.log('All customers:', data1);
+
+//     if (error) throw error;
+
+//     if (data) {
+//       // ✅ User exists, redirect to create order page
+//       document.getElementById('status').innerText = "User found. Redirecting...";
+//       // You can also pass the phone number or user id via URL if needed
+//       setTimeout(() => {
+//         window.location.href = `create-order.html?phone=${mobile}`;
+//       }, 1000);
+//     } else {
+//       // 🆕 User, show registration
+//       document.getElementById('status').innerText = "New user. Please register.";
+//       document.getElementById('register-section').classList.remove('hidden');
+//       loadSocieties();
+//     }
+//   } catch (err) {
+//     console.error('Error checking user:', err);
+//     alert("Something went wrong while checking the user. Please try again.");
+//     document.getElementById('status').innerText = "";
+//   }
+// }
 
 
 
