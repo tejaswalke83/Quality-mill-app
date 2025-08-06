@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Create Order</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -31,6 +30,7 @@
       align-items: center;
       gap: 10px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
     }
 
     select, input[type="number"] {
@@ -38,15 +38,17 @@
       border-radius: 6px;
       border: 1px solid #ccc;
       flex: 1;
+      min-width: 120px;
     }
 
     .price, .total {
-      min-width: 80px;
+      min-width: 100px;
     }
 
     .error {
       color: red;
       font-size: 0.85em;
+      flex: 1 1 100%;
     }
 
     button {
@@ -89,6 +91,7 @@
     <h2>Create New Order</h2>
     
     <div id="user-info"></div>
+    <hr><br>
 
     <div id="order-rows"></div>
 
@@ -100,13 +103,17 @@
 
     <div class="actions">
       <button onclick="submitOrder()">Submit Order</button>
-      <button onclick="window.location.reload()">Cancel</button>
+      <button onclick="window.location.href='index.html'">Cancel</button>
     </div>
   </div>
 
-  <script>
-    const supabase = supabase.createClient('https://your-project.supabase.co', 'your-anon-key');
-    const mobile = localStorage.getItem('mobile');
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
     let grainList = [];
     let user = null;
 
@@ -114,42 +121,43 @@
     const totalPriceEl = document.getElementById('total-price');
 
     async function fetchData() {
-      // Get user by mobile
+      // Get user by phone
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('phone_number', mobile)
+        .eq('phone_number', phone)
         .maybeSingle();
 
-      if (data) {
-        user = data;
-        document.getElementById('user-info').innerHTML = `
-          <p><strong>Name:</strong> ${user.name}</p>
-          <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
-          <p><strong>Society:</strong> ${user.society_id}</p>
-        `;
+      if (!data) {
+        document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
+        return;
       }
 
-      // Get grains
+      user = data;
+      document.getElementById('user-info').innerHTML = `
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+        <p><strong>Society:</strong> ${user.society_name}</p>
+      `;
+
+      // Get grain prices
       const { data: grains } = await supabase
         .from('grain_prices')
         .select('*');
       grainList = grains;
 
-      // Default 3 rows
+      // Add default 3 rows
       for (let i = 0; i < 3; i++) addRow();
     }
 
     function addRow() {
-      const rowIndex = orderRows.children.length;
       const row = document.createElement('div');
       row.className = 'row';
-      row.dataset.index = rowIndex;
 
       row.innerHTML = `
         <select onchange="updatePrice(this)">
           <option value="">Select Grain</option>
-          ${grainList.map(grain => `<option value="${grain.grain}" data-price="${grain.price}">${grain.grain}</option>`).join('')}
+          ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
         </select>
 
         <div class="price">₹<span>0</span>/kg</div>
@@ -166,19 +174,20 @@
       orderRows.appendChild(row);
     }
 
-    function updatePrice(selectEl) {
+    window.updatePrice = function(selectEl) {
       const price = selectEl.selectedOptions[0]?.dataset.price || 0;
       const row = selectEl.closest('.row');
       row.querySelector('.price span').textContent = price;
       updateTotal();
     }
 
-    function updateTotal() {
+    window.updateTotal = function() {
       let grandTotal = 0;
       [...orderRows.children].forEach(row => {
         const select = row.querySelector('select');
+        const qtyInput = row.querySelector('input');
         const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(row.querySelector('input').value || 0);
+        const qty = parseFloat(qtyInput.value || 0);
         const rowTotal = price * qty;
         row.querySelector('.total span').textContent = rowTotal.toFixed(2);
         grandTotal += rowTotal;
@@ -186,31 +195,36 @@
       totalPriceEl.textContent = grandTotal.toFixed(2);
     }
 
-    async function submitOrder() {
+    window.submitOrder = async function () {
       const rows = [...orderRows.children];
       const grainDetails = [];
       let hasError = false;
 
       rows.forEach(row => {
         const select = row.querySelector('select');
-        const quantityInput = row.querySelector('input');
+        const qtyInput = row.querySelector('input');
         const errorEl = row.querySelector('.error');
-        const grain = select.value;
-        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(quantityInput.value || 0);
-
         errorEl.textContent = '';
 
-        if (!grain || !qty) {
-          errorEl.textContent = 'Please select a grain and enter quantity.';
+        const grain = select.value;
+        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+        const qty = parseFloat(qtyInput.value || 0);
+
+        if (!grain || qty <= 0) {
+          errorEl.textContent = "Select grain and enter valid quantity.";
           hasError = true;
           return;
         }
 
-        grainDetails.push({ grain, quantity: qty, price_per_kg: price });
+        grainDetails.push({
+          grain,
+          quantity: qty,
+          price: price,
+          total: price * qty
+        });
       });
 
-      if (hasError) return;
+      if (hasError || grainDetails.length === 0) return;
 
       const total_price = parseFloat(totalPriceEl.textContent);
 
@@ -224,11 +238,11 @@
         }]);
 
       if (error) {
-        alert('Failed to create order!');
+        alert("Failed to place order!");
         console.error(error);
       } else {
-        alert('Order created successfully!');
-        window.location.href = 'success.html'; // or wherever you want
+        alert("Order placed successfully!");
+        window.location.href = "success.html";
       }
     }
 
