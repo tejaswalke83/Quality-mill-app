@@ -4,87 +4,114 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Create Order</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #e6f0ff;
-      padding: 20px;
-    }
+ <style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #e6f0ff;
+    padding: 20px;
+  }
 
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      max-width: 700px;
-      margin: auto;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+  .card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    max-width: 700px;
+    margin: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
 
-    h2 {
-      text-align: center;
-      color: #1a73e8;
-    }
+  h2 {
+    text-align: center;
+    color: #1a73e8;
+  }
 
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
 
-    select, input[type="number"] {
-      padding: 6px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      flex: 1;
-      min-width: 120px;
-    }
+  select {
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    flex: 1;
+    min-width: 120px;
+  }
 
-    .price, .total {
-      min-width: 100px;
-    }
+  input[type="number"] {
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    width: 80px;
+  }
 
-    .error {
-      color: red;
-      font-size: 0.85em;
-      flex: 1 1 100%;
-    }
+  .price, .total {
+    min-width: 80px;
+  }
 
-    button {
-      background-color: #1a73e8;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
+  .error {
+    color: red;
+    font-size: 0.85em;
+    flex: 1 1 100%;
+  }
 
-    button:hover {
-      background-color: #155ab6;
-    }
+  button {
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
 
-    .total-section {
-      text-align: right;
-      margin-top: 20px;
-      font-weight: bold;
-      font-size: 1.1em;
-    }
+  button:hover {
+    background-color: #155ab6;
+  }
 
-    .actions {
-      text-align: center;
-      margin-top: 20px;
-    }
+  .outlined {
+    background: transparent;
+    border: 2px solid #1a73e8;
+    color: #1a73e8;
+  }
 
-    .remove-btn {
-      background: #ff4d4f;
-      padding: 6px 10px;
-    }
+  .outlined:hover {
+    background: #e6f0ff;
+  }
 
-    .remove-btn:hover {
-      background: #d9363e;
-    }
-  </style>
+  .total-section {
+    text-align: right;
+    margin-top: 20px;
+    font-weight: bold;
+    font-size: 1.1em;
+  }
+
+  .actions {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .remove-btn {
+    border: 2px solid red;
+    background: transparent;
+    color: red;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .remove-btn:hover {
+    background-color: #ffe6e6;
+  }
+
+  .remove-btn::after {
+    content: "🗑️";
+    font-size: 16px;
+  }
+</style>
+
 </head>
 <body>
   <div class="card">
@@ -95,7 +122,8 @@
 
     <div id="order-rows"></div>
 
-    <button onclick="addRow()">+ Add Grain</button>
+   <button class="outlined" onclick="addRow()">+ Add Grain</button>
+
 
     <div class="total-section">
       Total Price: ₹<span id="total-price">0</span>
@@ -103,7 +131,8 @@
 
     <div class="actions">
       <button onclick="submitOrder()">Submit Order</button>
-      <button onclick="window.location.href='index.html'">Cancel</button>
+      <button class="outlined" onclick="window.location.href='index.html'">Cancel</button>
+
     </div>
   </div>
 
@@ -134,11 +163,13 @@
       }
 
       user = data;
-      document.getElementById('user-info').innerHTML = `
-        <p><strong>Name:</strong> ${user.name}</p>
-        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
-        <p><strong>Society:</strong> ${user.society_name}</p>
-      `;
+     document.getElementById('user-info').innerHTML = `
+     <p><strong>Name:</strong> ${user.name}</p>
+     <p><strong>Mobile:</strong> ${user.phone_number}</p>
+     <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+     <p><strong>Society:</strong> ${user.society_name}</p>
+`;
+
 
       // Get grain prices
       const { data: grains } = await supabase
@@ -146,8 +177,8 @@
         .select('*');
       grainList = grains;
 
-      // Add default 3 rows
-      for (let i = 0; i < 3; i++) addRow();
+      // Add default 1 rows
+      for (let i = 0; i < 1; i++) addRow();
     }
 
    window.addRow = function () {
