@@ -184,12 +184,44 @@ async function checkUser() {
 
     if (error) throw error;
 
-    if (data) {
-      document.getElementById('status').innerText = "User found. Redirecting...";
-      setTimeout(() => {
-        window.location.href = `create-order.html?phone=${mobile}`;
-      }, 1000);
-    } else {
+
+if (data) {
+  // User found, now check if they have any orders
+  const { data: orders, error: orderError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('customer_id', data.id)
+    .limit(1);
+
+  if (orderError) {
+    console.error('Error checking orders:', orderError);
+    alert("Something went wrong while checking user's orders.");
+    return;
+  }
+
+  if (orders && orders.length > 0) {
+    // User has orders, go to my-orders.html
+    document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
+    setTimeout(() => {
+      window.location.href = `my-orders.html?phone=${mobile}`;
+    }, 1000);
+  } else {
+    // User has no orders, go to create-order.html
+    document.getElementById('status').innerText = "User found. Redirecting to Create Order...";
+    setTimeout(() => {
+      window.location.href = `create-order.html?phone=${mobile}`;
+    }, 1000);
+  }
+}
+
+      
+    // if (data) {
+    //   document.getElementById('status').innerText = "User found. Redirecting...";
+    //   setTimeout(() => {
+    //     window.location.href = `create-order.html?phone=${mobile}`;
+    //   }, 1000);
+    // } 
+    else {
       document.getElementById('status').innerText = "New user. Please register.";
       document.getElementById('register-section').classList.remove('hidden');
       loadSocieties();
