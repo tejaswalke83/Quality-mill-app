@@ -148,37 +148,80 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    async function checkUser() {
-      const mobile = document.getElementById('mobile').value.trim();
-      clearErrors();
-      if (!/^\d{10}$/.test(mobile)) {
-        document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
-        return;
-      }
 
-      document.getElementById('status').innerText = "Checking user...";
-      try {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('phone_number', mobile)
-          .maybeSingle();
+async function checkUser() {
+  const mobile = document.getElementById('mobile').value.trim();
+  clearErrors();
+  if (!/^\d{10}$/.test(mobile)) {
+    document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
+    return;
+  }
 
-        if (error) throw error;
+  document.getElementById('status').innerText = "Checking user...";
 
-        if (data) {
-          document.getElementById('status').innerText = "User already exists.";
-        } else {
-          document.getElementById('status').innerText = "New user. Please register.";
-          document.getElementById('register-section').classList.remove('hidden');
-          loadSocieties();
-        }
-      } catch (err) {
-        console.error('Error checking user:', err);
-        alert("Something went wrong while checking the user. Please try again.");
-        document.getElementById('status').innerText = "";
-      }
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('phone_number', mobile)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (data) {
+      // ✅ User exists, redirect to create order page
+      document.getElementById('status').innerText = "User found. Redirecting...";
+      // You can also pass the phone number or user id via URL if needed
+      setTimeout(() => {
+        window.location.href = `create-order.html?phone=${mobile}`;
+      }, 1000);
+    } else {
+      // 🆕 User, show registration
+      document.getElementById('status').innerText = "New user. Please register.";
+      document.getElementById('register-section').classList.remove('hidden');
+      loadSocieties();
     }
+  } catch (err) {
+    console.error('Error checking user:', err);
+    alert("Something went wrong while checking the user. Please try again.");
+    document.getElementById('status').innerText = "";
+  }
+}
+
+
+
+    
+    // async function checkUser() {
+    //   const mobile = document.getElementById('mobile').value.trim();
+    //   clearErrors();
+    //   if (!/^\d{10}$/.test(mobile)) {
+    //     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
+    //     return;
+    //   }
+
+    //   document.getElementById('status').innerText = "Checking user...";
+    //   try {
+    //     const { data, error } = await supabase
+    //       .from('customers')
+    //       .select('*')
+    //       .eq('phone_number', mobile)
+    //       .maybeSingle();
+
+    //     if (error) throw error;
+
+    //     if (data) {
+    //       document.getElementById('status').innerText = "User already exists.";
+    //     } else {
+    //       document.getElementById('status').innerText = "New user. Please register.";
+    //       document.getElementById('register-section').classList.remove('hidden');
+    //       loadSocieties();
+    //     }
+    //   } catch (err) {
+    //     console.error('Error checking user:', err);
+    //     alert("Something went wrong while checking the user. Please try again.");
+    //     document.getElementById('status').innerText = "";
+    //   }
+    // }
 
     async function loadSocieties() {
       try {
