@@ -192,13 +192,16 @@
           ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
         </select>
 
-        <div class="price">₹<span>0</span>/kg</div>
+       // <div class="price">₹<span>0</span>/kg</div>
 
         <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
 
         <div class="total">₹<span>0</span></div>
 
-        <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();">Delete</button>
+       <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+  <i class="fas fa-trash-alt"></i>
+</button>
+
 
         <div class="error"></div>
       `;
