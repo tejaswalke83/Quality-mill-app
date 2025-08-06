@@ -299,12 +299,30 @@ window.addRow = function () {
 //       orderRows.appendChild(row);
 //     }
 
-    window.updatePrice = function(selectEl) {
-      const price = selectEl.selectedOptions[0]?.dataset.price || 0;
-      const row = selectEl.closest('.row');
-      row.querySelector('.price span').textContent = price;
-      updateTotal();
-    }
+
+window.updatePrice = function (selectElement) {
+  const selectedOption = selectElement.options[selectElement.selectedIndex];
+  const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+
+  const row = selectElement.closest('.card');
+  const quantityInput = row.querySelector('input[type="number"]');
+  const totalEl = row.querySelector('.total span');
+
+  const quantity = parseFloat(quantityInput.value) || 0;
+  const total = price * quantity;
+
+  totalEl.textContent = total.toFixed(2);
+
+  // ✅ No attempt to update price per kg element (since it's removed)
+}
+
+    
+    // window.updatePrice = function(selectEl) {
+    //   const price = selectEl.selectedOptions[0]?.dataset.price || 0;
+    //   const row = selectEl.closest('.row');
+    //   row.querySelector('.price span').textContent = price;
+    //   updateTotal();
+    // }
 
     window.updateTotal = function() {
       let grandTotal = 0;
