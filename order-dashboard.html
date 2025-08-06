@@ -4,80 +4,99 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Order Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 1rem;
+      font-family: system-ui, sans-serif;
       margin: 0;
+      padding: 1rem;
+      background: #f8f9fa;
     }
 
     h1 {
       text-align: center;
+      margin-bottom: 1rem;
     }
 
     .search-filter-section {
       display: flex;
       flex-wrap: wrap;
+      gap: 1rem;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
       margin-bottom: 1rem;
     }
 
-    .search-filter-section input[type="text"] {
-      padding: 0.5rem;
-      width: 100%;
-      max-width: 250px;
-    }
-
-    .order-list {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-
-    .order-card {
+    input[type="text"] {
+      padding: 0.6rem;
       border: 1px solid #ccc;
-      border-radius: 12px;
-      padding: 1rem;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 240px;
     }
 
-    .order-card strong {
-      display: inline-block;
-      width: 140px;
-    }
-
-    .order-card button {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
+    button {
+      padding: 0.6rem 1rem;
+      border: none;
       background-color: #007bff;
       color: white;
-      border: none;
       border-radius: 8px;
       cursor: pointer;
     }
 
-    .order-card button:hover {
+    button:hover {
       background-color: #0056b3;
     }
 
     .filter-section {
       display: flex;
-      gap: 0.5rem;
       flex-wrap: wrap;
+      gap: 0.5rem;
       align-items: center;
     }
 
-    @media (min-width: 600px) {
-      .order-list {
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    .filter-section span {
+      margin-right: 0.5rem;
+      font-weight: bold;
+    }
+
+    .order-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .order-card {
+      background-color: #fff;
+      padding: 1rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .order-card:hover {
+      transform: scale(1.01);
+    }
+
+    .order-card p {
+      margin: 0.3rem 0;
+    }
+
+    .order-card strong {
+      display: inline-block;
+      min-width: 130px;
+    }
+
+    @media (max-width: 500px) {
+      .filter-section {
+        flex-direction: column;
+        align-items: flex-start;
       }
     }
   </style>
 </head>
 <body>
+
   <h1>Order Dashboard</h1>
 
   <div class="search-filter-section">
@@ -87,7 +106,7 @@
     </div>
 
     <div class="filter-section">
-      <span><strong>Filter by:</strong></span>
+      <span>Filter by:</span>
       <label><input type="radio" name="statusFilter" value="all" checked onchange="filterOrders()"> All</label>
       <label><input type="radio" name="statusFilter" value="new" onchange="filterOrders()"> New</label>
       <label><input type="radio" name="statusFilter" value="in_progress" onchange="filterOrders()"> In Progress</label>
@@ -96,22 +115,20 @@
     </div>
   </div>
 
-  <div class="order-list" id="orderList"></div>
+  <div id="orderList" class="order-list"></div>
 
   <script>
+    const { createClient } = supabase;
     const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let allOrders = [];
 
     async function fetchOrders() {
       const { data, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          customers(name, phone_number)
-        `)
+        .select('*, customers(name, phone_number)')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -132,15 +149,15 @@
         return;
       }
 
-      orders.forEach(order => {
+      for (const order of orders) {
         const customer = order.customers || {};
         const grains = Object.entries(order.grain_details || {})
           .map(([grain, qty]) => `${grain}: ${qty} kg`).join(', ');
 
-        let statusBtnText = '';
-        if (order.status === 'new') statusBtnText = 'Mark In Progress';
-        else if (order.status === 'in_progress') statusBtnText = 'Milling Completed';
-        else if (order.status === 'milling_completed') statusBtnText = 'Delivery Completed';
+        let btnText = '';
+        if (order.status === 'new') btnText = 'Mark In Progress';
+        else if (order.status === 'in_progress') btnText = 'Milling Completed';
+        else if (order.status === 'milling_completed') btnText = 'Delivery Completed';
 
         const card = document.createElement('div');
         card.className = 'order-card';
@@ -152,11 +169,11 @@
           <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
           <p><strong>Status:</strong> ${order.status.replace('_', ' ')}</p>
           <p><strong>Total Price:</strong> ₹${order.total_price}</p>
-          ${statusBtnText ? `<button onclick="updateStatus('${order.id}', '${order.status}')">${statusBtnText}</button>` : ''}
+          ${btnText ? `<button onclick="updateStatus('${order.id}', '${order.status}')">${btnText}</button>` : ''}
         `;
 
         list.appendChild(card);
-      });
+      }
     }
 
     function filterOrders() {
@@ -204,11 +221,10 @@
         return;
       }
 
-      fetchOrders(); // Refresh after update
+      fetchOrders(); // Refresh list
     }
 
-    // Initial load
-    fetchOrders();
+    fetchOrders(); // Initial load
   </script>
 </body>
 </html>
