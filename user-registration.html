@@ -163,11 +163,15 @@ async function checkUser() {
   document.getElementById('status').innerText = "Checking user...";
 
   try {
+    console.log('Checking mobile number:', mobile);
+
     const { data, error } = await supabase
       .from('customers')
       .select('*')
       .eq('phone_number', mobile)
       .maybeSingle();
+    // console.log('Checking data base mobile number:', mobile);
+
 
     if (error) throw error;
 
