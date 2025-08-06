@@ -4,227 +4,186 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Order Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      font-family: system-ui, sans-serif;
-      margin: 0;
-      padding: 1rem;
-      background: #f8f9fa;
+      font-family: Arial, sans-serif;
+      padding: 20px;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 1rem;
+      margin-bottom: 20px;
     }
 
-    .search-filter-section {
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .search-group, .filter-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 1rem;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
+      gap: 10px;
     }
 
-    input[type="text"] {
-      padding: 0.6rem;
+    .card {
       border: 1px solid #ccc;
       border-radius: 8px;
-      width: 100%;
-      max-width: 240px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
     }
 
     button {
-      padding: 0.6rem 1rem;
-      border: none;
+      padding: 8px 12px;
       background-color: #007bff;
       color: white;
-      border-radius: 8px;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
     }
 
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    .filter-section {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      align-items: center;
-    }
-
-    .filter-section span {
-      margin-right: 0.5rem;
-      font-weight: bold;
-    }
-
-    .order-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-    }
-
-    .order-card {
-      background-color: #fff;
-      padding: 1rem;
-      border-radius: 16px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-      transition: all 0.2s ease-in-out;
-    }
-
-    .order-card:hover {
-      transform: scale(1.01);
-    }
-
-    .order-card p {
-      margin: 0.3rem 0;
-    }
-
-    .order-card strong {
-      display: inline-block;
-      min-width: 130px;
-    }
-
-    @media (max-width: 500px) {
-      .filter-section {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+    button:disabled {
+      background-color: gray;
     }
   </style>
 </head>
 <body>
-
   <h1>Order Dashboard</h1>
 
-  <div class="search-filter-section">
-    <div>
-      <input type="text" id="searchInput" placeholder="Search by name or phone">
+  <div class="controls">
+    <div class="search-group">
+      <input type="text" id="searchBox" placeholder="Search by name or phone" />
       <button onclick="resetSearch()">Reset</button>
     </div>
 
-    <div class="filter-section">
-      <span>Filter by:</span>
-      <label><input type="radio" name="statusFilter" value="all" checked onchange="filterOrders()"> All</label>
-      <label><input type="radio" name="statusFilter" value="new" onchange="filterOrders()"> New</label>
-      <label><input type="radio" name="statusFilter" value="in_progress" onchange="filterOrders()"> In Progress</label>
-      <label><input type="radio" name="statusFilter" value="milling_completed" onchange="filterOrders()"> Milling Completed</label>
-      <label><input type="radio" name="statusFilter" value="delivered" onchange="filterOrders()"> Delivered</label>
+    <div class="filter-group">
+      <label><strong>Filter by:</strong></label>
+      <label><input type="radio" name="status" value="all" checked onchange="loadOrders()"> All</label>
+      <label><input type="radio" name="status" value="new" onchange="loadOrders()"> New</label>
+      <label><input type="radio" name="status" value="in_progress" onchange="loadOrders()"> In Progress</label>
+      <label><input type="radio" name="status" value="milling_completed" onchange="loadOrders()"> Milling Completed</label>
+      <label><input type="radio" name="status" value="delivered" onchange="loadOrders()"> Delivered</label>
     </div>
   </div>
 
-  <div id="orderList" class="order-list"></div>
+  <div id="ordersList"></div>
 
-  <script>
-    const { createClient } = supabase;
-    const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    let allOrders = [];
+    const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    async function fetchOrders() {
+    async function fetchAllOrders() {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, customers(name, phone_number)')
+        .select('*, customers(name, phone)')
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching orders:', error);
-        return;
+        return [];
       }
 
-      allOrders = data;
-      displayOrders(data);
+      return data;
     }
 
-    function displayOrders(orders) {
-      const list = document.getElementById('orderList');
-      list.innerHTML = '';
-
-      if (orders.length === 0) {
-        list.innerHTML = '<p>No orders found.</p>';
-        return;
-      }
-
-      for (const order of orders) {
-        const customer = order.customers || {};
-        const grains = Object.entries(order.grain_details || {})
-          .map(([grain, qty]) => `${grain}: ${qty} kg`).join(', ');
-
-        let btnText = '';
-        if (order.status === 'new') btnText = 'Mark In Progress';
-        else if (order.status === 'in_progress') btnText = 'Milling Completed';
-        else if (order.status === 'milling_completed') btnText = 'Delivery Completed';
-
-        const card = document.createElement('div');
-        card.className = 'order-card';
-
-        card.innerHTML = `
-          <p><strong>Name:</strong> ${customer.name || ''}</p>
-          <p><strong>Phone:</strong> ${customer.phone_number || ''}</p>
-          <p><strong>Order:</strong> ${grains}</p>
-          <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-          <p><strong>Status:</strong> ${order.status.replace('_', ' ')}</p>
-          <p><strong>Total Price:</strong> ₹${order.total_price}</p>
-          ${btnText ? `<button onclick="updateStatus('${order.id}', '${order.status}')">${btnText}</button>` : ''}
-        `;
-
-        list.appendChild(card);
-      }
+    function getNextStatus(currentStatus) {
+      if (currentStatus === 'new') return 'in_progress';
+      if (currentStatus === 'in_progress') return 'milling_completed';
+      if (currentStatus === 'milling_completed') return 'delivered';
+      return null;
     }
 
-    function filterOrders() {
-      const status = document.querySelector('input[name="statusFilter"]:checked').value;
-      const search = document.getElementById('searchInput').value.toLowerCase();
-
-      let filtered = [...allOrders];
-
-      if (status !== 'all') {
-        filtered = filtered.filter(order => order.status === status);
-      }
-
-      if (search) {
-        filtered = filtered.filter(order =>
-          (order.customers?.name?.toLowerCase().includes(search) || '') ||
-          (order.customers?.phone_number?.includes(search) || '')
-        );
-      }
-
-      displayOrders(filtered);
+    function getStatusLabel(status) {
+      if (status === 'new') return 'Mark In Progress';
+      if (status === 'in_progress') return 'Milling Completed';
+      if (status === 'milling_completed') return 'Delivery Completed';
+      return '';
     }
 
-    function resetSearch() {
-      document.getElementById('searchInput').value = '';
-      document.querySelector('input[value="all"]').checked = true;
-      filterOrders();
-    }
-
-    async function updateStatus(orderId, currentStatus) {
-      let nextStatus = '';
-      if (currentStatus === 'new') nextStatus = 'in_progress';
-      else if (currentStatus === 'in_progress') nextStatus = 'milling_completed';
-      else if (currentStatus === 'milling_completed') nextStatus = 'delivered';
-
-      if (!nextStatus) return;
-
+    async function updateOrderStatus(orderId, newStatus) {
       const { error } = await supabase
         .from('orders')
-        .update({ status: nextStatus })
+        .update({ status: newStatus })
         .eq('id', orderId);
 
       if (error) {
-        alert('Error updating status');
+        alert('Failed to update status');
         console.error(error);
+      } else {
+        loadOrders();
+      }
+    }
+
+    async function loadOrders() {
+      const allOrders = await fetchAllOrders();
+
+      const statusFilter = document.querySelector('input[name="status"]:checked').value;
+      const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+
+      let filtered = allOrders;
+
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(o => o.status === statusFilter);
+      }
+
+      if (searchTerm.trim() !== '') {
+        filtered = filtered.filter(o =>
+          (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+          (o.customers?.phone || '').includes(searchTerm)
+        );
+      }
+
+      const container = document.getElementById('ordersList');
+      container.innerHTML = '';
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<p>No orders found.</p>';
         return;
       }
 
-      fetchOrders(); // Refresh list
+      filtered.forEach(order => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <h3>Order #${order.token_number}</h3>
+          <p><strong>Name:</strong> ${order.customers?.name || 'N/A'}</p>
+          <p><strong>Phone:</strong> ${order.customers?.phone || 'N/A'}</p>
+          <p><strong>Status:</strong> ${order.status}</p>
+          <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+        `;
+
+        const nextStatus = getNextStatus(order.status);
+        if (nextStatus) {
+          const btn = document.createElement('button');
+          btn.textContent = getStatusLabel(order.status);
+          btn.onclick = () => updateOrderStatus(order.id, nextStatus);
+          div.appendChild(btn);
+        }
+
+        container.appendChild(div);
+      });
     }
 
-    fetchOrders(); // Initial load
+    function resetSearch() {
+      document.getElementById('searchBox').value = '';
+      loadOrders();
+    }
+
+    window.loadOrders = loadOrders;
+    window.resetSearch = resetSearch;
+
+    loadOrders();
   </script>
 </body>
 </html>
