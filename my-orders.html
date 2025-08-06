@@ -53,23 +53,39 @@
       gap: 10px;
     }
 
-    .refresh-btn {
-      background-color: #1a73e8;
-      color: white;
-      border: none;
+    .btn {
       padding: 8px 16px;
       border-radius: 6px;
       cursor: pointer;
+      font-weight: bold;
+      text-decoration: none;
+      text-align: center;
     }
 
-    .refresh-btn:hover {
+    .btn-primary {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+    }
+
+    .btn-primary:hover {
       background-color: #155ab6;
+    }
+
+    .btn-secondary {
+      background-color: #e0e0e0;
+      color: #333;
+      border: none;
+    }
+
+    .btn-secondary:hover {
+      background-color: #c7c7c7;
     }
 
     @media (max-width: 600px) {
       .top-bar {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
       }
 
       .grain-item {
@@ -86,7 +102,10 @@
         <h2>My Orders</h2>
         <div id="user-info"></div>
       </div>
-      <button class="refresh-btn" onclick="loadOrders()">Refresh</button>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" onclick="loadOrders()">Refresh</button>
+        <a id="newOrderBtn" class="btn btn-primary">New Order</a>
+      </div>
     </div>
   </div>
 
@@ -123,6 +142,9 @@
         <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
         <p><strong>Society:</strong> ${user.society_name}</p>
       `;
+
+      // Set href for New Order button
+      document.getElementById("newOrderBtn").href = `create-order.html?phone=${phone}`;
     }
 
     async function loadOrders() {
