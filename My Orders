@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Orders</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 700px;
+      margin: auto;
+      background: #e6f0ff;
+    }
+
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .header h2 {
+      color: #1a73e8;
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .refresh-btn {
+      padding: 8px 14px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .customer-info {
+      margin-bottom: 20px;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .order-card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      background: #fff;
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+      flex-wrap: wrap;
+    }
+
+    .grain-list {
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .grain-item {
+      padding: 3px 0;
+    }
+
+    .status {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      display: inline-block;
+      text-transform: capitalize;
+    }
+
+    .status.new, .status.in_progress {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status.delivered {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.archived {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .date-time {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .total-price {
+      font-weight: bold;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    /* Responsive design */
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 15px;
+      }
+
+      .header h2 {
+        font-size: 18px;
+      }
+
+      .refresh-btn {
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .order-header {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .total-price {
+        text-align: left;
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="header">
+      <h2>My Orders</h2>
+      <button class="refresh-btn" onclick="loadOrders()">🔄 Refresh</button>
+    </div>
+    <div id="customerInfo" class="customer-info">Loading customer…</div>
+  </div>
+
+  <div id="ordersContainer"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://YOUR_PROJECT.supabase.co',
+      'YOUR_PUBLIC_ANON_KEY'
+    );
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
+    let customerId = null;
+
+    async function loadOrders() {
+      const container = document.getElementById('ordersContainer');
+      container.innerHTML = 'Loading orders…';
+
+      // Fetch customer if not already loaded
+      if (!customerId) {
+        const { data: customer, error: custErr } = await supabase
+          .from('customers')
+          .select('id, name, phone_number, flat_number, wing, society_name')
+          .eq('phone_number', phone)
+          .maybeSingle();
+
+        if (custErr || !customer) {
+          document.getElementById('customerInfo').innerText = 'Customer not found.';
+          return;
+        }
+
+        customerId = customer.id;
+        document.getElementById('customerInfo').innerHTML = `
+          <strong>Name:</strong> ${customer.name}<br>
+          <strong>Mobile:</strong> ${customer.phone_number}<br>
+          <strong>Society:</strong> ${customer.society_name}<br>
+          <strong>Flat/Wing:</strong> ${customer.flat_number}, ${customer.wing}
+        `;
+      }
+
+      // Fetch orders for this customer
+      const { data: orders, error: ordersErr } = await supabase
+        .from('orders')
+        .select('grain_details, total_price, status, created_at')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false });
+
+      if (ordersErr) {
+        console.error('Orders fetch error:', ordersErr);
+        container.innerHTML = 'Failed to load orders.';
+        return;
+      }
+
+      container.innerHTML = '';
+
+      if (orders.length === 0) {
+        container.innerHTML = '<div style="text-align:center;">No orders found.</div>';
+        return;
+      }
+
+      orders.forEach(order => {
+        const dt = new Date(order.created_at);
+        const dateStr = dt.toLocaleDateString();
+        const timeStr = dt.toLocaleTimeString();
+
+        const grainLines = order.grain_details
+          .map(item => `<div class="grain-item">• ${item.grain} – ${item.quantity} kg</div>`)
+          .join('');
+
+        const card = document.createElement('div');
+        card.className = 'order-card';
+
+        card.innerHTML = `
+          <div class="order-header">
+            <div class="date-time">${dateStr} ${timeStr}</div>
+            <div class="status ${order.status}">${order.status.replace('_', ' ')}</div>
+          </div>
+          <div class="grain-list">${grainLines}</div>
+          <div class="total-price">Total: ₹${order.total_price.toFixed(2)}</div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    loadOrders();
+  </script>
+
+</body>
+</html>
