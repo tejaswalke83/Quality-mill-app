@@ -1,1 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create Order</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+    .hidden { display: none; }
+    .grain-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+    .grain-row select, .grain-row input { padding: 5px; }
+    .total { font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Create Order</h2>
+
+  <div id="user-info"></div>
+  <hr>
+
+  <div id="grain-entries"></div>
+  <button onclick="addGrainRow()">Add Grain</button>
+
+  <div class="total">
+    Total Price: ₹<span id="total-price">0</span>
+  </div>
+
+  <button onclick="submitOrder()">Create Order</button>
+  <button onclick="window.location.href='index.html'">Cancel</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const supabase = supabase.createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
+
+    let grainPrices = {};
+    let user = null;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
+    async function init() {
+      // Fetch user details
+      const { data: customer, error: userError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone_number', phone)
+        .maybeSingle();
+
+      if (!customer) {
+        document.getElementById('user-info').innerText = "User not found!";
+        return;
+      }
+
+      user = customer;
+      document.getElementById('user-info').innerHTML = `
+        <p><strong>Name:</strong> ${customer.name}</p>
+        <p><strong>Mobile:</strong> ${customer.phone_number}</p>
+        <p><strong>Flat:</strong> ${customer.flat_number} ${customer.wing}, ${customer.society_name}</p>
+      `;
+
+      // Fetch grain prices
+      const { data: grains, error: grainError } = await supabase
+        .from('grain_prices')
+        .select('*');
+
+      if (grains) {
+        grains.forEach(g => grainPrices[g.grain] = g.price);
+      }
+
+      // Add 3 default rows
+      for (let i = 0; i < 3; i++) addGrainRow();
+    }
+
+    function addGrainRow() {
+      const container = document.getElementById('grain-entries');
+      const row = document.createElement('div');
+      row.className = 'grain-row';
+
+      const select = document.createElement('select');
+      select.innerHTML = `<option value="">Select grain</option>` +
+        Object.keys(grainPrices).map(grain => `<option value="${grain}">${grain}</option>`).join('');
+      select.onchange = () => updateRowPrice(row);
+
+      const qty = document.createElement('input');
+      qty.type = 'number';
+      qty.min = 1;
+      qty.placeholder = "Qty (kg)";
+      qty.oninput = () => updateRowPrice(row);
+
+      const priceSpan = document.createElement('span');
+      priceSpan.innerText = "₹0";
+
+      const delBtn = document.createElement('button');
+      delBtn.innerText = "Delete";
+      delBtn.onclick = () => {
+        container.removeChild(row);
+        updateTotal();
+      };
+
+      row.appendChild(select);
+      row.appendChild(qty);
+      row.appendChild(priceSpan);
+      row.appendChild(delBtn);
+      container.appendChild(row);
+    }
+
+    function updateRowPrice(row) {
+      const select = row.querySelector('select');
+      const qty = row.querySelector('input');
+      const priceSpan = row.querySelector('span');
+
+      const grain = select.value;
+      const quantity = parseFloat(qty.value);
+
+      if (grain && quantity > 0 && grainPrices[grain]) {
+        const price = grainPrices[grain] * quantity;
+        priceSpan.innerText = `₹${price}`;
+      } else {
+        priceSpan.innerText = "₹0";
+      }
+
+      updateTotal();
+    }
+
+    function updateTotal() {
+      let total = 0;
+      document.querySelectorAll('.grain-row').forEach(row => {
+        const select = row.querySelector('select');
+        const qty = row.querySelector('input');
+        const grain = select.value;
+        const quantity = parseFloat(qty.value);
+        if (grain && quantity > 0 && grainPrices[grain]) {
+          total += grainPrices[grain] * quantity;
+        }
+      });
+      document.getElementById('total-price').innerText = total.toFixed(2);
+    }
+
+    async function submitOrder() {
+      const grainDetails = [];
+      let hasError = false;
+
+      document.querySelectorAll('.grain-row').forEach(row => {
+        const select = row.querySelector('select');
+        const qty = row.querySelector('input');
+
+        const grain = select.value;
+        const quantity = parseFloat(qty.value);
+
+        if (!grain || isNaN(quantity) || quantity <= 0) {
+          alert("Please fill all grain entries correctly.");
+          hasError = true;
+          return;
+        }
+
+        grainDetails.push({
+          grain,
+          quantity,
+          price: grainPrices[grain],
+          total: grainPrices[grain] * quantity
+        });
+      });
+
+      if (hasError || grainDetails.length === 0) return;
+
+      const totalPrice = grainDetails.reduce((sum, item) => sum + item.total, 0);
+
+      const { error } = await supabase
+        .from('orders')
+        .insert([{
+          customer_id: user.id,
+          grain_details: grainDetails,
+          total_price: totalPrice,
+          status: 'new'
+        }]);
+
+      if (error) {
+        alert("Order failed to submit.");
+        console.error(error);
+      } else {
+        alert("Order placed successfully!");
+        window.location.href = "index.html";
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
 
