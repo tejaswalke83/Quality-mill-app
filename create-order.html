@@ -385,7 +385,8 @@ window.updatePrice = function (selectElement) {
         console.error(error);
       } else {
         alert("Order placed successfully!");
-        window.location.href = "success.html";
+        window.location.href = `my-orders.html?phone=${phone}`;
+
       }
     }
 
