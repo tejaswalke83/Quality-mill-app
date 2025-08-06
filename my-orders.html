@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Orders</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f3f7fc;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .card, .order-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 700px;
+      margin: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1a73e8;
+    }
+
+    .order-card {
+      border-left: 6px solid #1a73e8;
+    }
+
+    .grain-list {
+      margin-top: 10px;
+    }
+
+    .grain-item {
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .status {
+      font-weight: bold;
+      color: #1a73e8;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .refresh-btn {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .refresh-btn:hover {
+      background-color: #155ab6;
+    }
+
+    @media (max-width: 600px) {
+      .top-bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .grain-item {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="top-bar">
+      <div>
+        <h2>My Orders</h2>
+        <div id="user-info"></div>
+      </div>
+      <button class="refresh-btn" onclick="loadOrders()">Refresh</button>
+    </div>
+  </div>
+
+  <div id="orders-container"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://odczzymxgjsjhbufffxm.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'
+    );
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+    let user = null;
+
+    async function fetchCustomer() {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone_number', phone)
+        .maybeSingle();
+
+      if (error || !data) {
+        document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
+        return;
+      }
+
+      user = data;
+      document.getElementById('user-info').innerHTML = `
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Phone:</strong> ${user.phone_number}</p>
+        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+        <p><strong>Society:</strong> ${user.society_name}</p>
+      `;
+    }
+
+    async function loadOrders() {
+      const container = document.getElementById('orders-container');
+      container.innerHTML = '';
+
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !orders.length) {
+        container.innerHTML = '<p style="text-align:center; color: grey;">No orders found.</p>';
+        return;
+      }
+
+      orders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = 'order-card';
+
+        const grainsHTML = order.grain_details.map(g =>
+          `<div class="grain-item">${g.grain} - ${g.quantity} kg</div>`
+        ).join('');
+
+        const date = new Date(order.created_at).toLocaleString();
+
+        card.innerHTML = `
+          <p><strong>Order Date:</strong> ${date}</p>
+          <div class="grain-list">${grainsHTML}</div>
+          <p><strong>Total:</strong> ₹${order.total_price.toFixed(2)}</p>
+          <p class="status">Status: ${order.status}</p>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // Load on start
+    await fetchCustomer();
+    if (user) loadOrders();
+  </script>
+</body>
+</html>
