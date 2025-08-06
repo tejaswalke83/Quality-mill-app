@@ -150,7 +150,8 @@
       for (let i = 0; i < 3; i++) addRow();
     }
 
-    function addRow() {
+   window.addRow = function () {
+
       const row = document.createElement('div');
       row.className = 'row';
 
