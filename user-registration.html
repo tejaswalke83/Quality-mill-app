@@ -193,8 +193,8 @@ async function checkUser() {
       .eq('phone_number', mobile)  // or Number(mobile) if your DB uses numbers
       .maybeSingle();
 
-    console.log('Supabase query result:', data);
-    console.log('Supabase query error:', error);
+    //console.log('Supabase query result:', data);
+   // console.log('Supabase query error:', error);
 
     const { data: data1, error: error1 } = await supabase
       .from('customers')
