@@ -186,7 +186,7 @@
 
     let grainList = [];
     let user = null;
-
+ const orderType = localStorage.getItem("orderType") || "pickup";
 if (orderType === "fresh-milled") {
   const { data: freshGrains, error: freshGrainsError } = await supabase
     .from("fresh_milled_grains")
@@ -223,7 +223,7 @@ if (orderType === "fresh-milled") {
     const orderRows = document.getElementById('order-rows');
     const totalPriceEl = document.getElementById('total-price');
 
-    const orderType = localStorage.getItem("orderType") || "pickup";
+   
 
 if (orderType === "fresh-milled") {
   document.getElementById("fresh-milled-section").style.display = "block";
