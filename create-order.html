@@ -219,12 +219,7 @@ if (orderType === "fresh-milled") {
 }
 
     
-    const orderType = localStorage.getItem("orderType") || "pickup";
-
-if (orderType === "fresh-milled") {
-  document.getElementById("fresh-milled-section").style.display = "block";
-}
-
+  
     const orderRows = document.getElementById('order-rows');
     const totalPriceEl = document.getElementById('total-price');
 
