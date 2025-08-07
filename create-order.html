@@ -157,6 +157,27 @@
     const orderRows = document.getElementById('order-rows');
     const totalPriceEl = document.getElementById('total-price');
 
+    async function generateTokenNumber() {
+  // Get all active (non-completed) token numbers
+  const { data: activeOrders } = await supabase
+    .from('orders')
+    .select('token_number')
+    .not('status', 'eq', 'completed');
+
+  const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+
+  for (let i = 1; i <= 999; i++) {
+    const padded = i.toString().padStart(3, '0');
+    const token = `QA${padded}`;
+    if (!activeTokens.has(token)) {
+      return token; // found unused token
+    }
+  }
+
+  throw new Error("All token numbers are in use.");
+}
+
+
     async function fetchData() {
       // Get user by phone
       const { data, error } = await supabase
@@ -371,14 +392,18 @@ window.updatePrice = function (selectElement) {
 
       const total_price = parseFloat(totalPriceEl.textContent);
 
-      const { error } = await supabase
-        .from('orders')
-        .insert([{
-          customer_id: user.id,
-          grain_details: grainDetails,
-          total_price,
-          status: 'new'
-        }]);
+    const token_number = await generateTokenNumber();
+
+const { error } = await supabase
+  .from('orders')
+  .insert([{
+    customer_id: user.id,
+    grain_details: grainDetails,
+    total_price,
+    status: 'new',
+    token_number: token_number
+  }]);
+
 
       if (error) {
         alert("Failed to place order!");
