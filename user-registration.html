@@ -136,6 +136,27 @@
       <button onclick="registerUser()">Register</button>
     </div>
 
+    <!-- Order Type Selection (initially hidden) -->
+<div id="order-type-section" class="hidden">
+  <h3>What would you like to do today?</h3>
+  <div style="display: flex; gap: 20px; flex-direction: column; margin-top: 20px;">
+
+    <div onclick="selectOrderType('pickup')" style="border: 2px solid #ccc; border-radius: 10px; padding: 20px; cursor: pointer; position: relative;">
+      <strong>Pickup & Delivery</strong>
+      <p>We’ll pick up your grains, mill them, and deliver back to you.</p>
+      <span id="tick-pickup" class="hidden" style="position: absolute; top: 10px; left: 10px; color: green;">✔️</span>
+    </div>
+
+    <div onclick="selectOrderType('fresh-milled')" style="border: 2px solid #ccc; border-radius: 10px; padding: 20px; cursor: pointer; position: relative;">
+      <strong>Freshly Milled Flour</strong>
+      <p>Select grain, we mill & deliver fresh atta to your doorstep.</p>
+      <span id="tick-fresh-milled" class="hidden" style="position: absolute; top: 10px; left: 10px; color: green;">✔️</span>
+    </div>
+
+  </div>
+</div>
+
+
     <!-- Output -->
     <div id="status" class="form-group"></div>
 
@@ -200,18 +221,29 @@ if (data) {
   }
 
   if (orders && orders.length > 0) {
-    // User has orders, go to my-orders.html
-    document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
-    setTimeout(() => {
-      window.location.href = `my-orders.html?phone=${mobile}`;
-    }, 1000);
-  } else {
-    // User has no orders, go to create-order.html
-    document.getElementById('status').innerText = "User found. Redirecting to Create Order...";
-    setTimeout(() => {
-      window.location.href = `create-order.html?phone=${mobile}`;
-    }, 1000);
-  }
+  document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
+  setTimeout(() => {
+    window.location.href = `my-orders.html?phone=${mobile}`;
+  }, 1000);
+} else {
+  // User has no orders → Show order type selection
+  document.getElementById('status').innerText = "User found. Please choose your order type.";
+  showOrderTypeSection();
+}
+
+  // if (orders && orders.length > 0) {
+  //   // User has orders, go to my-orders.html
+  //   document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
+  //   setTimeout(() => {
+  //     window.location.href = `my-orders.html?phone=${mobile}`;
+  //   }, 1000);
+  // } else {
+  //   // User has no orders, go to create-order.html
+  //   document.getElementById('status').innerText = "User found. Redirecting to Create Order...";
+  //   setTimeout(() => {
+  //     window.location.href = `create-order.html?phone=${mobile}`;
+  //   }, 1000);
+  // }
 }
 
       
@@ -395,7 +427,10 @@ if (data) {
         }
 
         alert("User registered successfully!");
-        location.reload();
+        document.getElementById('status').innerText = "Registration successful. Please choose your order type.";
+showOrderTypeSection();
+
+        // location.reload();
       } catch (err) {
         console.error("Unexpected error during registration:", err);
         showError("Unexpected error. Please try again.");
@@ -411,6 +446,33 @@ if (data) {
         .forEach(id => document.getElementById(id).innerText = '');
       document.getElementById('status').innerText = "";
     }
+function showOrderTypeSection() {
+  document.getElementById('mobile-section').classList.add('hidden');
+  document.getElementById('register-section').classList.add('hidden');
+  document.getElementById('order-type-section').classList.remove('hidden');
+}
+
+function selectOrderType(type) {
+  localStorage.setItem('orderType', type);
+  
+  // Add green tick visual feedback
+  document.getElementById('tick-pickup').classList.add('hidden');
+  document.getElementById('tick-fresh-milled').classList.add('hidden');
+
+  if (type === 'pickup') {
+    document.getElementById('tick-pickup').classList.remove('hidden');
+  } else {
+    document.getElementById('tick-fresh-milled').classList.remove('hidden');
+  }
+
+  // Redirect after 500ms for visual effect
+  const phone = document.getElementById('mobile').value.trim();
+  setTimeout(() => {
+    window.location.href = `create-order.html?phone=${phone}`;
+  }, 500);
+}
+
+    
   </script>
 </body>
 </html>
