@@ -86,7 +86,7 @@
     async function fetchAllOrders() {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, customers(name, phone)')
+        .select('*, customers(name, phone_number)')
         .order('created_at', { ascending: false });
 
       if (error) {
