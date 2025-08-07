@@ -114,6 +114,21 @@
 
 </head>
 <body>
+
+
+<div id="fresh-milled-section" style="display: none; margin-top: 20px;">
+  <h3>Select Freshly Milled Grain</h3>
+
+  <label for="freshGrain">Grain Type</label>
+  <select id="freshGrain"></select>
+
+  <label for="freshQuantity" style="margin-top: 10px;">Quantity (in kg)</label>
+  <input type="number" id="freshQuantity" min="1" placeholder="Enter quantity">
+
+  <p id="freshPrice" style="margin-top: 10px; font-weight: bold;"></p>
+</div>
+
+  
   <div class="card">
     <h2>Create New Order</h2>
     
@@ -129,6 +144,20 @@
       Total Price: ₹<span id="total-price">0</span>
     </div>
 
+<!-- Freshly Milled Grain Section (only visible when order type is 'fresh-milled') -->
+<div id="fresh-milled-section" style="display: none; margin-top: 20px;">
+  <h3>Select Freshly Milled Grain</h3>
+
+  <label for="freshGrain">Grain Type</label>
+  <select id="freshGrain"></select>
+
+  <label for="freshQuantity" style="margin-top: 10px;">Quantity (in kg)</label>
+  <input type="number" id="freshQuantity" min="1" placeholder="Enter quantity">
+
+  <p id="freshPrice" style="margin-top: 10px; font-weight: bold;"></p>
+</div>
+
+    
      <div class="actions">
       <button onclick="submitOrder()">Submit Order</button>
       <button onclick="window.location.href='index.html'">Cancel</button>
@@ -145,6 +174,10 @@
   </div>
 
   <script type="module">
+
+
+
+    
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const supabase = createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
@@ -154,8 +187,87 @@
     let grainList = [];
     let user = null;
 
+if (orderType === "fresh-milled") {
+  const { data: freshGrains, error: freshGrainsError } = await supabase
+    .from("fresh_milled_grains")
+    .select("*");
+
+  if (freshGrains && freshGrains.length) {
+    const freshGrainSelect = document.getElementById("freshGrain");
+    freshGrains.forEach(grain => {
+      const option = document.createElement("option");
+      option.value = grain.name;
+      option.setAttribute("data-price", grain.price_per_kg);
+      option.textContent = `${grain.name} - ₹${grain.price_per_kg}/kg`;
+      freshGrainSelect.appendChild(option);
+    });
+
+    const updateFreshPrice = () => {
+      const selectedOption = freshGrainSelect.options[freshGrainSelect.selectedIndex];
+      const price = parseFloat(selectedOption.getAttribute("data-price"));
+      const qty = parseFloat(document.getElementById("freshQuantity").value || 0);
+      if (!isNaN(price) && !isNaN(qty)) {
+        document.getElementById("freshPrice").textContent = `Total Price: ₹${(price * qty).toFixed(2)}`;
+      } else {
+        document.getElementById("freshPrice").textContent = "";
+      }
+    };
+
+    freshGrainSelect.addEventListener("change", updateFreshPrice);
+    document.getElementById("freshQuantity").addEventListener("input", updateFreshPrice);
+  }
+}
+
+    
+    const orderType = localStorage.getItem("orderType") || "pickup";
+
+if (orderType === "fresh-milled") {
+  document.getElementById("fresh-milled-section").style.display = "block";
+}
+
     const orderRows = document.getElementById('order-rows');
     const totalPriceEl = document.getElementById('total-price');
+
+    const orderType = localStorage.getItem("orderType") || "pickup";
+
+if (orderType === "fresh-milled") {
+  document.getElementById("fresh-milled-section").style.display = "block";
+  document.getElementById("grain-section").style.display = "none"; // optional: hide pickup grain list
+}
+
+
+
+    // ✅ Fetch freshly milled grains from DB and populate dropdown
+const { data: freshGrains, error: freshGrainsError } = await supabase
+  .from("fresh_milled_grains")
+  .select("*");
+
+if (freshGrains && freshGrains.length) {
+  const freshGrainSelect = document.getElementById("freshGrain");
+  freshGrains.forEach(grain => {
+    const option = document.createElement("option");
+    option.value = grain.name;
+    option.setAttribute("data-price", grain.price_per_kg);
+    option.textContent = `${grain.name} - ₹${grain.price_per_kg}/kg`;
+    freshGrainSelect.appendChild(option);
+  });
+
+  // Show price when quantity or selection changes
+  const updateFreshPrice = () => {
+    const selectedOption = freshGrainSelect.options[freshGrainSelect.selectedIndex];
+    const price = parseFloat(selectedOption.getAttribute("data-price"));
+    const qty = parseFloat(document.getElementById("freshQuantity").value || 0);
+    if (!isNaN(price) && !isNaN(qty)) {
+      document.getElementById("freshPrice").textContent = `Total Price: ₹${(price * qty).toFixed(2)}`;
+    } else {
+      document.getElementById("freshPrice").textContent = "";
+    }
+  };
+
+  freshGrainSelect.addEventListener("change", updateFreshPrice);
+  document.getElementById("freshQuantity").addEventListener("input", updateFreshPrice);
+}
+
 
     async function generateTokenNumber() {
   // Get all active (non-completed) token numbers
@@ -360,6 +472,46 @@ window.updatePrice = function (selectElement) {
     }
 
     window.submitOrder = async function () {
+
+const orderType = localStorage.getItem("orderType") || "pickup";
+
+if (orderType === "fresh-milled") {
+  const freshGrain = document.getElementById("freshGrain");
+  const grainType = freshGrain.value;
+  const pricePerKg = parseFloat(freshGrain.options[freshGrain.selectedIndex].getAttribute("data-price"));
+  const quantity = parseFloat(document.getElementById("freshQuantity").value);
+
+  if (!grainType || isNaN(quantity) || quantity <= 0) {
+    alert("Please select a valid grain and quantity.");
+    return;
+  }
+
+  const total_price = pricePerKg * quantity;
+  const token_number = Math.floor(100000 + Math.random() * 900000);
+
+  const { error } = await supabase.from("orders").insert([{
+    customer_id: user.id,
+    status: 'new',
+    token_number,
+    order_type: 'fresh-milled',
+    grain_type: grainType,
+    quantity_kg: quantity,
+    total_price
+  }]);
+
+  if (!error) {
+    alert("Freshly milled order placed successfully!");
+    window.location.href = "my-orders.html";
+  } else {
+    console.error(error);
+    alert("Error placing freshly milled order.");
+  }
+
+  return; // ⛔ Don't continue with pickup logic
+}
+
+
+      
       const rows = [...orderRows.children];
       const grainDetails = [];
       let hasError = false;
