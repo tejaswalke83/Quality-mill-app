@@ -402,15 +402,15 @@ const total_price = parseFloat(totalPriceEl.textContent);
         }]);
     const token_number = await generateTokenNumber();
 
-const { error } = await supabase
-  .from('orders')
-  .insert([{
-    customer_id: user.id,
-    grain_details: grainDetails,
-    total_price,
-    status: 'new',
-    token_number: token_number
-  }]);
+// const { error } = await supabase
+//   .from('orders')
+//   .insert([{
+//     customer_id: user.id,
+//     grain_details: grainDetails,
+//     total_price,
+//     status: 'new',
+//     token_number: token_number
+//   }]);
 
 
 if (error) {
