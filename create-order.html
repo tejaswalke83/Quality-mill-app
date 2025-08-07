@@ -1,267 +1,161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Create Order</title>
- <style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #e6f0ff;
-    padding: 20px;
-  }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Create Order</title>
+<style>
+body {
+font-family: Arial, sans-serif;
+background-color: #e6f0ff;
+padding: 20px;
+}
 
-  .card {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    max-width: 700px;
-    margin: auto;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
+.card {
+background: white;
+padding: 20px;
+border-radius: 12px;
+max-width: 700px;
+margin: auto;
+box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
-  h2 {
-    text-align: center;
-    color: #1a73e8;
-  }
+h2 {
+text-align: center;
+color: #1a73e8;
+}
 
-  .row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-  }
+.row {
+display: flex;
+align-items: center;
+gap: 10px;
+margin-bottom: 10px;
+flex-wrap: wrap;
+}
 
-  select {
-    padding: 6px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    flex: 1;
-    min-width: 120px;
-  }
+select {
+padding: 6px;
+border-radius: 6px;
+border: 1px solid #ccc;
+flex: 1;
+min-width: 120px;
+}
 
-  input[type="number"] {
-    padding: 6px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    width: 80px;
-  }
+input[type="number"] {
+padding: 6px;
+border-radius: 6px;
+border: 1px solid #ccc;
+width: 80px;
+}
 
-  .price, .total {
-    min-width: 80px;
-  }
+.price, .total {
+min-width: 80px;
+}
 
-  .error {
-    color: red;
-    font-size: 0.85em;
-    flex: 1 1 100%;
-  }
+.error {
+color: red;
+font-size: 0.85em;
+flex: 1 1 100%;
+}
 
-  button {
-    background-color: #1a73e8;
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-  }
+button {
+background-color: #1a73e8;
+color: white;
+border: none;
+padding: 10px 16px;
+border-radius: 8px;
+cursor: pointer;
+}
 
-  button:hover {
-    background-color: #155ab6;
-  }
+button:hover {
+background-color: #155ab6;
+}
 
-  .outlined {
-    background: transparent;
-    border: 2px solid #1a73e8;
-    color: #1a73e8;
-  }
+.outlined {
+background: transparent;
+border: 2px solid #1a73e8;
+color: #1a73e8;
+}
 
-  .outlined:hover {
-    background: #e6f0ff;
-  }
+.outlined:hover {
+background: #e6f0ff;
+}
 
-  .total-section {
-    text-align: right;
-    margin-top: 20px;
-    font-weight: bold;
-    font-size: 1.1em;
-  }
+.total-section {
+text-align: right;
+margin-top: 20px;
+font-weight: bold;
+font-size: 1.1em;
+}
 
-  .actions {
-    text-align: center;
-    margin-top: 20px;
-  }
+.actions {
+text-align: center;
+margin-top: 20px;
+}
 
-  .remove-btn {
-    border: 2px solid red;
-    background: transparent;
-    color: red;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
+.remove-btn {
+border: 2px solid red;
+background: transparent;
+color: red;
+padding: 6px 10px;
+border-radius: 6px;
+cursor: pointer;
+}
 
-  .remove-btn:hover {
-    background-color: #ffe6e6;
-  }
+.remove-btn:hover {
+background-color: #ffe6e6;
+}
 
-  .remove-btn::after {
-    content: "-";
-    font-size: 16px;
-  }
+.remove-btn::after {
+content: "-";
+font-size: 16px;
+}
 </style>
 
 </head>
 <body>
+<div class="card">
+<h2>Create New Order</h2>
 
+<div id="user-info"></div>
+<hr><br>
 
-  <div id="fresh-milled-section" style="display: none; margin-top: 20px;">
-  <h3>Select Freshly Milled Grain</h3>
+<div id="order-rows"></div>
 
-  <label for="freshGrain">Grain Type</label>
-  <select id="freshGrain"></select>
+<button class="outlined" onclick="addRow()">+ Add Grain </button>
 
-  <label for="freshQuantity" style="margin-top: 10px;">Quantity (in kg)</label>
-  <input type="number" id="freshQuantity" min="1" placeholder="Enter quantity">
-
-  <p id="freshPrice" style="margin-top: 10px; font-weight: bold;"></p>
+<br> <hr>
+<div class="total-section">
+Total Price: ₹<span id="total-price">0</span>
 </div>
 
-  <div class="card">
-    <h2>Create New Order</h2>
-    
-    <div id="user-info"></div>
-    <hr><br>
-
-    <div id="order-rows"></div>
-
-   <button class="outlined" onclick="addRow()">+ Add Grain </button>
-
- <br> <hr>
-    <div class="total-section">
-      Total Price: ₹<span id="total-price">0</span>
-    </div>
-
-<!-- Freshly Milled Grain Section (only visible when order type is 'fresh-milled') -->
-<div id="fresh-milled-section" style="display: none; margin-top: 20px;">
-  <h3>Select Freshly Milled Grain</h3>
-
-  <label for="freshGrain">Grain Type</label>
-  <select id="freshGrain"></select>
-
-  <label for="freshQuantity" style="margin-top: 10px;">Quantity (in kg)</label>
-  <input type="number" id="freshQuantity" min="1" placeholder="Enter quantity">
-
-  <p id="freshPrice" style="margin-top: 10px; font-weight: bold;"></p>
+<div class="actions">
+<button onclick="submitOrder()">Submit Order</button>
+<button onclick="window.location.href='index.html'">Cancel</button>
 </div>
-
-    
-     <div class="actions">
-      <button onclick="submitOrder()">Submit Order</button>
-      <button onclick="window.location.href='index.html'">Cancel</button>
-    </div>
-  </div>
+</div>
 
 <!--     <div class="actions">
-     <div style="margin-top: 20px; display: flex; gap: 10px;">
-  <button onclick="submitOrder()" id="submit-order" style="padding: 10px 20px; font-size: 16px;">Submit</button>
-  <button id="cancel-order" style="padding: 10px 20px; font-size: 16px; background-color: #f0f0f0;">Cancel</button>
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+ <button onclick="submitOrder()" id="submit-order" style="padding: 10px 20px; font-size: 16px;">Submit</button>
+ <button id="cancel-order" style="padding: 10px 20px; font-size: 16px; background-color: #f0f0f0;">Cancel</button>
 </div>
 
-    </div> -->
-  </div>
+   </div> -->
+</div>
 
-  <script type="module">
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
+const supabase = createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
+const urlParams = new URLSearchParams(window.location.search);
+const phone = urlParams.get('phone');
 
+let grainList = [];
+let user = null;
 
-    
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    const supabase = createClient('https://odczzymxgjsjhbufffxm.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI');
-    const urlParams = new URLSearchParams(window.location.search);
-    const phone = urlParams.get('phone');
-
-    let grainList = [];
-    let user = null;
- const orderType = localStorage.getItem("orderType") || "pickup";
-if (orderType === "fresh-milled") {
-  const { data: freshGrains, error: freshGrainsError } = await supabase
-    .from("fresh_milled_grains")
-    .select("*");
-
-  if (freshGrains && freshGrains.length) {
-    const freshGrainSelect = document.getElementById("freshGrain");
-    freshGrains.forEach(grain => {
-      const option = document.createElement("option");
-      option.value = grain.name;
-      option.setAttribute("data-price", grain.price_per_kg);
-      option.textContent = `${grain.name} - ₹${grain.price_per_kg}/kg`;
-      freshGrainSelect.appendChild(option);
-    });
-
-    const updateFreshPrice = () => {
-      const selectedOption = freshGrainSelect.options[freshGrainSelect.selectedIndex];
-      const price = parseFloat(selectedOption.getAttribute("data-price"));
-      const qty = parseFloat(document.getElementById("freshQuantity").value || 0);
-      if (!isNaN(price) && !isNaN(qty)) {
-        document.getElementById("freshPrice").textContent = `Total Price: ₹${(price * qty).toFixed(2)}`;
-      } else {
-        document.getElementById("freshPrice").textContent = "";
-      }
-    };
-
-    freshGrainSelect.addEventListener("change", updateFreshPrice);
-    document.getElementById("freshQuantity").addEventListener("input", updateFreshPrice);
-  }
-}
-
-    
-  
-    const orderRows = document.getElementById('order-rows');
-    const totalPriceEl = document.getElementById('total-price');
-
-   
-
-if (orderType === "fresh-milled") {
-  document.getElementById("fresh-milled-section").style.display = "block";
-  document.getElementById("grain-section").style.display = "none"; // optional: hide pickup grain list
-}
-
-
-
-    // ✅ Fetch freshly milled grains from DB and populate dropdown
-const { data: freshGrains, error: freshGrainsError } = await supabase
-  .from("fresh_milled_grains")
-  .select("*");
-
-if (freshGrains && freshGrains.length) {
-  const freshGrainSelect = document.getElementById("freshGrain");
-  freshGrains.forEach(grain => {
-    const option = document.createElement("option");
-    option.value = grain.name;
-    option.setAttribute("data-price", grain.price_per_kg);
-    option.textContent = `${grain.name} - ₹${grain.price_per_kg}/kg`;
-    freshGrainSelect.appendChild(option);
-  });
-
-  // Show price when quantity or selection changes
-  const updateFreshPrice = () => {
-    const selectedOption = freshGrainSelect.options[freshGrainSelect.selectedIndex];
-    const price = parseFloat(selectedOption.getAttribute("data-price"));
-    const qty = parseFloat(document.getElementById("freshQuantity").value || 0);
-    if (!isNaN(price) && !isNaN(qty)) {
-      document.getElementById("freshPrice").textContent = `Total Price: ₹${(price * qty).toFixed(2)}`;
-    } else {
-      document.getElementById("freshPrice").textContent = "";
-    }
-  };
-
-  freshGrainSelect.addEventListener("change", updateFreshPrice);
-  document.getElementById("freshQuantity").addEventListener("input", updateFreshPrice);
-}
-
+const orderRows = document.getElementById('order-rows');
+const totalPriceEl = document.getElementById('total-price');
 
     async function generateTokenNumber() {
   // Get all active (non-completed) token numbers
@@ -284,189 +178,228 @@ if (freshGrains && freshGrains.length) {
 }
 
 
-    async function fetchData() {
-      // Get user by phone
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone_number', phone)
-        .maybeSingle();
+async function fetchData() {
+// Get user by phone
+const { data, error } = await supabase
+.from('customers')
+.select('*')
+.eq('phone_number', phone)
+.maybeSingle();
 
-      if (!data) {
-        document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
-        return;
-      }
+if (!data) {
+document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
+return;
+}
 
-      user = data;
-     document.getElementById('user-info').innerHTML = `
-     <p><strong>Name:</strong> ${user.name}</p>
-     <p><strong>Mobile:</strong> ${user.phone_number}</p>
-     <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
-     <p><strong>Society:</strong> ${user.society_name}</p>
+user = data;
+document.getElementById('user-info').innerHTML = `
+    <p><strong>Name:</strong> ${user.name}</p>
+    <p><strong>Mobile:</strong> ${user.phone_number}</p>
+    <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+    <p><strong>Society:</strong> ${user.society_name}</p>
 `;
 
 
-      // Get grain prices
-      const { data: grains } = await supabase
-        .from('grain_prices')
-        .select('*');
-      grainList = grains;
+// Get grain prices
+const { data: grains } = await supabase
+.from('grain_prices')
+.select('*');
+grainList = grains;
 
-      // Add default 1 rows
-      for (let i = 0; i < 1; i++) addRow();
-    }
+// Add default 1 rows
+for (let i = 0; i < 1; i++) addRow();
+}
 
 
 window.addRow = function () {
-  const row = document.createElement('div');
-  row.className = 'row';
-  row.style.marginBottom = "12px";
+const row = document.createElement('div');
+row.className = 'row';
+row.style.marginBottom = "12px";
 
-  // Card-like styling
-  row.style.border = "1px solid #ccc";
-  row.style.padding = "12px";
-  row.style.borderRadius = "8px";
-  row.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.05)";
-  row.style.display = "flex";
-  row.style.flexWrap = "wrap";
-  row.style.gap = "10px";
-  row.style.alignItems = "center";
+// Card-like styling
+row.style.border = "1px solid #ccc";
+row.style.padding = "12px";
+row.style.borderRadius = "8px";
+row.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.05)";
+row.style.display = "flex";
+row.style.flexWrap = "wrap";
+row.style.gap = "10px";
+row.style.alignItems = "center";
 
-  row.innerHTML = `
-   <select onchange="updatePrice(this)" style="flex: 2; min-width: 150px; font-size: 16px; padding: 6px;">
+row.innerHTML = `
+  <select onchange="updatePrice(this)" style="flex: 2; min-width: 150px; font-size: 16px; padding: 6px;">
 
-      <option value="">Select Grain</option>
-      ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-    </select>
+     <option value="">Select Grain</option>
+     ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+   </select>
 
-    <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" style="flex: 1; min-width: 80px;" />
+   <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" style="flex: 1; min-width: 80px;" />
 
-    <div class="total">₹<span>0</span></div>
+   <div class="total">₹<span>0</span></div>
 
-    <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" 
-      style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
-      <i class="fas fa-trash-alt"></i>
-    </button>
+   <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" 
+     style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+     <i class="fas fa-trash-alt"></i>
+   </button>
 
-    <div class="error" style="flex-basis: 100%; color: red;"></div>
-  `;
+   <div class="error" style="flex-basis: 100%; color: red;"></div>
+ `;
 
-  orderRows.appendChild(row);
+orderRows.appendChild(row);
 }
 
+
+
+
+
+//  window.addRow = function () {
+//   const row = document.createElement('div');
+//   row.className = 'row';
+//   row.style.marginBottom = "12px";
+
+//   // Card-like styling
+//   row.style.border = "1px solid #ccc";
+//   row.style.padding = "12px";
+//   row.style.borderRadius = "8px";
+//   row.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.05)";
+//   row.style.display = "flex";
+//   row.style.flexWrap = "wrap";
+//   row.style.gap = "10px";
+//   row.style.alignItems = "center";
+
+//   row.innerHTML = `
+//     <select onchange="updatePrice(this)">
+//       <option value="">Select Grain</option>
+//       ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+//     </select>
+
+//     <div class="price">₹<span>0</span>/kg</div>
+
+//     <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" style="flex: 1; min-width: 80px;" />
+
+//     <div class="total">₹<span>0</span></div>
+
+//     <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" 
+//       style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+//       <i class="fas fa-trash-alt"></i>
+//     </button>
+
+//     <div class="error" style="flex-basis: 100%; color: red;"></div>
+//   `;
+
+//   orderRows.appendChild(row);
+// }
+
+
+
+//    window.addRow = function () {
+
+//       const row = document.createElement('div');
+//       row.className = 'row';
+
+//       row.innerHTML = `
+//         <select onchange="updatePrice(this)">
+//           <option value="">Select Grain</option>
+//           ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+//         </select>
+
+//        // <div class="price">₹<span>0</span>/kg</div>
+
+//         <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
+
+//         <div class="total">₹<span>0</span></div>
+
+//        <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
+//   <i class="fas fa-trash-alt"></i>
+// </button>
+
+
+//         <div class="error"></div>
+//       `;
+
+//       orderRows.appendChild(row);
+//     }
 
 
 window.updatePrice = function (selectElement) {
-  const selectedOption = selectElement.options[selectElement.selectedIndex];
-  const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+const selectedOption = selectElement.options[selectElement.selectedIndex];
+const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
 
-  const row = selectElement.closest('.card');
-  const quantityInput = row.querySelector('input[type="number"]');
-  const totalEl = row.querySelector('.total span');
+const row = selectElement.closest('.card');
+const quantityInput = row.querySelector('input[type="number"]');
+const totalEl = row.querySelector('.total span');
 
-  const quantity = parseFloat(quantityInput.value) || 0;
-  const total = price * quantity;
+const quantity = parseFloat(quantityInput.value) || 0;
+const total = price * quantity;
 
-  totalEl.textContent = total.toFixed(2);
+totalEl.textContent = total.toFixed(2);
 
-  // ✅ No attempt to update price per kg element (since it's removed)
-}
-
-    
-    // window.updatePrice = function(selectEl) {
-    //   const price = selectEl.selectedOptions[0]?.dataset.price || 0;
-    //   const row = selectEl.closest('.row');
-    //   row.querySelector('.price span').textContent = price;
-    //   updateTotal();
-    // }
-
-    window.updateTotal = function() {
-      let grandTotal = 0;
-      [...orderRows.children].forEach(row => {
-        const select = row.querySelector('select');
-        const qtyInput = row.querySelector('input');
-        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(qtyInput.value || 0);
-        const rowTotal = price * qty;
-        row.querySelector('.total span').textContent = rowTotal.toFixed(2);
-        grandTotal += rowTotal;
-      });
-      totalPriceEl.textContent = grandTotal.toFixed(2);
-    }
-
-    window.submitOrder = async function () {
-
-const orderType = localStorage.getItem("orderType") || "pickup";
-
-if (orderType === "fresh-milled") {
-  const freshGrain = document.getElementById("freshGrain");
-  const grainType = freshGrain.value;
-  const pricePerKg = parseFloat(freshGrain.options[freshGrain.selectedIndex].getAttribute("data-price"));
-  const quantity = parseFloat(document.getElementById("freshQuantity").value);
-
-  if (!grainType || isNaN(quantity) || quantity <= 0) {
-    alert("Please select a valid grain and quantity.");
-    return;
-  }
-
-  const total_price = pricePerKg * quantity;
-  const token_number = Math.floor(100000 + Math.random() * 900000);
-
-  const { error } = await supabase.from("orders").insert([{
-    customer_id: user.id,
-    status: 'new',
-    token_number,
-    order_type: 'fresh-milled',
-    grain_type: grainType,
-    quantity_kg: quantity,
-    total_price
-  }]);
-
-  if (!error) {
-    alert("Freshly milled order placed successfully!");
-    window.location.href = "my-orders.html";
-  } else {
-    console.error(error);
-    alert("Error placing freshly milled order.");
-  }
-
-  return; // ⛔ Don't continue with pickup logic
+// ✅ No attempt to update price per kg element (since it's removed)
 }
 
 
-      
-      const rows = [...orderRows.children];
-      const grainDetails = [];
-      let hasError = false;
+// window.updatePrice = function(selectEl) {
+//   const price = selectEl.selectedOptions[0]?.dataset.price || 0;
+//   const row = selectEl.closest('.row');
+//   row.querySelector('.price span').textContent = price;
+//   updateTotal();
+// }
 
-      rows.forEach(row => {
-        const select = row.querySelector('select');
-        const qtyInput = row.querySelector('input');
-        const errorEl = row.querySelector('.error');
-        errorEl.textContent = '';
+window.updateTotal = function() {
+let grandTotal = 0;
+[...orderRows.children].forEach(row => {
+const select = row.querySelector('select');
+const qtyInput = row.querySelector('input');
+const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+const qty = parseFloat(qtyInput.value || 0);
+const rowTotal = price * qty;
+row.querySelector('.total span').textContent = rowTotal.toFixed(2);
+grandTotal += rowTotal;
+});
+totalPriceEl.textContent = grandTotal.toFixed(2);
+}
 
-        const grain = select.value;
-        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(qtyInput.value || 0);
+window.submitOrder = async function () {
+const rows = [...orderRows.children];
+const grainDetails = [];
+let hasError = false;
 
-        if (!grain || qty <= 0) {
-          errorEl.textContent = "Select grain and enter valid quantity.";
-          hasError = true;
-          return;
-        }
+rows.forEach(row => {
+const select = row.querySelector('select');
+const qtyInput = row.querySelector('input');
+const errorEl = row.querySelector('.error');
+errorEl.textContent = '';
 
-        grainDetails.push({
-          grain,
-          quantity: qty,
-          price: price,
-          total: price * qty
-        });
-      });
+const grain = select.value;
+const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+const qty = parseFloat(qtyInput.value || 0);
 
-      if (hasError || grainDetails.length === 0) return;
+if (!grain || qty <= 0) {
+errorEl.textContent = "Select grain and enter valid quantity.";
+hasError = true;
+return;
+}
 
-      const total_price = parseFloat(totalPriceEl.textContent);
+grainDetails.push({
+grain,
+quantity: qty,
+price: price,
+total: price * qty
+});
+});
 
+if (hasError || grainDetails.length === 0) return;
+
+const total_price = parseFloat(totalPriceEl.textContent);
+
+      const { error } = await supabase
+        .from('orders')
+        .insert([{
+          customer_id: user.id,
+          grain_details: grainDetails,
+          total_price,
+          status: 'new'
+        }]);
     const token_number = await generateTokenNumber();
 
 const { error } = await supabase
@@ -480,18 +413,18 @@ const { error } = await supabase
   }]);
 
 
-      if (error) {
-        alert("Failed to place order!");
-        console.error(error);
-      } else {
-        alert("Order placed successfully!");
-        window.location.href = '/my-orders.html?phone=' + phone;
+if (error) {
+alert("Failed to place order!");
+console.error(error);
+} else {
+alert("Order placed successfully!");
+window.location.href = '/my-orders.html?phone=' + phone;
 
 
-      }
-    }
+}
+}
 
-    fetchData();
-  </script>
+fetchData();
+</script>
 </body>
 </html>
