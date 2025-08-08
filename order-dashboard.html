@@ -160,7 +160,7 @@
           <p><strong>Name:</strong> ${order.customers?.name || 'N/A'}</p>
           <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
           <p><strong>Status:</strong> ${order.status}</p>
-          <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+          <p><strong>Created:</strong> ${window.convertUTCToIST(order.created_at)}</p>
         `;
 
         const nextStatus = getNextStatus(order.status);
