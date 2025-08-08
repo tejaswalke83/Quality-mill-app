@@ -11,6 +11,53 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// script.js (add this)
+(function () {
+  /**
+   * Convert a UTC timestamp (ISO string) to a nicely formatted IST string.
+   * Returns a human readable string (e.g. "08 Aug 2025, 05:30 PM").
+   * If input is missing/invalid it returns an empty string.
+   */
+  function convertUTCToIST(utcDateStr) {
+    if (!utcDateStr) return '';
+
+    try {
+      // Create Date from UTC string
+      const d = new Date(utcDateStr);
+      // Use toLocaleString with Asia/Kolkata timezone for correct IST formatting
+      return d.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (e) {
+      console.error('convertUTCToIST error:', e, utcDateStr);
+      return String(utcDateStr);
+    }
+  }
+
+  /**
+   * Return a Date object in IST for further arithmetic (optional).
+   * Use carefully — JS Date object is still in local timezone, this returns equivalent IST time Date.
+   */
+  function utcToISTDate(utcDateStr) {
+    if (!utcDateStr) return null;
+    const d = new Date(utcDateStr);
+    // get UTC time + 5.5 hours = IST
+    const istMillis = d.getTime() + (5.5 * 60 * 60 * 1000);
+    return new Date(istMillis);
+  }
+
+  // expose to global so your module <script type="module"> can call window.convertUTCToIST(...)
+  window.convertUTCToIST = convertUTCToIST;
+  window.utcToISTDate = utcToISTDate;
+})();
+
+
 function addSociety() {
   const input = document.getElementById("newSociety");
   const name = input.value.trim();
