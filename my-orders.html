@@ -193,7 +193,8 @@ async function loadOrders() {
       `<div class="grain-item">${g.grain} - ${g.quantity} kg</div>`
     ).join('');
 
-    const date = new Date(order.created_at).toLocaleString();
+    const date = window.convertUTCToIST(order.created_at);
+
 
     const card = document.createElement('div');
     card.className = 'order-card';
