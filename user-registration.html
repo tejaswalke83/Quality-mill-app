@@ -241,9 +241,9 @@
       }
 
       if (orders && orders.length > 0) {
-        document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
+        document.getElementById('status').innerText = "User found. Redirecting to my-orders.html...";
         setTimeout(() => {
-          window.location.href = `order-dashboard.html?phone=${mobile}`;
+          window.location.href = `my-orders.html?phone=${mobile}`;
         }, 1000);
       } else {
         document.getElementById('status').innerText = "User found. Please choose your order type.";
@@ -351,9 +351,9 @@ async function verifyStaffPassword() {
   // Ideally, hash password and verify on server or Supabase RPC.
 
   if (passwordInput === staffUser.password) {
-    document.getElementById('status').innerText = "Login successful! Redirecting to My Orders...";
+    document.getElementById('status').innerText = "Login successful! Redirecting to order-dashboard.html...";
     setTimeout(() => {
-      window.location.href = `my-orders.html?phone=${staffUser.phone_number}`;
+      window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
     }, 1000);
   } else {
     document.getElementById('password-error').innerText = "Incorrect password. Please try again.";
