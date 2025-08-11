@@ -151,28 +151,71 @@ let user = null;
 const orderRows = document.getElementById('order-rows');
 const totalPriceEl = document.getElementById('total-price');
 
-    async function generateTokenNumber() {
-        console.log("generateTokenNumber() called");
-  // Get all active (non-completed) token numbers
-  const { data: activeOrders } = await supabase
-    .from('orders')
-    .select('token_number')
-    .not('status', 'eq', 'completed');
-console.log("inside generate token");
-  const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
 
-  for (let i = 1; i <= 999; i++) {
-    const padded = i.toString().padStart(3, '0');
-    const token = `QA${padded}`;
-      //console.log("check -> "+i);
-    if (!activeTokens.has(token)) {
-         console.log("Token generated:", token);
-      return token; // found unused token
+async function generateTokenNumber() {
+    console.log("generateTokenNumber() called");
+
+    // Get all active (non-completed) token numbers
+    const { data: activeOrders, error } = await supabase
+        .from('orders')
+        .select('token_number')
+        .not('status', 'eq', 'completed');
+
+    if (error) {
+        console.error("Error fetching active orders:", error);
+        throw error;
     }
-  }
 
-  throw new Error("All token numbers are in use.");
+    const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+
+    // Find the last issued token number (numerically)
+    let maxTokenNum = 0;
+    activeTokens.forEach(token => {
+        const num = parseInt(token.slice(2), 10); // remove "QA" and parse number
+        if (num > maxTokenNum) maxTokenNum = num;
+    });
+
+    // Try the next token number
+    for (let attempt = 1; attempt <= 999; attempt++) {
+        let nextNum = maxTokenNum + attempt;
+        if (nextNum > 999) nextNum -= 999; // wrap around after QA999
+
+        const padded = nextNum.toString().padStart(3, '0');
+        const token = `QA${padded}`;
+
+        if (!activeTokens.has(token)) {
+            console.log("Token generated:", token);
+            return token;
+        }
+    }
+
+    throw new Error("All token numbers are in use.");
 }
+
+
+    
+//     async function generateTokenNumber() {
+//         console.log("generateTokenNumber() called");
+//   // Get all active (non-completed) token numbers
+//   const { data: activeOrders } = await supabase
+//     .from('orders')
+//     .select('token_number')
+//     .not('status', 'eq', 'completed');
+// console.log("inside generate token");
+//   const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+
+//   for (let i = 1; i <= 999; i++) {
+//     const padded = i.toString().padStart(3, '0');
+//     const token = `QA${padded}`;
+//       //console.log("check -> "+i);
+//     if (!activeTokens.has(token)) {
+//          console.log("Token generated:", token);
+//       return token; // found unused token
+//     }
+//   }
+
+//   throw new Error("All token numbers are in use.");
+// }
 
 
 async function fetchData() {
