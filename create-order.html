@@ -397,7 +397,7 @@ window.submitOrder = async function () {
   try {
     // ✅ Generate token number FIRST
     const token_number = await generateTokenNumber();
-
+console.print(" token generated "+token_number);
     // ✅ Insert order with token number
     const { error } = await supabase
       .from('orders')
