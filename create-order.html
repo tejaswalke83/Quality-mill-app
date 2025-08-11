@@ -163,13 +163,15 @@ const totalPriceEl = document.getElementById('total-price');
     .from('orders')
     .select('token_number')
     .not('status', 'eq', 'completed');
-
+console.print("inside generate token");
   const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
 
   for (let i = 1; i <= 999; i++) {
     const padded = i.toString().padStart(3, '0');
     const token = `QA${padded}`;
+      console.print("check -> "+i);
     if (!activeTokens.has(token)) {
+         console.print(token);
       return token; // found unused token
     }
   }
