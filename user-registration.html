@@ -233,28 +233,9 @@ if (data) {
   showOrderTypeSection();
 }
 
-  // if (orders && orders.length > 0) {
-  //   // User has orders, go to my-orders.html
-  //   document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
-  //   setTimeout(() => {
-  //     window.location.href = `my-orders.html?phone=${mobile}`;
-  //   }, 1000);
-  // } else {
-  //   // User has no orders, go to create-order.html
-  //   document.getElementById('status').innerText = "User found. Redirecting to Create Order...";
-  //   setTimeout(() => {
-  //     window.location.href = `create-order.html?phone=${mobile}`;
-  //   }, 1000);
-  // }
+
 }
 
-      
-    // if (data) {
-    //   document.getElementById('status').innerText = "User found. Redirecting...";
-    //   setTimeout(() => {
-    //     window.location.href = `create-order.html?phone=${mobile}`;
-    //   }, 1000);
-    // } 
     else {
       document.getElementById('status').innerText = "New user. Please register.";
       document.getElementById('register-section').classList.remove('hidden');
@@ -267,97 +248,6 @@ if (data) {
   }
 }
 
-
-
-
-
-
-
-    
-
-// async function checkUser() {
-//   const mobile = document.getElementById('mobile').value.trim();
-//   clearErrors();
-//   if (!/^\d{10}$/.test(mobile)) {
-//     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
-//     return;
-//   }
-
-//   document.getElementById('status').innerText = "Checking user...";
-
-//   try {
-//     console.log('Checking mobile number:', mobile);
-
-//     const { data, error } = await supabase
-//       .from('customers')
-//       .select('*')
-//       .eq('phone_number', mobile)
-//       .maybeSingle();
-    
-//     console.log('Checking data from db:', data);
-
-//     const { data1, error1 } = await supabase
-//   .from('customers')
-//   .select('*');
-
-// console.log('All customers:', data1);
-
-//     if (error) throw error;
-
-//     if (data) {
-//       // ✅ User exists, redirect to create order page
-//       document.getElementById('status').innerText = "User found. Redirecting...";
-//       // You can also pass the phone number or user id via URL if needed
-//       setTimeout(() => {
-//         window.location.href = `create-order.html?phone=${mobile}`;
-//       }, 1000);
-//     } else {
-//       // 🆕 User, show registration
-//       document.getElementById('status').innerText = "New user. Please register.";
-//       document.getElementById('register-section').classList.remove('hidden');
-//       loadSocieties();
-//     }
-//   } catch (err) {
-//     console.error('Error checking user:', err);
-//     alert("Something went wrong while checking the user. Please try again.");
-//     document.getElementById('status').innerText = "";
-//   }
-// }
-
-
-
-    
-    // async function checkUser() {
-    //   const mobile = document.getElementById('mobile').value.trim();
-    //   clearErrors();
-    //   if (!/^\d{10}$/.test(mobile)) {
-    //     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
-    //     return;
-    //   }
-
-    //   document.getElementById('status').innerText = "Checking user...";
-    //   try {
-    //     const { data, error } = await supabase
-    //       .from('customers')
-    //       .select('*')
-    //       .eq('phone_number', mobile)
-    //       .maybeSingle();
-
-    //     if (error) throw error;
-
-    //     if (data) {
-    //       document.getElementById('status').innerText = "User already exists.";
-    //     } else {
-    //       document.getElementById('status').innerText = "New user. Please register.";
-    //       document.getElementById('register-section').classList.remove('hidden');
-    //       loadSocieties();
-    //     }
-    //   } catch (err) {
-    //     console.error('Error checking user:', err);
-    //     alert("Something went wrong while checking the user. Please try again.");
-    //     document.getElementById('status').innerText = "";
-    //   }
-    // }
 
     async function loadSocieties() {
       try {
@@ -474,7 +364,6 @@ function selectOrderType(type) {
   }, 500);
 }
 
-    
   </script>
 </body>
 </html>
