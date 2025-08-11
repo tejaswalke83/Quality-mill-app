@@ -96,6 +96,16 @@
       <div id="mobile-error" class="error"></div>
     </div>
 
+    <!-- Staff password input, hidden initially -->
+<div id="staff-password-section" class="form-group hidden">
+  <label for="staff-password">Enter Password</label>
+  <div class="inline-group">
+    <input type="password" id="staff-password" placeholder="Enter your password" />
+    <button onclick="verifyStaffPassword()">Login</button>
+  </div>
+  <div id="password-error" class="error"></div>
+</div>
+
     <!-- Registration form (hidden by default) -->
     <div id="register-section" class="hidden">
       <div class="form-group">
@@ -174,11 +184,10 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-
-async function checkUser() {
+    async function checkUser() {
   const mobile = document.getElementById('mobile').value.trim();
   clearErrors();
-  
+
   if (!/^\d{10}$/.test(mobile)) {
     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
     return;
@@ -187,56 +196,61 @@ async function checkUser() {
   document.getElementById('status').innerText = "Checking user...";
 
   try {
-    console.log('Checking mobile number:', mobile, '| Type:', typeof mobile);
-
-    const { data, error } = await supabase
-      .from('customers')
+    // First check users (staff)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
       .select('*')
-      .eq('phone_number', mobile)  // or Number(mobile) if your DB uses numbers
+      .eq('phone_number', mobile)
       .maybeSingle();
 
-    //console.log('Supabase query result:', data);
-   // console.log('Supabase query error:', error);
+    if (userError) throw userError;
 
-    const { data: data1, error: error1 } = await supabase
+    if (userData) {
+      // Phone number belongs to staff user
+      if (['admin', 'manager', 'operator', 'delivery'].includes(userData.role)) {
+        // Show password input to staff
+        document.getElementById('staff-password-section').classList.remove('hidden');
+        document.getElementById('mobile-section').classList.add('hidden');
+        document.getElementById('status').innerText = "Staff detected. Please enter your password.";
+        // Store user data temporarily for verification
+        window.currentStaffUser = userData;
+        return;
+      }
+    }
+
+    // Not a staff user, check customers table
+    const { data: customerData, error: customerError } = await supabase
       .from('customers')
-      .select('*');
+      .select('*')
+      .eq('phone_number', mobile)
+      .maybeSingle();
 
-   // console.log('All customers:', data1);
-   // console.log('Error fetching all customers:', error1);
+    if (customerError) throw customerError;
 
-    if (error) throw error;
+    if (customerData) {
+      // Existing customer flow
+      const { data: orders, error: orderError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('customer_id', customerData.id)
+        .limit(1);
 
+      if (orderError) {
+        alert("Something went wrong while checking user's orders.");
+        return;
+      }
 
-if (data) {
-  // User found, now check if they have any orders
-  const { data: orders, error: orderError } = await supabase
-    .from('orders')
-    .select('id')
-    .eq('customer_id', data.id)
-    .limit(1);
-
-  if (orderError) {
-    console.error('Error checking orders:', orderError);
-    alert("Something went wrong while checking user's orders.");
-    return;
-  }
-
-  if (orders && orders.length > 0) {
-  document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
-  setTimeout(() => {
-    window.location.href = `my-orders.html?phone=${mobile}`;
-  }, 1000);
-} else {
-  // User has no orders → Show order type selection
-  document.getElementById('status').innerText = "User found. Please choose your order type.";
-  showOrderTypeSection();
-}
-
-
-}
-
-    else {
+      if (orders && orders.length > 0) {
+        document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
+        setTimeout(() => {
+          window.location.href = `my-orders.html?phone=${mobile}`;
+        }, 1000);
+      } else {
+        document.getElementById('status').innerText = "User found. Please choose your order type.";
+        showOrderTypeSection();
+      }
+    } else {
+      // New user registration flow
       document.getElementById('status').innerText = "New user. Please register.";
       document.getElementById('register-section').classList.remove('hidden');
       loadSocieties();
@@ -249,6 +263,105 @@ if (data) {
 }
 
 
+// async function checkUser() {
+//   const mobile = document.getElementById('mobile').value.trim();
+//   clearErrors();
+  
+//   if (!/^\d{10}$/.test(mobile)) {
+//     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
+//     return;
+//   }
+
+//   document.getElementById('status').innerText = "Checking user...";
+
+//   try {
+//     console.log('Checking mobile number:', mobile, '| Type:', typeof mobile);
+
+//     const { data, error } = await supabase
+//       .from('customers')
+//       .select('*')
+//       .eq('phone_number', mobile)  // or Number(mobile) if your DB uses numbers
+//       .maybeSingle();
+
+//     //console.log('Supabase query result:', data);
+//    // console.log('Supabase query error:', error);
+
+//     const { data: data1, error: error1 } = await supabase
+//       .from('customers')
+//       .select('*');
+
+//    // console.log('All customers:', data1);
+//    // console.log('Error fetching all customers:', error1);
+
+//     if (error) throw error;
+
+
+// if (data) {
+//   // User found, now check if they have any orders
+//   const { data: orders, error: orderError } = await supabase
+//     .from('orders')
+//     .select('id')
+//     .eq('customer_id', data.id)
+//     .limit(1);
+
+//   if (orderError) {
+//     console.error('Error checking orders:', orderError);
+//     alert("Something went wrong while checking user's orders.");
+//     return;
+//   }
+
+//   if (orders && orders.length > 0) {
+//   document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
+//   setTimeout(() => {
+//     window.location.href = `my-orders.html?phone=${mobile}`;
+//   }, 1000);
+// } else {
+//   // User has no orders → Show order type selection
+//   document.getElementById('status').innerText = "User found. Please choose your order type.";
+//   showOrderTypeSection();
+// }
+
+
+// }
+
+//     else {
+//       document.getElementById('status').innerText = "New user. Please register.";
+//       document.getElementById('register-section').classList.remove('hidden');
+//       loadSocieties();
+//     }
+//   } catch (err) {
+//     console.error('Error checking user:', err);
+//     alert("Something went wrong while checking the user. Please try again.");
+//     document.getElementById('status').innerText = "";
+//   }
+// }
+
+async function verifyStaffPassword() {
+  const passwordInput = document.getElementById('staff-password').value;
+  const staffUser = window.currentStaffUser;
+
+  document.getElementById('password-error').innerText = "";
+
+  if (!passwordInput) {
+    document.getElementById('password-error').innerText = "Password cannot be empty.";
+    return;
+  }
+
+  // For simplicity, assuming plaintext password check. 
+  // Ideally, hash password and verify on server or Supabase RPC.
+
+  if (passwordInput === staffUser.password) {
+    document.getElementById('status').innerText = "Login successful! Redirecting to My Orders...";
+    setTimeout(() => {
+      window.location.href = `my-orders.html?phone=${staffUser.phone_number}`;
+    }, 1000);
+  } else {
+    document.getElementById('password-error').innerText = "Incorrect password. Please try again.";
+  }
+}
+
+
+    
     async function loadSocieties() {
       try {
         const { data, error } = await supabase
