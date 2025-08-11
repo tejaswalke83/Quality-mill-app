@@ -349,6 +349,8 @@ totalEl.textContent = total.toFixed(2);
 // }
 
 window.updateTotal = function() {
+  console.log("in update total :");
+    
 let grandTotal = 0;
 [...orderRows.children].forEach(row => {
 const select = row.querySelector('select');
