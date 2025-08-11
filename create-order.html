@@ -215,6 +215,7 @@ for (let i = 0; i < 1; i++) addRow();
 
 
 window.addRow = function () {
+     console.log("in submit order 2:");
 const row = document.createElement('div');
 row.className = 'row';
 row.style.marginBottom = "12px";
@@ -430,7 +431,6 @@ console.log(" token generated "+token_number);
     alert("Failed to generate token number!");
   }
 }
-
 
 fetchData();
 </script>
