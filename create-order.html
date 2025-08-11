@@ -360,69 +360,66 @@ totalPriceEl.textContent = grandTotal.toFixed(2);
 }
 
 window.submitOrder = async function () {
-const rows = [...orderRows.children];
-const grainDetails = [];
-let hasError = false;
+  const rows = [...orderRows.children];
+  const grainDetails = [];
+  let hasError = false;
 
-rows.forEach(row => {
-const select = row.querySelector('select');
-const qtyInput = row.querySelector('input');
-const errorEl = row.querySelector('.error');
-errorEl.textContent = '';
+  rows.forEach(row => {
+    const select = row.querySelector('select');
+    const qtyInput = row.querySelector('input');
+    const errorEl = row.querySelector('.error');
+    errorEl.textContent = '';
 
-const grain = select.value;
-const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-const qty = parseFloat(qtyInput.value || 0);
+    const grain = select.value;
+    const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+    const qty = parseFloat(qtyInput.value || 0);
 
-if (!grain || qty <= 0) {
-errorEl.textContent = "Select grain and enter valid quantity.";
-hasError = true;
-return;
-}
+    if (!grain || qty <= 0) {
+      errorEl.textContent = "Select grain and enter valid quantity.";
+      hasError = true;
+      return;
+    }
 
-grainDetails.push({
-grain,
-quantity: qty,
-price: price,
-total: price * qty
-});
-});
+    grainDetails.push({
+      grain,
+      quantity: qty,
+      price: price,
+      total: price * qty
+    });
+  });
 
-if (hasError || grainDetails.length === 0) return;
+  if (hasError || grainDetails.length === 0) return;
 
-const total_price = parseFloat(totalPriceEl.textContent);
+  const total_price = parseFloat(totalPriceEl.textContent);
 
-      const { error } = await supabase
-        .from('orders')
-        .insert([{
-          customer_id: user.id,
-          grain_details: grainDetails,
-          total_price,
-          status: 'new'
-        }]);
+  try {
+    // ✅ Generate token number FIRST
     const token_number = await generateTokenNumber();
 
-// const { error } = await supabase
-//   .from('orders')
-//   .insert([{
-//     customer_id: user.id,
-//     grain_details: grainDetails,
-//     total_price,
-//     status: 'new',
-//     token_number: token_number
-//   }]);
+    // ✅ Insert order with token number
+    const { error } = await supabase
+      .from('orders')
+      .insert([{
+        customer_id: user.id,
+        grain_details: grainDetails,
+        total_price,
+        status: 'new',
+        token_number: token_number
+      }]);
 
-
-if (error) {
-alert("Failed to place order!");
-console.error(error);
-} else {
-alert("Order placed successfully!");
-window.location.href = '/my-orders.html?phone=' + phone;
-
-
+    if (error) {
+      alert("Failed to place order!");
+      console.error(error);
+    } else {
+      alert("Order placed successfully!");
+      window.location.href = '/my-orders.html?phone=' + phone;
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Failed to generate token number!");
+  }
 }
-}
+
 
 fetchData();
 </script>
