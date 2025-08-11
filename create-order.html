@@ -163,15 +163,15 @@ const totalPriceEl = document.getElementById('total-price');
     .from('orders')
     .select('token_number')
     .not('status', 'eq', 'completed');
-console.print("inside generate token");
+console.log("inside generate token");
   const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
 
   for (let i = 1; i <= 999; i++) {
     const padded = i.toString().padStart(3, '0');
     const token = `QA${padded}`;
-      console.print("check -> "+i);
+      //console.log("check -> "+i);
     if (!activeTokens.has(token)) {
-         console.print(token);
+         console.log(token);
       return token; // found unused token
     }
   }
@@ -397,7 +397,7 @@ window.submitOrder = async function () {
   try {
     // ✅ Generate token number FIRST
     const token_number = await generateTokenNumber();
-console.print(" token generated "+token_number);
+console.log(" token generated "+token_number);
     // ✅ Insert order with token number
     const { error } = await supabase
       .from('orders')
