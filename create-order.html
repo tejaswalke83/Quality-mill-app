@@ -362,7 +362,10 @@ totalPriceEl.textContent = grandTotal.toFixed(2);
 }
 
 window.submitOrder = async function () {
-  const rows = [...orderRows.children];
+
+    console.log("in submit order :");
+
+const rows = [...orderRows.children];
   const grainDetails = [];
   let hasError = false;
 
@@ -382,6 +385,7 @@ window.submitOrder = async function () {
       return;
     }
 
+        console.log("in submit order 2:");
     grainDetails.push({
       grain,
       quantity: qty,
@@ -389,7 +393,7 @@ window.submitOrder = async function () {
       total: price * qty
     });
   });
-
+  console.log("in submit order 3:");
   if (hasError || grainDetails.length === 0) return;
 
   const total_price = parseFloat(totalPriceEl.textContent);
