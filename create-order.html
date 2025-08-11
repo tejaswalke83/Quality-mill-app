@@ -158,6 +158,7 @@ const orderRows = document.getElementById('order-rows');
 const totalPriceEl = document.getElementById('total-price');
 
     async function generateTokenNumber() {
+        console.log("generateTokenNumber() called");
   // Get all active (non-completed) token numbers
   const { data: activeOrders } = await supabase
     .from('orders')
@@ -171,7 +172,7 @@ console.log("inside generate token");
     const token = `QA${padded}`;
       //console.log("check -> "+i);
     if (!activeTokens.has(token)) {
-         console.log(token);
+         console.log("Token generated:", token);
       return token; // found unused token
     }
   }
@@ -400,6 +401,8 @@ const rows = [...orderRows.children];
 
   try {
     // ✅ Generate token number FIRST
+      console.log("About to generate token...");
+
     const token_number = await generateTokenNumber();
 console.log(" token generated "+token_number);
     // ✅ Insert order with token number
