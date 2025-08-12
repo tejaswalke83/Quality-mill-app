@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Select Order Type</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" relstylesheet>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -101,54 +101,34 @@
       background-color: #0056b3;
     }
 
-    /* Toggle container */
-    #toggleContainer {
+    /* Radio container */
+    #radioContainer {
       max-width: 500px;
       margin: 0 auto 20px;
       display: flex;
-      align-items: center;
+      gap: 30px;
       justify-content: flex-end;
-      gap: 10px;
       font-weight: 500;
       color: #555;
+      user-select: none;
+    }
+    #radioContainer label {
       cursor: pointer;
-    }
-    #toggleContainer input[type="checkbox"] {
-      width: 40px;
-      height: 20px;
-      position: relative;
-      appearance: none;
-      background: #ccc;
-      outline: none;
-      border-radius: 20px;
-      transition: background 0.3s;
-      cursor: pointer;
-    }
-    #toggleContainer input[type="checkbox"]:checked {
-      background: #007bff;
-    }
-    #toggleContainer input[type="checkbox"]::before {
-      content: "";
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      top: 1px;
-      left: 1px;
-      background: white;
-      transition: 0.3s;
-    }
-    #toggleContainer input[type="checkbox"]:checked::before {
-      left: 21px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Toggle to change location -->
-  <div id="toggleContainer" title="Change 'I am at' selection">
-    <label for="locationToggle">Change Location</label>
-    <input type="checkbox" id="locationToggle" />
+  <!-- Radio buttons to select location -->
+  <div id="radioContainer" title="Select where you are">
+    <label>
+      <input type="radio" name="location" value="ShopService" id="radioShop" />
+      At Shop
+    </label>
+    <label>
+      <input type="radio" name="location" value="HomeService" id="radioHome" />
+      At Home
+    </label>
   </div>
 
   <!-- Modal -->
@@ -196,7 +176,8 @@
     const modal = document.getElementById('locationModal');
     const btnAtHome = document.getElementById('btnAtHome');
     const btnAtShop = document.getElementById('btnAtShop');
-    const locationToggle = document.getElementById('locationToggle');
+    const radioShop = document.getElementById('radioShop');
+    const radioHome = document.getElementById('radioHome');
 
     function disableCards(serveAtToDisable) {
       const cards = document.querySelectorAll('.option-card');
@@ -212,12 +193,14 @@
       });
     }
 
-    function updateToggleChecked(serveAt) {
-      // Set toggle checked state based on serveAt
+    function setRadioSelection(serveAt) {
       if (serveAt === 'ShopService') {
-        locationToggle.checked = true;
+        radioShop.checked = true;
+      } else if (serveAt === 'HomeService') {
+        radioHome.checked = true;
       } else {
-        locationToggle.checked = false;
+        radioShop.checked = false;
+        radioHome.checked = false;
       }
     }
 
@@ -225,21 +208,26 @@
       localStorage.setItem('serveAt', 'HomeService');
       disableCards('ShopService');
       modal.style.display = 'none';
-      updateToggleChecked('HomeService');
+      setRadioSelection('HomeService');
     });
 
     btnAtShop.addEventListener('click', () => {
       localStorage.setItem('serveAt', 'ShopService');
       disableCards('HomeService');
       modal.style.display = 'none';
-      updateToggleChecked('ShopService');
+      setRadioSelection('ShopService');
     });
 
-    locationToggle.addEventListener('change', () => {
-      // Show modal again on toggle change
-      modal.style.display = 'flex';
-      // Reset toggle so user must re-select
-      locationToggle.checked = !locationToggle.checked;
+    // Show modal on radio change
+    radioShop.addEventListener('change', () => {
+      if (radioShop.checked) {
+        modal.style.display = 'flex';
+      }
+    });
+    radioHome.addEventListener('change', () => {
+      if (radioHome.checked) {
+        modal.style.display = 'flex';
+      }
     });
 
     function selectOrderType(type) {
@@ -268,10 +256,11 @@
       if (serveAt === 'HomeService' || serveAt === 'ShopService') {
         modal.style.display = 'none';
         disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
-        updateToggleChecked(serveAt);
+        setRadioSelection(serveAt);
       } else {
         modal.style.display = 'flex';
         disableCards('none'); // all enabled before selection
+        setRadioSelection(null);
       }
       // Clear all ticks on load
       document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
