@@ -16,6 +16,14 @@
       color: #333;
       margin-bottom: 30px;
     }
+    h4 {
+      margin-top: 40px;
+      margin-bottom: 20px;
+      color: #444;
+      text-align: center;
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
     .option-card {
       border: 2px solid #ccc;
       border-radius: 10px;
@@ -50,36 +58,62 @@
 <body>
 
   <h3>What would you like to do today?</h3>
-  <div class="options-container">
 
-    <div onclick="selectOrderType('pickup')" class="option-card">
-      <strong>  Pickup & Delivery</strong>
+  <h4>At Home Services</h4>
+  <div id="home-services" class="options-container">
+    <div onclick="selectOrderType('pickup', 'HomeService')" class="option-card">
+      <strong>Pickup & Delivery</strong>
       <p>We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
       <span id="tick-pickup" class="tick hidden">✔️</span>
     </div>
 
-    <div onclick="selectOrderType('fresh-milled')" class="option-card">
-      <strong>  Freshly Milled Flour</strong>
+    <div onclick="selectOrderType('fresh-milled', 'HomeService')" class="option-card">
+      <strong>Freshly Milled Flour</strong>
       <p>Select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
       <span id="tick-fresh-milled" class="tick hidden">✔️</span>
     </div>
+  </div>
 
+  <h4>At Shop Services</h4>
+  <div id="shop-services" class="options-container">
+    <div onclick="selectOrderType('milling-service', 'ShopService')" class="option-card">
+      <strong>Milling Service</strong>
+      <p>Bring your grains to the shop for milling using our machines.</p>
+      <span id="tick-milling-service" class="tick hidden">✔️</span>
+    </div>
+
+    <div onclick="selectOrderType('buy-grains-to-mill', 'ShopService')" class="option-card">
+      <strong>Buy Grains to Mill</strong>
+      <p>Purchase pre-cleaned grains directly from the shop to mill at your convenience.</p>
+      <span id="tick-buy-grains" class="tick hidden">✔️</span>
+    </div>
   </div>
 
   <script>
-    function selectOrderType(type) {
+    function selectOrderType(type, serveAt) {
       const urlParams = new URLSearchParams(window.location.search);
       const phone = urlParams.get('phone');
 
       localStorage.setItem('orderType', type);
+      localStorage.setItem('serveAt', serveAt);
 
-      document.getElementById('tick-pickup').classList.add('hidden');
-      document.getElementById('tick-fresh-milled').classList.add('hidden');
+      // Hide all ticks
+      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
 
-      if (type === 'pickup') {
-        document.getElementById('tick-pickup').classList.remove('hidden');
-      } else {
-        document.getElementById('tick-fresh-milled').classList.remove('hidden');
+      // Show the tick for selected card
+      switch(type) {
+        case 'pickup':
+          document.getElementById('tick-pickup').classList.remove('hidden');
+          break;
+        case 'fresh-milled':
+          document.getElementById('tick-fresh-milled').classList.remove('hidden');
+          break;
+        case 'milling-service':
+          document.getElementById('tick-milling-service').classList.remove('hidden');
+          break;
+        case 'buy-grains-to-mill':
+          document.getElementById('tick-buy-grains').classList.remove('hidden');
+          break;
       }
 
       setTimeout(() => {
