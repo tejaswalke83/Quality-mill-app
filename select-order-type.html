@@ -251,20 +251,21 @@
     }
 
     // On page load
-    window.onload = () => {
-      const serveAt = localStorage.getItem('serveAt');
-      if (serveAt === 'HomeService' || serveAt === 'ShopService') {
-        modal.style.display = 'none';
-        disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
-        setRadioSelection(serveAt);
-      } else {
-        modal.style.display = 'flex';
-        disableCards('none'); // all enabled before selection
-        setRadioSelection(null);
-      }
-      // Clear all ticks on load
-      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-    };
+  window.onload = () => {
+  const serveAt = localStorage.getItem('serveAt');
+  if (serveAt === 'HomeService' || serveAt === 'ShopService') {
+    modal.style.display = 'none';
+    disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
+    setRadioSelection(serveAt);
+  } else {
+    // Show modal and DO NOT hide automatically
+    modal.style.display = 'flex';
+    disableCards('none'); // all enabled before selection
+    setRadioSelection(null);
+  }
+  // Clear all ticks on load
+  document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+};
   </script>
 </body>
 </html>
