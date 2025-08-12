@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Select Order Type</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" relstylesheet>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -16,13 +16,12 @@
       color: #333;
       margin-bottom: 30px;
     }
-    h4 {
-      margin-top: 40px;
-      margin-bottom: 20px;
-      color: #444;
-      text-align: center;
+    .section-heading {
       font-weight: 600;
-      font-size: 1.25rem;
+      margin: 30px auto 10px;
+      max-width: 500px;
+      color: #444;
+      font-size: 1.2rem;
     }
     .option-card {
       border: 2px solid #ccc;
@@ -32,9 +31,19 @@
       position: relative;
       background: white;
       transition: border-color 0.3s ease;
+      user-select: none;
     }
-    .option-card:hover {
+    .option-card:hover:not(.disabled) {
       border-color: #007bff;
+    }
+    .option-card.disabled {
+      border-color: #ddd;
+      background: #eee;
+      color: #999;
+      cursor: not-allowed;
+    }
+    .option-card.disabled:hover {
+      border-color: #ddd;
     }
     .tick {
       position: absolute;
@@ -53,73 +62,220 @@
       max-width: 500px;
       margin: auto;
     }
+
+    /* Modal styles */
+    #locationModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #locationModal .modal-content {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 12px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    }
+    #locationModal h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    #locationModal button {
+      margin: 10px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    #locationModal button:hover {
+      background-color: #0056b3;
+    }
+
+    /* Toggle container */
+    #toggleContainer {
+      max-width: 500px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      font-weight: 500;
+      color: #555;
+      cursor: pointer;
+    }
+    #toggleContainer input[type="checkbox"] {
+      width: 40px;
+      height: 20px;
+      position: relative;
+      appearance: none;
+      background: #ccc;
+      outline: none;
+      border-radius: 20px;
+      transition: background 0.3s;
+      cursor: pointer;
+    }
+    #toggleContainer input[type="checkbox"]:checked {
+      background: #007bff;
+    }
+    #toggleContainer input[type="checkbox"]::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      top: 1px;
+      left: 1px;
+      background: white;
+      transition: 0.3s;
+    }
+    #toggleContainer input[type="checkbox"]:checked::before {
+      left: 21px;
+    }
   </style>
 </head>
 <body>
 
+  <!-- Toggle to change location -->
+  <div id="toggleContainer" title="Change 'I am at' selection">
+    <label for="locationToggle">Change Location</label>
+    <input type="checkbox" id="locationToggle" />
+  </div>
+
+  <!-- Modal -->
+  <div id="locationModal">
+    <div class="modal-content">
+      <h2>I am at</h2>
+      <button id="btnAtHome">At Home</button>
+      <button id="btnAtShop">At Shop</button>
+    </div>
+  </div>
+
   <h3>What would you like to do today?</h3>
 
-  <h4>At Home Services</h4>
-  <div id="home-services" class="options-container">
-    <div onclick="selectOrderType('pickup', 'HomeService')" class="option-card">
+  <div class="section-heading">At Home Services</div>
+  <div class="options-container" id="homeServices">
+    <div onclick="selectOrderType('pickup')" class="option-card" data-serveat="HomeService" id="card-pickup">
       <strong>Pickup & Delivery</strong>
       <p>We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
       <span id="tick-pickup" class="tick hidden">✔️</span>
     </div>
 
-    <div onclick="selectOrderType('fresh-milled', 'HomeService')" class="option-card">
+    <div onclick="selectOrderType('fresh-milled')" class="option-card" data-serveat="HomeService" id="card-fresh-milled">
       <strong>Freshly Milled Flour</strong>
       <p>Select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
       <span id="tick-fresh-milled" class="tick hidden">✔️</span>
     </div>
   </div>
 
-  <h4>At Shop Services</h4>
-  <div id="shop-services" class="options-container">
-    <div onclick="selectOrderType('milling-service', 'ShopService')" class="option-card">
+  <div class="section-heading">At Shop Services</div>
+  <div class="options-container" id="shopServices">
+    <div onclick="selectOrderType('milling-service')" class="option-card" data-serveat="ShopService" id="card-milling-service">
       <strong>Milling Service</strong>
-      <p>Bring your grains to the shop for milling using our machines.</p>
+      <p>Bring your grains to our shop and get them milled on the spot.</p>
       <span id="tick-milling-service" class="tick hidden">✔️</span>
     </div>
 
-    <div onclick="selectOrderType('buy-grains-to-mill', 'ShopService')" class="option-card">
+    <div onclick="selectOrderType('buy-grains-to-mill')" class="option-card" data-serveat="ShopService" id="card-buy-grains-to-mill">
       <strong>Buy Grains to Mill</strong>
-      <p>Purchase pre-cleaned grains directly from the shop to mill at your convenience.</p>
-      <span id="tick-buy-grains" class="tick hidden">✔️</span>
+      <p>Select grains from our shop, mill fresh atta, and take it home.</p>
+      <span id="tick-buy-grains-to-mill" class="tick hidden">✔️</span>
     </div>
   </div>
 
   <script>
-    function selectOrderType(type, serveAt) {
+    const modal = document.getElementById('locationModal');
+    const btnAtHome = document.getElementById('btnAtHome');
+    const btnAtShop = document.getElementById('btnAtShop');
+    const locationToggle = document.getElementById('locationToggle');
+
+    function disableCards(serveAtToDisable) {
+      const cards = document.querySelectorAll('.option-card');
+      cards.forEach(card => {
+        if (card.dataset.serveat === serveAtToDisable) {
+          card.classList.add('disabled');
+          card.onclick = null; // disable click
+        } else {
+          card.classList.remove('disabled');
+          // restore click handler
+          card.onclick = () => selectOrderType(card.id.replace('card-', ''));
+        }
+      });
+    }
+
+    function updateToggleChecked(serveAt) {
+      // Set toggle checked state based on serveAt
+      if (serveAt === 'ShopService') {
+        locationToggle.checked = true;
+      } else {
+        locationToggle.checked = false;
+      }
+    }
+
+    btnAtHome.addEventListener('click', () => {
+      localStorage.setItem('serveAt', 'HomeService');
+      disableCards('ShopService');
+      modal.style.display = 'none';
+      updateToggleChecked('HomeService');
+    });
+
+    btnAtShop.addEventListener('click', () => {
+      localStorage.setItem('serveAt', 'ShopService');
+      disableCards('HomeService');
+      modal.style.display = 'none';
+      updateToggleChecked('ShopService');
+    });
+
+    locationToggle.addEventListener('change', () => {
+      // Show modal again on toggle change
+      modal.style.display = 'flex';
+      // Reset toggle so user must re-select
+      locationToggle.checked = !locationToggle.checked;
+    });
+
+    function selectOrderType(type) {
       const urlParams = new URLSearchParams(window.location.search);
       const phone = urlParams.get('phone');
 
       localStorage.setItem('orderType', type);
-      localStorage.setItem('serveAt', serveAt);
+      localStorage.setItem('serveAt', localStorage.getItem('serveAt')); // already set
 
-      // Hide all ticks
+      // Hide all ticks first
       document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
 
-      // Show the tick for selected card
-      switch(type) {
-        case 'pickup':
-          document.getElementById('tick-pickup').classList.remove('hidden');
-          break;
-        case 'fresh-milled':
-          document.getElementById('tick-fresh-milled').classList.remove('hidden');
-          break;
-        case 'milling-service':
-          document.getElementById('tick-milling-service').classList.remove('hidden');
-          break;
-        case 'buy-grains-to-mill':
-          document.getElementById('tick-buy-grains').classList.remove('hidden');
-          break;
-      }
+      // Show tick on selected card
+      const tickId = `tick-${type}`;
+      const tick = document.getElementById(tickId);
+      if (tick) tick.classList.remove('hidden');
 
       setTimeout(() => {
         window.location.href = `create-order.html?phone=${phone}`;
       }, 500);
     }
+
+    // On page load
+    window.onload = () => {
+      const serveAt = localStorage.getItem('serveAt');
+      if (serveAt === 'HomeService' || serveAt === 'ShopService') {
+        modal.style.display = 'none';
+        disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
+        updateToggleChecked(serveAt);
+      } else {
+        modal.style.display = 'flex';
+        disableCards('none'); // all enabled before selection
+      }
+      // Clear all ticks on load
+      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+    };
   </script>
 </body>
 </html>
