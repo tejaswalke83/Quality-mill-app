@@ -147,7 +147,7 @@
     </div>
 
     <!-- Order Type Selection (initially hidden) -->
-<div id="order-type-section" class="hidden">
+<!-- <div id="order-type-section" class="hidden">
   <h3>What would you like to do today?</h3>
   <div style="display: flex; gap: 20px; flex-direction: column; margin-top: 20px;">
 
@@ -164,7 +164,7 @@
     </div>
 
   </div>
-</div>
+</div> -->
 
 
     <!-- Output -->
@@ -247,7 +247,8 @@
         }, 1000);
       } else {
         document.getElementById('status').innerText = "User found. Please choose your order type.";
-        showOrderTypeSection();
+      //  showOrderTypeSection();
+        window.location.href = `select-order-type.html?phone=${mobile}`;
       }
     } else {
       // New user registration flow
@@ -362,7 +363,9 @@ async function verifyStaffPassword() {
 
         alert("User registered successfully!");
         document.getElementById('status').innerText = "Registration successful. Please choose your order type.";
-showOrderTypeSection();
+//showOrderTypeSection();
+        window.location.href = `select-order-type.html?phone=${phoneNumber}`;
+
 
         // location.reload();
       } catch (err) {
