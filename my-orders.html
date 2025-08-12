@@ -217,42 +217,7 @@ async function loadOrders() {
 
 
     
-    // async function loadOrders() {
-    //   const container = document.getElementById('orders-container');
-    //   container.innerHTML = '';
-
-    //   const { data: orders, error } = await supabase
-    //     .from('orders')
-    //     .select('*')
-    //     .eq('customer_id', user.id)
-    //     .order('created_at', { ascending: false });
-
-    //   if (error || !orders.length) {
-    //     container.innerHTML = '<p style="text-align:center; color: grey;">No orders found.</p>';
-    //     return;
-    //   }
-
-    //   orders.forEach(order => {
-    //     const card = document.createElement('div');
-    //     card.className = 'order-card';
-
-    //     const grainsHTML = order.grain_details.map(g =>
-    //       `<div class="grain-item">${g.grain} - ${g.quantity} kg</div>`
-    //     ).join('');
-
-    //     const date = new Date(order.created_at).toLocaleString();
-
-    //     card.innerHTML = `
-    //       <p><strong>Order Date:</strong> ${date}</p>
-    //       <div class="grain-list">${grainsHTML}</div>
-    //       <p><strong>Total:</strong> ₹${order.total_price.toFixed(2)}</p>
-    //       <p class="status">Status: ${order.status}</p>
-    //     `;
-
-    //     container.appendChild(card);
-    //   });
-    // }
-
+    
     // Load on start
     await fetchCustomer();
     if (user) loadOrders();
