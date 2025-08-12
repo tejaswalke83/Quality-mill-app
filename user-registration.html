@@ -263,78 +263,7 @@
 }
 
 
-// async function checkUser() {
-//   const mobile = document.getElementById('mobile').value.trim();
-//   clearErrors();
-  
-//   if (!/^\d{10}$/.test(mobile)) {
-//     document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
-//     return;
-//   }
 
-//   document.getElementById('status').innerText = "Checking user...";
-
-//   try {
-//     console.log('Checking mobile number:', mobile, '| Type:', typeof mobile);
-
-//     const { data, error } = await supabase
-//       .from('customers')
-//       .select('*')
-//       .eq('phone_number', mobile)  // or Number(mobile) if your DB uses numbers
-//       .maybeSingle();
-
-//     //console.log('Supabase query result:', data);
-//    // console.log('Supabase query error:', error);
-
-//     const { data: data1, error: error1 } = await supabase
-//       .from('customers')
-//       .select('*');
-
-//    // console.log('All customers:', data1);
-//    // console.log('Error fetching all customers:', error1);
-
-//     if (error) throw error;
-
-
-// if (data) {
-//   // User found, now check if they have any orders
-//   const { data: orders, error: orderError } = await supabase
-//     .from('orders')
-//     .select('id')
-//     .eq('customer_id', data.id)
-//     .limit(1);
-
-//   if (orderError) {
-//     console.error('Error checking orders:', orderError);
-//     alert("Something went wrong while checking user's orders.");
-//     return;
-//   }
-
-//   if (orders && orders.length > 0) {
-//   document.getElementById('status').innerText = "User found. Redirecting to My Orders...";
-//   setTimeout(() => {
-//     window.location.href = `my-orders.html?phone=${mobile}`;
-//   }, 1000);
-// } else {
-//   // User has no orders → Show order type selection
-//   document.getElementById('status').innerText = "User found. Please choose your order type.";
-//   showOrderTypeSection();
-// }
-
-
-// }
-
-//     else {
-//       document.getElementById('status').innerText = "New user. Please register.";
-//       document.getElementById('register-section').classList.remove('hidden');
-//       loadSocieties();
-//     }
-//   } catch (err) {
-//     console.error('Error checking user:', err);
-//     alert("Something went wrong while checking the user. Please try again.");
-//     document.getElementById('status').innerText = "";
-//   }
-// }
 
 async function verifyStaffPassword() {
   const passwordInput = document.getElementById('staff-password').value;
