@@ -152,18 +152,7 @@ async function updateOrderStatus(orderId, newStatus) {
   }
 }
 
-async function loadFilterButtons() {
-  const statuses = await fetchStatuses();
-  const filterGroup = document.querySelector('.filter-group');
-  filterGroup.innerHTML = `<label><strong>Filter by:</strong></label>
-    <label><input type="radio" name="status" value="all" checked onchange="loadOrders()"> All</label>`;
 
-  statuses.forEach(s => {
-    filterGroup.innerHTML += `
-      <label><input type="radio" name="status" value="${s.status_name}" onchange="loadOrders()"> ${s.status_name}</label>
-    `;
-  });
-}
 
  async function fetchStatuses() {
   const { data, error } = await supabase
