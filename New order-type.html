@@ -23,10 +23,14 @@
       cursor: pointer;
       position: relative;
       background: white;
-      transition: border-color 0.3s;
+      transition: all 0.3s ease;
     }
     .option-card:hover {
       border-color: #007bff;
+    }
+    .selected {
+      border-color: #007bff;
+      background-color: #e6f0ff; /* Light fill color */
     }
     .tick {
       position: absolute;
@@ -35,6 +39,9 @@
       color: green;
       font-size: 20px;
     }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -42,13 +49,13 @@
   <h3>What would you like to do today?</h3>
   <div style="display: flex; gap: 20px; flex-direction: column; max-width: 500px; margin: auto;">
 
-    <div onclick="selectOrderType('pickup')" class="option-card">
+    <div onclick="selectOrderType('pickup')" class="option-card" id="card-pickup">
       <strong>Pickup & Delivery</strong>
       <p>We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
       <span id="tick-pickup" class="tick hidden">✔️</span>
     </div>
 
-    <div onclick="selectOrderType('fresh-milled')" class="option-card">
+    <div onclick="selectOrderType('fresh-milled')" class="option-card" id="card-fresh-milled">
       <strong>Freshly Milled Flour</strong>
       <p>Select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
       <span id="tick-fresh-milled" class="tick hidden">✔️</span>
@@ -63,15 +70,22 @@
 
       localStorage.setItem('orderType', type);
 
+      // Remove selection styles from both cards
+      document.getElementById('card-pickup').classList.remove('selected');
+      document.getElementById('card-fresh-milled').classList.remove('selected');
       document.getElementById('tick-pickup').classList.add('hidden');
       document.getElementById('tick-fresh-milled').classList.add('hidden');
 
+      // Apply selection to the chosen card
       if (type === 'pickup') {
+        document.getElementById('card-pickup').classList.add('selected');
         document.getElementById('tick-pickup').classList.remove('hidden');
       } else {
+        document.getElementById('card-fresh-milled').classList.add('selected');
         document.getElementById('tick-fresh-milled').classList.remove('hidden');
       }
 
+      // Redirect after short delay
       setTimeout(() => {
         window.location.href = `create-order.html?phone=${phone}`;
       }, 500);
