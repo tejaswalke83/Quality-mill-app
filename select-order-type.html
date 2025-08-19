@@ -30,7 +30,7 @@
       cursor: pointer;
       position: relative;
       background: white;
-      transition: border-color 0.3s ease;
+      transition: border-color 0.3s ease, background 0.3s ease;
       user-select: none;
     }
     .option-card:hover:not(.disabled) {
@@ -44,6 +44,10 @@
     }
     .option-card.disabled:hover {
       border-color: #ddd;
+    }
+    .option-card.selected {
+      background: #eaf4ff;
+      border-color: #007bff;
     }
     .tick {
       position: absolute;
@@ -62,7 +66,6 @@
       max-width: 500px;
       margin: auto;
     }
-
     /* Modal styles */
     #locationModal {
       position: fixed;
@@ -100,7 +103,6 @@
     #locationModal button:hover {
       background-color: #0056b3;
     }
-
     /* Radio container */
     #radioContainer {
       max-width: 500px;
@@ -119,20 +121,19 @@
 </head>
 <body>
 
- 
-
-<!--   <!-- Modal -->
+  <!-- Modal -->
   <div id="locationModal">
     <div class="modal-content">
       <h2>I am at</h2>
       <button id="btnAtHome">At Home</button>
       <button id="btnAtShop">At Shop</button>
     </div>
-  </div> -->
+  </div>
 
   <h3>What would you like to do today?</h3>
-<hr></hr>
-   <!-- Radio buttons to select location -->
+  <hr/>
+
+  <!-- Radio buttons to select location -->
   <div id="radioContainer" title="Select where you are">
     <label>
       <input type="radio" name="location" value="ShopService" id="radioShop" />
@@ -146,31 +147,31 @@
 
   <div class="section-heading">At Home Services</div>
   <div class="options-container" id="homeServices">
-    <div onclick="selectOrderType('pickup')" class="option-card" data-serveat="HomeService" id="card-pickup">
-      <strong>Pickup & Delivery</strong>
+    <div onclick="selectOrderType('home-milling')" class="option-card" data-serveat="HomeService" id="card-home-milling">
+      <strong>Home Service – Milling</strong>
       <p>We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
-      <span id="tick-pickup" class="tick hidden">✔️</span>
+      <span id="tick-home-milling" class="tick hidden">✔️</span>
     </div>
 
-    <div onclick="selectOrderType('fresh-milled')" class="option-card" data-serveat="HomeService" id="card-fresh-milled">
-      <strong>Freshly Milled Flour</strong>
+    <div onclick="selectOrderType('home-buy-mill')" class="option-card" data-serveat="HomeService" id="card-home-buy-mill">
+      <strong>Home Service – Buy & Mill</strong>
       <p>Select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
-      <span id="tick-fresh-milled" class="tick hidden">✔️</span>
+      <span id="tick-home-buy-mill" class="tick hidden">✔️</span>
     </div>
   </div>
 
   <div class="section-heading">At Shop Services</div>
   <div class="options-container" id="shopServices">
-    <div onclick="selectOrderType('milling-service')" class="option-card" data-serveat="ShopService" id="card-milling-service">
-      <strong>Milling Service</strong>
+    <div onclick="selectOrderType('shop-milling')" class="option-card" data-serveat="ShopService" id="card-shop-milling">
+      <strong>Milling Service – At Shop</strong>
       <p>Bring your grains to our shop and get them milled on the spot.</p>
-      <span id="tick-milling-service" class="tick hidden">✔️</span>
+      <span id="tick-shop-milling" class="tick hidden">✔️</span>
     </div>
 
-    <div onclick="selectOrderType('buy-grains-to-mill')" class="option-card" data-serveat="ShopService" id="card-buy-grains-to-mill">
-      <strong>Buy Grains to Mill</strong>
+    <div onclick="selectOrderType('shop-buy-mill')" class="option-card" data-serveat="ShopService" id="card-shop-buy-mill">
+      <strong>Buy & Mill – At Shop</strong>
       <p>Select grains from our shop, mill fresh atta, and take it home.</p>
-      <span id="tick-buy-grains-to-mill" class="tick hidden">✔️</span>
+      <span id="tick-shop-buy-mill" class="tick hidden">✔️</span>
     </div>
   </div>
 
@@ -196,14 +197,8 @@
     }
 
     function setRadioSelection(serveAt) {
-      if (serveAt === 'ShopService') {
-        radioShop.checked = true;
-      } else if (serveAt === 'HomeService') {
-        radioHome.checked = true;
-      } else {
-        radioShop.checked = false;
-        radioHome.checked = false;
-      }
+      radioShop.checked = serveAt === 'ShopService';
+      radioHome.checked = serveAt === 'HomeService';
     }
 
     btnAtHome.addEventListener('click', () => {
@@ -220,32 +215,22 @@
       setRadioSelection('ShopService');
     });
 
-    // Show modal on radio change
-    radioShop.addEventListener('change', () => {
-      if (radioShop.checked) {
-        modal.style.display = 'flex';
-      }
-    });
-    radioHome.addEventListener('change', () => {
-      if (radioHome.checked) {
-        modal.style.display = 'flex';
-      }
-    });
-
     function selectOrderType(type) {
       const urlParams = new URLSearchParams(window.location.search);
       const phone = urlParams.get('phone');
 
       localStorage.setItem('orderType', type);
-      localStorage.setItem('serveAt', localStorage.getItem('serveAt')); // already set
 
-      // Hide all ticks first
+      // Clear previous ticks and highlights
       document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+      document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
 
-      // Show tick on selected card
+      // Show tick and highlight selected card
       const tickId = `tick-${type}`;
       const tick = document.getElementById(tickId);
+      const card = document.getElementById(`card-${type}`);
       if (tick) tick.classList.remove('hidden');
+      if (card) card.classList.add('selected');
 
       setTimeout(() => {
         window.location.href = `create-order.html?phone=${phone}`;
@@ -253,21 +238,19 @@
     }
 
     // On page load
-  window.onload = () => {
-  const serveAt = localStorage.getItem('serveAt');
-  if (serveAt === 'HomeService' || serveAt === 'ShopService') {
-    modal.style.display = 'none';
-    disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
-    setRadioSelection(serveAt);
-  } else {
-    // Show modal and DO NOT hide automatically
-    modal.style.display = 'flex';
-    disableCards('none'); // all enabled before selection
-    setRadioSelection(null);
-  }
-  // Clear all ticks on load
-  document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-};
+    window.onload = () => {
+      const serveAt = localStorage.getItem('serveAt');
+      if (serveAt === 'HomeService' || serveAt === 'ShopService') {
+        modal.style.display = 'none';
+        disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
+        setRadioSelection(serveAt);
+      } else {
+        modal.style.display = 'flex';
+        disableCards('none');
+        setRadioSelection(null);
+      }
+      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+    };
   </script>
 </body>
 </html>
