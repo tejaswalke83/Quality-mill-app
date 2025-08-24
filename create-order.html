@@ -234,7 +234,8 @@ async function fetchData() {
 //localStorage.setItem('orderType', type);
   // ✅ Check service type
   const service = localStorage.getItem("orderService");
-  print.console("Service" + service);
+
+  console.error('Service --> :', service);
   const service_type = localStorage.getItem("orderType");
   if (service_type && service.toLowerCase().includes("buy")) {
     // 👉 Flow for "Buy and Mill"
