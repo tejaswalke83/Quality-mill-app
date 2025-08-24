@@ -231,10 +231,11 @@ async function fetchData() {
     <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
     <p><strong>Society:</strong> ${user.society_name}</p>
   `;
-
+//localStorage.setItem('orderType', type);
   // ✅ Check service type
   const service = localStorage.getItem("orderService");
-  if (service && service.toLowerCase().includes("buy")) {
+  const service_type = localStorage.getItem("orderType");
+  if (service_type && service.toLowerCase().includes("buy")) {
     // 👉 Flow for "Buy and Mill"
     loadGrainsForSell();
   } else {
