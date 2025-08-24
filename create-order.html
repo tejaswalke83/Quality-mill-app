@@ -116,14 +116,6 @@ font-size: 16px;
 <body>
 
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const service = localStorage.getItem("orderService");
-  if (service) {
-    document.getElementById("selectedService").textContent = service;
-  }
-});
-</script>
 
 <p>You selected: <span id="selectedService"></span></p>
 
@@ -168,6 +160,14 @@ const totalPriceEl = document.getElementById('total-price');
 
 
 
+document.addEventListener("DOMContentLoaded", () => {
+  const service = localStorage.getItem("orderService");
+  if (service) {
+    document.getElementById("selectedService").textContent = service;
+  }
+});
+
+
 
 
 async function generateTokenNumber() {
@@ -209,31 +209,6 @@ async function generateTokenNumber() {
 
     throw new Error("All token numbers are in use.");
 }
-
-
-    
-//     async function generateTokenNumber() {
-//         console.log("generateTokenNumber() called");
-//   // Get all active (non-completed) token numbers
-//   const { data: activeOrders } = await supabase
-//     .from('orders')
-//     .select('token_number')
-//     .not('status', 'eq', 'completed');
-// console.log("inside generate token");
-//   const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
-
-//   for (let i = 1; i <= 999; i++) {
-//     const padded = i.toString().padStart(3, '0');
-//     const token = `QA${padded}`;
-//       //console.log("check -> "+i);
-//     if (!activeTokens.has(token)) {
-//          console.log("Token generated:", token);
-//       return token; // found unused token
-//     }
-//   }
-
-//   throw new Error("All token numbers are in use.");
-// }
 
 
 async function fetchData() {
@@ -308,78 +283,6 @@ orderRows.appendChild(row);
 }
 
 
-
-
-
-//  window.addRow = function () {
-//   const row = document.createElement('div');
-//   row.className = 'row';
-//   row.style.marginBottom = "12px";
-
-//   // Card-like styling
-//   row.style.border = "1px solid #ccc";
-//   row.style.padding = "12px";
-//   row.style.borderRadius = "8px";
-//   row.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.05)";
-//   row.style.display = "flex";
-//   row.style.flexWrap = "wrap";
-//   row.style.gap = "10px";
-//   row.style.alignItems = "center";
-
-//   row.innerHTML = `
-//     <select onchange="updatePrice(this)">
-//       <option value="">Select Grain</option>
-//       ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-//     </select>
-
-//     <div class="price">₹<span>0</span>/kg</div>
-
-//     <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" style="flex: 1; min-width: 80px;" />
-
-//     <div class="total">₹<span>0</span></div>
-
-//     <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" 
-//       style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
-//       <i class="fas fa-trash-alt"></i>
-//     </button>
-
-//     <div class="error" style="flex-basis: 100%; color: red;"></div>
-//   `;
-
-//   orderRows.appendChild(row);
-// }
-
-
-
-//    window.addRow = function () {
-
-//       const row = document.createElement('div');
-//       row.className = 'row';
-
-//       row.innerHTML = `
-//         <select onchange="updatePrice(this)">
-//           <option value="">Select Grain</option>
-//           ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-//         </select>
-
-//        // <div class="price">₹<span>0</span>/kg</div>
-
-//         <input type="number" min="1" placeholder="Quantity (kg)" oninput="updateTotal()" />
-
-//         <div class="total">₹<span>0</span></div>
-
-//        <button class="remove-btn" onclick="this.parentElement.remove(); updateTotal();" style="border: 1px solid red; background: transparent; color: red; padding: 4px 8px; border-radius: 4px;">
-//   <i class="fas fa-trash-alt"></i>
-// </button>
-
-
-//         <div class="error"></div>
-//       `;
-
-//       orderRows.appendChild(row);
-//     }
-
-
 window.updatePrice = function (selectElement) {
 const selectedOption = selectElement.options[selectElement.selectedIndex];
 const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
@@ -397,12 +300,6 @@ totalEl.textContent = total.toFixed(2);
 }
 
 
-// window.updatePrice = function(selectEl) {
-//   const price = selectEl.selectedOptions[0]?.dataset.price || 0;
-//   const row = selectEl.closest('.row');
-//   row.querySelector('.price span').textContent = price;
-//   updateTotal();
-// }
 
 window.updateTotal = function() {
   console.log("in update total :");
