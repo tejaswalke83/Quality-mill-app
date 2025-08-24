@@ -427,7 +427,7 @@ totalPriceEl.textContent = grandTotal.toFixed(2);
 window.submitOrder = async function () {
   console.log("in submit order :");
 
-  const service = localStorage.getItem("orderService");
+  const service = localStorage.getItem("orderType");
   let grainDetails = [];
   let hasError = false;
 
