@@ -175,88 +175,100 @@
     </div>
   </div>
 
-  <script>
-    const modal = document.getElementById('locationModal');
-    const btnAtHome = document.getElementById('btnAtHome');
-    const btnAtShop = document.getElementById('btnAtShop');
-    const radioShop = document.getElementById('radioShop');
-    const radioHome = document.getElementById('radioHome');
+<script>
+  const modal = document.getElementById('locationModal');
+  const btnAtHome = document.getElementById('btnAtHome');
+  const btnAtShop = document.getElementById('btnAtShop');
+  const radioShop = document.getElementById('radioShop');
+  const radioHome = document.getElementById('radioHome');
 
-    function disableCards(serveAtToDisable) {
-      const cards = document.querySelectorAll('.option-card');
-      cards.forEach(card => {
-        if (card.dataset.serveat === serveAtToDisable) {
-          card.classList.add('disabled');
-          card.onclick = null; // disable click
-        } else {
-          card.classList.remove('disabled');
-          // restore click handler
-          card.onclick = () => selectOrderType(card.id.replace('card-', ''));
-        }
-      });
-    }
-
-    function setRadioSelection(serveAt) {
-      radioShop.checked = serveAt === 'ShopService';
-      radioHome.checked = serveAt === 'HomeService';
-    }
-
-    btnAtHome.addEventListener('click', () => {
-      localStorage.setItem('serveAt', 'HomeService');
-      disableCards('ShopService');
-      modal.style.display = 'none';
-      setRadioSelection('HomeService');
+  function disableCards(serveAtToDisable) {
+    const cards = document.querySelectorAll('.option-card');
+    cards.forEach(card => {
+      if (card.dataset.serveat === serveAtToDisable) {
+        card.classList.add('disabled');
+        card.onclick = null; // disable click
+      } else {
+        card.classList.remove('disabled');
+        card.onclick = () => selectOrderType(card.id.replace('card-', ''));
+      }
     });
-
-    btnAtShop.addEventListener('click', () => {
-      localStorage.setItem('serveAt', 'ShopService');
-      disableCards('HomeService');
-      modal.style.display = 'none';
-      setRadioSelection('ShopService');
-    });
-
-   function selectOrderType(type) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const phone = urlParams.get('phone');
-
-  // Save both order type and serveAt
-  localStorage.setItem('orderType', type);
-  const card = document.getElementById(`card-${type}`);
-  if (card) {
-    localStorage.setItem('serveAt', card.dataset.serveat);
   }
 
-  // Clear previous ticks and highlights
-  document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-  document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+  function setRadioSelection(serveAt) {
+    radioShop.checked = serveAt === 'ShopService';
+    radioHome.checked = serveAt === 'HomeService';
+  }
 
-  // Show tick and highlight selected card
-  const tickId = `tick-${type}`;
-  const tick = document.getElementById(tickId);
-  if (tick) tick.classList.remove('hidden');
-  if (card) card.classList.add('selected');
+  // Modal buttons
+  btnAtHome.addEventListener('click', () => {
+    localStorage.setItem('serveAt', 'HomeService');
+    disableCards('ShopService');
+    modal.style.display = 'none';
+    setRadioSelection('HomeService');
+  });
 
-  setTimeout(() => {
-    window.location.href = `create-order.html?phone=${phone}`;
-  }, 500);
-}
+  btnAtShop.addEventListener('click', () => {
+    localStorage.setItem('serveAt', 'ShopService');
+    disableCards('HomeService');
+    modal.style.display = 'none';
+    setRadioSelection('ShopService');
+  });
 
+  // Radio button listeners
+  radioHome.addEventListener('change', () => {
+    if (radioHome.checked) {
+      localStorage.setItem('serveAt', 'HomeService');
+      disableCards('ShopService');
+    }
+  });
 
+  radioShop.addEventListener('change', () => {
+    if (radioShop.checked) {
+      localStorage.setItem('serveAt', 'ShopService');
+      disableCards('HomeService');
+    }
+  });
 
-    // On page load
-    window.onload = () => {
-      const serveAt = localStorage.getItem('serveAt');
-      if (serveAt === 'HomeService' || serveAt === 'ShopService') {
-        modal.style.display = 'none';
-        disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
-        setRadioSelection(serveAt);
-      } else {
-        modal.style.display = 'flex';
-        disableCards('none');
-        setRadioSelection(null);
-      }
-      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-    };
-  </script>
+  function selectOrderType(type) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+
+    localStorage.setItem('orderType', type);
+    const card = document.getElementById(`card-${type}`);
+    if (card) {
+      localStorage.setItem('serveAt', card.dataset.serveat);
+    }
+
+    // Clear ticks + highlight
+    document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+    document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+
+    // Tick selected
+    const tickId = `tick-${type}`;
+    const tick = document.getElementById(tickId);
+    if (tick) tick.classList.remove('hidden');
+    if (card) card.classList.add('selected');
+
+    setTimeout(() => {
+      window.location.href = `create-order.html?phone=${phone}`;
+    }, 500);
+  }
+
+  // On page load
+  window.onload = () => {
+    const serveAt = localStorage.getItem('serveAt');
+    if (serveAt === 'HomeService' || serveAt === 'ShopService') {
+      modal.style.display = 'none';
+      disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
+      setRadioSelection(serveAt);
+    } else {
+      modal.style.display = 'flex';
+      disableCards('none');
+      setRadioSelection(null);
+    }
+    document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  };
+</script>
 </body>
 </html>
