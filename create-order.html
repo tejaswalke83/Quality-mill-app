@@ -236,8 +236,8 @@ async function fetchData() {
   const service = localStorage.getItem("orderType");
 
   console.error('Service --> :', service);
-  const service_type = localStorage.getItem("orderType");
-  if (service_type && service.toLowerCase().includes("buy")) {
+  
+  if (service && service.toLowerCase().includes("buy")) {
     // 👉 Flow for "Buy and Mill"
     loadGrainsForSell();
   } else {
@@ -265,6 +265,8 @@ async function loadGrainsForSell() {
   const { data: grains, error } = await supabase
     .from('Grain_for_sell')
     .select('*');
+
+      console.error('grains --> :', grains);
 
   if (error) {
     console.error(error);
