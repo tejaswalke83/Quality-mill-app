@@ -212,36 +212,138 @@ async function generateTokenNumber() {
 
 
 async function fetchData() {
-// Get user by phone
-const { data, error } = await supabase
-.from('customers')
-.select('*')
-.eq('phone_number', phone)
-.maybeSingle();
+  // Get user by phone
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('phone_number', phone)
+    .maybeSingle();
 
-if (!data) {
-document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
-return;
-}
+  if (!data) {
+    document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
+    return;
+  }
 
-user = data;
-document.getElementById('user-info').innerHTML = `
+  user = data;
+  document.getElementById('user-info').innerHTML = `
     <p><strong>Name:</strong> ${user.name}</p>
     <p><strong>Mobile:</strong> ${user.phone_number}</p>
     <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
     <p><strong>Society:</strong> ${user.society_name}</p>
-`;
+  `;
 
-
-// Get grain prices
-const { data: grains } = await supabase
-.from('grain_prices')
-.select('*');
-grainList = grains;
-
-// Add default 1 rows
-for (let i = 0; i < 1; i++) addRow();
+  // ✅ Check service type
+  const service = localStorage.getItem("orderService");
+  if (service && service.toLowerCase().includes("buy")) {
+    // 👉 Flow for "Buy and Mill"
+    loadGrainsForSell();
+  } else {
+    // 👉 Flow for only "Milling"
+    loadMillingGrains();
+  }
 }
+
+// -----------------------
+// For Milling Service
+// -----------------------
+async function loadMillingGrains() {
+  const { data: grains } = await supabase.from('grain_prices').select('*');
+  grainList = grains;
+
+  // Add default row
+  addRow();
+}
+
+
+// -----------------------
+// For Buy + Mill Service
+// -----------------------
+async function loadGrainsForSell() {
+  const { data: grains, error } = await supabase
+    .from('Grain_for_sell')
+    .select('*');
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  orderRows.innerHTML = ""; // clear previous rows
+
+  grains.forEach(g => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.border = "1px solid #ccc";
+    row.style.padding = "12px";
+    row.style.borderRadius = "8px";
+    row.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.05)";
+    row.style.marginBottom = "12px";
+    row.style.display = "flex";
+    row.style.flexWrap = "wrap";
+    row.style.alignItems = "center";
+    row.style.gap = "10px";
+
+    const disabled = g.stock <= 0 ? "disabled" : "";
+
+    row.innerHTML = `
+      <input type="checkbox" class="grain-check" ${disabled} />
+      <div style="flex:2;">
+        <strong>${g.grain}</strong><br>
+        Price: ₹${g.price}/kg <br>
+        ${g.stock > 0 
+          ? `Stock: ${g.stock} kg` 
+          : `<span style="color:red;">Not in stock</span>`}
+      </div>
+      <input type="number" min="1" max="${g.stock}" placeholder="Qty (kg)" 
+        class="grain-qty" ${disabled} style="width:80px;" />
+      <div class="total">₹<span>0</span></div>
+    `;
+
+    orderRows.appendChild(row);
+  });
+
+  // Listen for changes
+  orderRows.addEventListener("input", updateBuyAndMillTotal);
+  orderRows.addEventListener("change", updateBuyAndMillTotal);
+
+  // Show total also at top
+  const totalTop = document.createElement("div");
+  totalTop.className = "total-section";
+  totalTop.innerHTML = `Total Price: ₹<span id="total-price-top">0</span>`;
+  orderRows.prepend(totalTop);
+}
+
+
+// -----------------------
+// Update Totals for Buy + Mill
+// -----------------------
+function updateBuyAndMillTotal() {
+  let grandTotal = 0;
+
+  [...orderRows.querySelectorAll(".row")].forEach(row => {
+    const check = row.querySelector(".grain-check");
+    const qtyInput = row.querySelector(".grain-qty");
+    const totalEl = row.querySelector(".total span");
+
+    if (!check.checked) {
+      totalEl.textContent = "0";
+      return;
+    }
+
+    const priceMatch = row.innerHTML.match(/₹(\d+)/);
+    const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+    const qty = parseFloat(qtyInput.value || 0);
+    const rowTotal = price * qty;
+
+    totalEl.textContent = rowTotal.toFixed(2);
+    grandTotal += rowTotal;
+  });
+
+  document.getElementById("total-price").textContent = grandTotal.toFixed(2);
+  const topEl = document.getElementById("total-price-top");
+  if (topEl) topEl.textContent = grandTotal.toFixed(2);
+}
+
 
 
 window.addRow = function () {
@@ -318,49 +420,90 @@ totalPriceEl.textContent = grandTotal.toFixed(2);
 }
 
 window.submitOrder = async function () {
+  console.log("in submit order :");
 
-    console.log("in submit order :");
-
-const rows = [...orderRows.children];
-  const grainDetails = [];
+  const service = localStorage.getItem("orderService");
+  let grainDetails = [];
   let hasError = false;
 
-  rows.forEach(row => {
-    const select = row.querySelector('select');
-    const qtyInput = row.querySelector('input');
-    const errorEl = row.querySelector('.error');
-    errorEl.textContent = '';
+  // ---------------------------
+  // 1. Collect Grain Details
+  // ---------------------------
+  if (service && service.toLowerCase().includes("buy")) {
+    // 👉 Buy + Mill Flow
+    const rows = [...orderRows.querySelectorAll(".row")];
+    rows.forEach(row => {
+      const check = row.querySelector(".grain-check");
+      const qtyInput = row.querySelector(".grain-qty");
+      if (!check.checked) return; // skip if not selected
 
-    const grain = select.value;
-    const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-    const qty = parseFloat(qtyInput.value || 0);
+      const name = row.querySelector("strong").textContent;
+      const priceMatch = row.innerHTML.match(/₹(\d+)/);
+      const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+      const qty = parseFloat(qtyInput.value || 0);
 
-    if (!grain || qty <= 0) {
-      errorEl.textContent = "Select grain and enter valid quantity.";
-      hasError = true;
-      return;
-    }
+      if (qty <= 0) {
+        row.style.border = "2px solid red";
+        hasError = true;
+      } else {
+        row.style.border = "1px solid #ccc";
+      }
 
-        console.log("in submit order 2:");
-    grainDetails.push({
-      grain,
-      quantity: qty,
-      price: price,
-      total: price * qty
+      grainDetails.push({
+        grain: name,
+        quantity: qty,
+        price,
+        total: price * qty
+      });
     });
-  });
-  console.log("in submit order 3:");
-  if (hasError || grainDetails.length === 0) return;
+  } else {
+    // 👉 Milling Flow (your old logic)
+    const rows = [...orderRows.children];
+    rows.forEach(row => {
+      const select = row.querySelector('select');
+      const qtyInput = row.querySelector('input');
+      const errorEl = row.querySelector('.error');
+      errorEl.textContent = '';
 
+      const grain = select.value;
+      const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+      const qty = parseFloat(qtyInput.value || 0);
+
+      if (!grain || qty <= 0) {
+        errorEl.textContent = "Select grain and enter valid quantity.";
+        hasError = true;
+        return;
+      }
+
+      grainDetails.push({
+        grain,
+        quantity: qty,
+        price,
+        total: price * qty
+      });
+    });
+  }
+
+  // ---------------------------
+  // 2. Stop if error
+  // ---------------------------
+  if (hasError || grainDetails.length === 0) {
+    alert("Please fix errors before submitting.");
+    return;
+  }
+
+  // ---------------------------
+  // 3. Calculate Total
+  // ---------------------------
   const total_price = parseFloat(totalPriceEl.textContent);
 
   try {
     // ✅ Generate token number FIRST
-      console.log("About to generate token...");
-
+    console.log("About to generate token...");
     const token_number = await generateTokenNumber();
-console.log(" token generated "+token_number);
-    // ✅ Insert order with token number
+    console.log(" token generated " + token_number);
+
+    // ✅ Insert order
     const { error } = await supabase
       .from('orders')
       .insert([{
@@ -368,7 +511,8 @@ console.log(" token generated "+token_number);
         grain_details: grainDetails,
         total_price,
         status: 'new',
-        token_number: token_number
+        token_number: token_number,
+        service_type: service  // optional: track which service
       }]);
 
     if (error) {
@@ -382,7 +526,8 @@ console.log(" token generated "+token_number);
     console.error(err);
     alert("Failed to generate token number!");
   }
-}
+};
+
 
 fetchData();
 </script>
