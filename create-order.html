@@ -114,6 +114,21 @@ font-size: 16px;
 
 </head>
 <body>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const service = localStorage.getItem("orderService");
+  if (service) {
+    document.getElementById("selectedService").textContent = service;
+  }
+});
+</script>
+
+<p>You selected: <span id="selectedService"></span></p>
+
+
+
 <div class="card">
 <h2>Create New Order</h2>
 
@@ -150,6 +165,9 @@ let user = null;
 
 const orderRows = document.getElementById('order-rows');
 const totalPriceEl = document.getElementById('total-price');
+
+
+
 
 
 async function generateTokenNumber() {

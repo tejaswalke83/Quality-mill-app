@@ -215,27 +215,33 @@
       setRadioSelection('ShopService');
     });
 
-    function selectOrderType(type) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const phone = urlParams.get('phone');
+   function selectOrderType(type) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const phone = urlParams.get('phone');
 
-      localStorage.setItem('orderType', type);
+  // Save both order type and serveAt
+  localStorage.setItem('orderType', type);
+  const card = document.getElementById(`card-${type}`);
+  if (card) {
+    localStorage.setItem('serveAt', card.dataset.serveat);
+  }
 
-      // Clear previous ticks and highlights
-      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-      document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+  // Clear previous ticks and highlights
+  document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
 
-      // Show tick and highlight selected card
-      const tickId = `tick-${type}`;
-      const tick = document.getElementById(tickId);
-      const card = document.getElementById(`card-${type}`);
-      if (tick) tick.classList.remove('hidden');
-      if (card) card.classList.add('selected');
+  // Show tick and highlight selected card
+  const tickId = `tick-${type}`;
+  const tick = document.getElementById(tickId);
+  if (tick) tick.classList.remove('hidden');
+  if (card) card.classList.add('selected');
 
-      setTimeout(() => {
-        window.location.href = `create-order.html?phone=${phone}`;
-      }, 500);
-    }
+  setTimeout(() => {
+    window.location.href = `create-order.html?phone=${phone}`;
+  }, 500);
+}
+
+
 
     // On page load
     window.onload = () => {
