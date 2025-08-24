@@ -145,6 +145,21 @@
     </label>
   </div>
 
+    <div class="section-heading">At Shop Services</div>
+  <div class="options-container" id="shopServices">
+    <div onclick="selectOrderType('shop-milling')" class="option-card" data-serveat="ShopService" id="card-shop-milling">
+      <strong>Milling Service – At Shop</strong>
+      <p>Bring your grains to our shop and get them milled on the spot.</p>
+      <span id="tick-shop-milling" class="tick hidden">✔️</span>
+    </div>
+
+    <div onclick="selectOrderType('shop-buy-mill')" class="option-card" data-serveat="ShopService" id="card-shop-buy-mill">
+      <strong>Buy & Mill – At Shop</strong>
+      <p>Select grains from our shop, mill fresh atta, and take it home.</p>
+      <span id="tick-shop-buy-mill" class="tick hidden">✔️</span>
+    </div>
+  </div>
+
   <div class="section-heading">At Home Services</div>
   <div class="options-container" id="homeServices">
     <div onclick="selectOrderType('home-milling')" class="option-card" data-serveat="HomeService" id="card-home-milling">
@@ -160,20 +175,7 @@
     </div>
   </div>
 
-  <div class="section-heading">At Shop Services</div>
-  <div class="options-container" id="shopServices">
-    <div onclick="selectOrderType('shop-milling')" class="option-card" data-serveat="ShopService" id="card-shop-milling">
-      <strong>Milling Service – At Shop</strong>
-      <p>Bring your grains to our shop and get them milled on the spot.</p>
-      <span id="tick-shop-milling" class="tick hidden">✔️</span>
-    </div>
 
-    <div onclick="selectOrderType('shop-buy-mill')" class="option-card" data-serveat="ShopService" id="card-shop-buy-mill">
-      <strong>Buy & Mill – At Shop</strong>
-      <p>Select grains from our shop, mill fresh atta, and take it home.</p>
-      <span id="tick-shop-buy-mill" class="tick hidden">✔️</span>
-    </div>
-  </div>
 
 <script>
   const modal = document.getElementById('locationModal');
