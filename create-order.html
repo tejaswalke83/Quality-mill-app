@@ -293,13 +293,13 @@ async function loadGrainsForSell() {
     row.innerHTML = `
       <input type="checkbox" class="grain-check" ${disabled} />
       <div style="flex:2;">
-        <strong>${g.grain}</strong><br>
-        Price: ₹${g.price}/kg <br>
-        ${g.stock > 0 
-          ? `Stock: ${g.stock} kg` 
+        <strong>${g.grain_name}</strong><br>
+        Price: ₹${g.price_per_kg}/kg <br>
+        ${g.stock_qty > 0 
+          ? `Stock: ${g.stock_qty} kg` 
           : `<span style="color:red;">Not in stock</span>`}
       </div>
-      <input type="number" min="1" max="${g.stock}" placeholder="Qty (kg)" 
+      <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" 
         class="grain-qty" ${disabled} style="width:80px;" />
       <div class="total">₹<span>0</span></div>
     `;
