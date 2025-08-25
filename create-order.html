@@ -237,6 +237,7 @@ async function fetchData() {
   if (service && service.toLowerCase().includes("buy")) {
     // 👉 Flow for "Buy and Mill"
     loadGrainsForSell();
+     loadMillingGrains();
   } else {
     // 👉 Flow for only "Milling"
     loadMillingGrains();
