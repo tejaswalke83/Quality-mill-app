@@ -410,7 +410,9 @@ window.submitOrder = async function () {
     //     token_number: token_number,
     //     service_type: service  // optional: track which service
     //   }]);
-const orderType = localStorage.getItem("orderType") || "normal";  // default if not set
+// ✅ get values from localStorage
+    let orderType = localStorage.getItem("orderType") || null;
+    let serveAt = localStorage.getItem("serveAt") || null;
 
   console.log(" orderType--> " + orderType);
 
@@ -422,7 +424,8 @@ const orderType = localStorage.getItem("orderType") || "normal";  // default if 
     total_price,
     status: 'new',
     token_number: token_number,
-    order_type: orderType   // ✅ correct column name
+    order_type: orderType,
+    serve_at: serveAt   // ✅ stored here
   }]);
 
     if (error) {
