@@ -232,30 +232,62 @@
     }
   });
 
+
   function selectOrderType(type) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const phone = urlParams.get('phone');
+  const urlParams = new URLSearchParams(window.location.search);
+  const phone = urlParams.get('phone');
 
-    localStorage.setItem('orderType', type);
-    const card = document.getElementById(`card-${type}`);
-    if (card) {
-      localStorage.setItem('serveAt', card.dataset.serveat);
-    }
-
-    // Clear ticks + highlight
-    document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-    document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
-
-    // Tick selected
-    const tickId = `tick-${type}`;
-    const tick = document.getElementById(tickId);
-    if (tick) tick.classList.remove('hidden');
-    if (card) card.classList.add('selected');
-
-    setTimeout(() => {
-      window.location.href = `create-order.html?phone=${phone}`;
-    }, 500);
+  localStorage.setItem('orderType', type);
+  const card = document.getElementById(`card-${type}`);
+  if (card) {
+    localStorage.setItem('serveAt', card.dataset.serveat);
   }
+
+  // Clear ticks + highlight
+  document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+
+  // Tick selected
+  const tickId = `tick-${type}`;
+  const tick = document.getElementById(tickId);
+  if (tick) tick.classList.remove('hidden');
+  if (card) card.classList.add('selected');
+
+  // ✅ Decide where to go
+  let nextPage = "create-order.html"; 
+  if (type === "shop-buy-mill" || type === "home-buy-mill") {
+    nextPage = "create-buy-grain-order.html";
+  }
+
+  setTimeout(() => {
+    window.location.href = `${nextPage}?phone=${phone}`;
+  }, 500);
+}
+
+  // function selectOrderType(type) {
+  //   const urlParams = new URLSearchParams(window.location.search);
+  //   const phone = urlParams.get('phone');
+
+  //   localStorage.setItem('orderType', type);
+  //   const card = document.getElementById(`card-${type}`);
+  //   if (card) {
+  //     localStorage.setItem('serveAt', card.dataset.serveat);
+  //   }
+
+  //   // Clear ticks + highlight
+  //   document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  //   document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+
+  //   // Tick selected
+  //   const tickId = `tick-${type}`;
+  //   const tick = document.getElementById(tickId);
+  //   if (tick) tick.classList.remove('hidden');
+  //   if (card) card.classList.add('selected');
+
+  //   setTimeout(() => {
+  //     window.location.href = `create-order.html?phone=${phone}`;
+  //   }, 500);
+  // }
 
   // On page load
   window.onload = () => {
