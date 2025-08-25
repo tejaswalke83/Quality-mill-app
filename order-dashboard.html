@@ -138,19 +138,43 @@ async function fetchAllOrders() {
   return data;
 }
 
-function getNextStatus(currentStatus) {
-  if (currentStatus === 'new') return 'in_progress';
-  if (currentStatus === 'in_progress') return 'milling_completed';
-  if (currentStatus === 'milling_completed') return 'delivered';
-  return null;
+// Define status flows
+const statusFlows = {
+  shop_milling:    [1, 4, 5, 7],
+  shop_buy_mill:   [1, 4, 5, 7],
+  home_milling:    [1, 2, 3, 4, 5, 6, 7],
+  home_buy_mill:   [1, 2, 3, 4, 5, 6, 7]
+};
+
+let statusesCache = []; // cache statuses for labels
+
+async function fetchStatuses() {
+  const { data, error } = await supabase
+    .from('order_statuses')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching statuses:', error);
+    return [];
+  }
+  statusesCache = data;
+  return data;
 }
 
-function getStatusLabel(status) {
-  if (status === 'new') return 'Mark In Progress';
-  if (status === 'in_progress') return 'Milling Completed';
-  if (status === 'milling_completed') return 'Delivery Completed';
-  return '';
+// Get next status id for this order
+function getNextStatus(order) {
+  const flow = statusFlows[order.order_type] || [];
+  const currentStatus = statusesCache.find(s => s.status_name.toLowerCase() === order.status.toLowerCase());
+  if (!currentStatus) return null;
+
+  const idx = flow.indexOf(currentStatus.sort_order);
+  if (idx === -1 || idx + 1 >= flow.length) return null;
+
+  const nextSortOrder = flow[idx + 1];
+  return statusesCache.find(s => s.sort_order === nextSortOrder);
 }
+
 
 async function updateOrderStatus(orderId, newStatus) {
   const { error } = await supabase
@@ -271,12 +295,16 @@ async function loadOrders() {
       <p><strong>Created:</strong> ${window.convertUTCToIST(order.created_at)}</p>
       ${grainsHTML ? `<p><strong>Grains:</strong>${grainsHTML}</p>` : ''}
       <div class="card-footer">
-        <span><strong>Status:</strong> ${order.status}</span>
-        ${getNextStatus(order.status) ? 
-          `<button onclick="updateOrderStatus('${order.id}', '${getNextStatus(order.status)}')">
-            ${getStatusLabel(order.status)}
-          </button>` 
-        : ''}
+       <span><strong>Status:</strong> ${order.status}</span>
+${(() => {
+   const next = getNextStatus(order);
+   return next 
+     ? `<button onclick="updateOrderStatus('${order.id}', '${next.status_name}')">
+          Move to ${next.status_name}
+        </button>` 
+     : '';
+ })()}
+
       </div>
     `;
 
