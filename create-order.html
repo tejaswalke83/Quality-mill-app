@@ -410,6 +410,7 @@ window.submitOrder = async function () {
     //     token_number: token_number,
     //     service_type: service  // optional: track which service
     //   }]);
+const orderType = localStorage.getItem("orderType") || "normal";  // default if not set
 
       const { error } = await supabase
   .from('orders')
