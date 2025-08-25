@@ -288,7 +288,7 @@ function resetSearch() {
   document.getElementById('searchBox').value = '';
   loadOrders();
 }
-
+window.debouncedSearch = debouncedSearch;
 window.loadOrders = loadOrders;
 window.resetSearch = resetSearch;
 
