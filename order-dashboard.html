@@ -84,10 +84,12 @@
   <h1>Order Dashboard</h1>
 
   <div class="controls">
-    <div class="search-group">
-      <input type="text" id="searchBox" placeholder="Search by name or phone" />
-      <button onclick="resetSearch()">Reset</button>
-    </div>
+   <div class="search-group">
+  <input type="text" id="searchBox" placeholder="Search by name, phone, token, total, status, grain..." />
+  <button onclick="loadOrders()">Search</button>
+  <button onclick="resetSearch()">Reset</button>
+</div>
+
 
     <div class="filter-group">
       <label><strong>Filter by:</strong></label>
