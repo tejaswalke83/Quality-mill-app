@@ -56,6 +56,7 @@ const totalPriceEl = document.getElementById('total-price');
 
 document.addEventListener("DOMContentLoaded", () => {
   const service = localStorage.getItem("orderService");
+
   if (service) {
     document.getElementById("selectedService").textContent = service;
   }
@@ -130,7 +131,7 @@ async function fetchData() {
   const service = localStorage.getItem("orderService");
   if (service && service.toLowerCase().includes("buy")) {
     // 👉 Flow for "Buy and Mill"
-    loadGrainsForSell();
+   // loadGrainsForSell();
      loadMillingGrains();
   } else {
     // 👉 Flow for only "Milling"
@@ -398,17 +399,28 @@ window.submitOrder = async function () {
     const token_number = await generateTokenNumber();
     console.log(" token generated " + token_number);
 
-    // ✅ Insert order
-    const { error } = await supabase
-      .from('orders')
-      .insert([{
-        customer_id: user.id,
-        grain_details: grainDetails,
-        total_price,
-        status: 'new',
-        token_number: token_number,
-        service_type: service  // optional: track which service
-      }]);
+    // // ✅ Insert order
+    // const { error } = await supabase
+    //   .from('orders')
+    //   .insert([{
+    //     customer_id: user.id,
+    //     grain_details: grainDetails,
+    //     total_price,
+    //     status: 'new',
+    //     token_number: token_number,
+    //     service_type: service  // optional: track which service
+    //   }]);
+
+      const { error } = await supabase
+  .from('orders')
+  .insert([{
+    customer_id: user.id,
+    grain_details: grainDetails,
+    total_price,
+    status: 'new',
+    token_number: token_number,
+    order_type: orderType   // ✅ correct column name
+  }]);
 
     if (error) {
       alert("Failed to place order!");
