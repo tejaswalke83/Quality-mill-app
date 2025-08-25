@@ -202,11 +202,26 @@ async function loadOrders() {
     filtered = filtered.filter(o => o.status === activeFilter);
   }
 
+  // if (searchTerm.trim() !== '') {
+  //   filtered = filtered.filter(o =>
+  //     (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+  //     (o.customers?.phone_number || '').includes(searchTerm)
+  //   );
+  // }
+
   if (searchTerm.trim() !== '') {
-    filtered = filtered.filter(o =>
-      (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
-      (o.customers?.phone_number || '').includes(searchTerm)
-    );
+  filtered = filtered.filter(o =>
+    (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+    (o.customers?.phone_number || '').includes(searchTerm) ||
+    (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
+    (o.total_price?.toString() || '').includes(searchTerm) ||
+    (o.status?.toLowerCase() || '').includes(searchTerm) ||
+    // search inside grain_details (array of objects)
+    (Array.isArray(o.grain_details) &&
+      o.grain_details.some(g =>
+        (g.grain?.toLowerCase() || '').includes(searchTerm)
+      ))
+  );
   }
 
  
