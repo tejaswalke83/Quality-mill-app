@@ -192,18 +192,18 @@ async function updateOrderStatus(orderId, newStatus) {
 
 
 
- async function fetchStatuses() {
-  const { data, error } = await supabase
-    .from('order_statuses')
-    .select('*')
-    .order('sort_order', { ascending: true }); // ✅ sort by DB column
+//  async function fetchStatuses() {
+//   const { data, error } = await supabase
+//     .from('order_statuses')
+//     .select('*')
+//     .order('sort_order', { ascending: true }); // ✅ sort by DB column
 
-  if (error) {
-    console.error('Error fetching statuses:', error);
-    return [];
-  }
-  return data;
-}
+//   if (error) {
+//     console.error('Error fetching statuses:', error);
+//     return [];
+//   }
+//   return data;
+// }
 
 async function loadFilterButtons() {
   const statuses = await fetchStatuses();
