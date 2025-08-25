@@ -412,6 +412,8 @@ window.submitOrder = async function () {
     //   }]);
 const orderType = localStorage.getItem("orderType") || "normal";  // default if not set
 
+  console.log(" orderType--> " + orderType);
+
       const { error } = await supabase
   .from('orders')
   .insert([{
