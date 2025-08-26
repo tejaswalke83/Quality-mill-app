@@ -353,7 +353,7 @@ window.submitOrder = async function () {
       });
     });
   } else {
-    // 👉 Milling Flow (your old logic)
+    // 👉 Milling Flow
     const rows = [...orderRows.children];
     rows.forEach(row => {
       const select = row.querySelector('select');
@@ -399,34 +399,37 @@ window.submitOrder = async function () {
     const token_number = await generateTokenNumber();
     console.log(" token generated " + token_number);
 
-    // // ✅ Insert order
-    // const { error } = await supabase
-    //   .from('orders')
-    //   .insert([{
-    //     customer_id: user.id,
-    //     grain_details: grainDetails,
-    //     total_price,
-    //     status: 'new',
-    //     token_number: token_number,
-    //     service_type: service  // optional: track which service
-    //   }]);
-// ✅ get values from localStorage
+    // ✅ get values from localStorage
     let orderType = localStorage.getItem("orderType") || null;
     let serveAt = localStorage.getItem("serveAt") || null;
 
-  console.log(" orderType--> " + orderType);
+    console.log(" orderType--> " + orderType);
 
-      const { error } = await supabase
-  .from('orders')
-  .insert([{
-    customer_id: user.id,
-    grain_details: grainDetails,
-    total_price,
-    status: 'new',
-    token_number: token_number,
-    order_type: orderType,
-    serve_at: serveAt   // ✅ stored here
-  }]);
+    // ✅ Step 1: Fetch status_id for "new"
+    const { data: statusData, error: statusError } = await supabase
+      .from("order_statuses")
+      .select("id")
+      .eq("status", "new")
+      .single();
+
+    if (statusError) {
+      throw statusError;
+    }
+
+    const statusId = statusData.id;
+
+    // ✅ Step 2: Insert order with status_id
+    const { error } = await supabase
+      .from("orders")
+      .insert([{
+        customer_id: user.id,
+        grain_details: grainDetails,
+        total_price,
+        status_id: statusId,   // ✅ use FK now
+        token_number: token_number,
+        order_type: orderType,
+        serve_at: serveAt
+      }]);
 
     if (error) {
       alert("Failed to place order!");
@@ -437,9 +440,136 @@ window.submitOrder = async function () {
     }
   } catch (err) {
     console.error(err);
-    alert("Failed to generate token number!");
+    alert("Failed to generate token number or fetch status!");
   }
 };
+
+
+// window.submitOrder = async function () {
+//   console.log("in submit order :");
+
+//   const service = localStorage.getItem("orderService");
+//   let grainDetails = [];
+//   let hasError = false;
+
+//   // ---------------------------
+//   // 1. Collect Grain Details
+//   // ---------------------------
+//   if (service && service.toLowerCase().includes("buy")) {
+//     // 👉 Buy + Mill Flow
+//     const rows = [...orderRows.querySelectorAll(".row")];
+//     rows.forEach(row => {
+//       const check = row.querySelector(".grain-check");
+//       const qtyInput = row.querySelector(".grain-qty");
+//       if (!check.checked) return; // skip if not selected
+
+//       const name = row.querySelector("strong").textContent;
+//       const priceMatch = row.innerHTML.match(/₹(\d+)/);
+//       const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+//       const qty = parseFloat(qtyInput.value || 0);
+
+//       if (qty <= 0) {
+//         row.style.border = "2px solid red";
+//         hasError = true;
+//       } else {
+//         row.style.border = "1px solid #ccc";
+//       }
+
+//       grainDetails.push({
+//         grain: name,
+//         quantity: qty,
+//         price,
+//         total: price * qty
+//       });
+//     });
+//   } else {
+//     // 👉 Milling Flow (your old logic)
+//     const rows = [...orderRows.children];
+//     rows.forEach(row => {
+//       const select = row.querySelector('select');
+//       const qtyInput = row.querySelector('input');
+//       const errorEl = row.querySelector('.error');
+//       errorEl.textContent = '';
+
+//       const grain = select.value;
+//       const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+//       const qty = parseFloat(qtyInput.value || 0);
+
+//       if (!grain || qty <= 0) {
+//         errorEl.textContent = "Select grain and enter valid quantity.";
+//         hasError = true;
+//         return;
+//       }
+
+//       grainDetails.push({
+//         grain,
+//         quantity: qty,
+//         price,
+//         total: price * qty
+//       });
+//     });
+//   }
+
+//   // ---------------------------
+//   // 2. Stop if error
+//   // ---------------------------
+//   if (hasError || grainDetails.length === 0) {
+//     alert("Please fix errors before submitting.");
+//     return;
+//   }
+
+//   // ---------------------------
+//   // 3. Calculate Total
+//   // ---------------------------
+//   const total_price = parseFloat(totalPriceEl.textContent);
+
+//   try {
+//     // ✅ Generate token number FIRST
+//     console.log("About to generate token...");
+//     const token_number = await generateTokenNumber();
+//     console.log(" token generated " + token_number);
+
+//     // // ✅ Insert order
+//     // const { error } = await supabase
+//     //   .from('orders')
+//     //   .insert([{
+//     //     customer_id: user.id,
+//     //     grain_details: grainDetails,
+//     //     total_price,
+//     //     status: 'new',
+//     //     token_number: token_number,
+//     //     service_type: service  // optional: track which service
+//     //   }]);
+// // ✅ get values from localStorage
+//     let orderType = localStorage.getItem("orderType") || null;
+//     let serveAt = localStorage.getItem("serveAt") || null;
+
+//   console.log(" orderType--> " + orderType);
+
+//       const { error } = await supabase
+//   .from('orders')
+//   .insert([{
+//     customer_id: user.id,
+//     grain_details: grainDetails,
+//     total_price,
+//     status: 'new',
+//     token_number: token_number,
+//     order_type: orderType,
+//     serve_at: serveAt   // ✅ stored here
+//   }]);
+
+//     if (error) {
+//       alert("Failed to place order!");
+//       console.error(error);
+//     } else {
+//       alert("Order placed successfully!");
+//       window.location.href = '/my-orders.html?phone=' + phone;
+//     }
+//   } catch (err) {
+//     console.error(err);
+//     alert("Failed to generate token number!");
+//   }
+// };
 
 
 fetchData();
