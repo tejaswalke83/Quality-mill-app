@@ -62,49 +62,100 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-
-
-
 async function generateTokenNumber() {
-    console.log("generateTokenNumber() called");
+  console.log("generateTokenNumber() called");
 
-    // Get all active (non-completed) token numbers
-   const { data: activeOrders, error } = await supabase
-    .from('orders')
-    .select('token_number, status(name)')
-    .not('status.name', 'eq', 'DELIVERED');
+  // ✅ Define statuses that should NOT get a new token
+  const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
 
+  // ✅ Fetch all active (non-completed) orders with their tokens
+  const { data: activeOrders, error } = await supabase
+    .from("orders")
+    .select(`
+      token_number,
+      order_statuses ( status_name )
+    `);
 
-    if (error) {
-        console.error("Error fetching active orders:", error);
-        throw error;
+  if (error) {
+    console.error("❌ Error fetching active orders:", error);
+    throw error;
+  }
+
+  // ✅ Filter only active orders in JS
+  const activeTokens = new Set(
+    (activeOrders || [])
+      .filter(o => !inactiveStatuses.includes(o.order_statuses?.status_name))
+      .map(o => o.token_number)
+  );
+
+  // ✅ Find the highest token number issued so far
+  let maxTokenNum = 0;
+  activeTokens.forEach(token => {
+    const num = parseInt(token?.slice(2), 10); // strip "QA"
+    if (!isNaN(num) && num > maxTokenNum) {
+      maxTokenNum = num;
     }
+  });
 
-    const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+  // ✅ Generate the next available token
+  for (let attempt = 1; attempt <= 999; attempt++) {
+    let nextNum = maxTokenNum + attempt;
+    if (nextNum > 999) nextNum -= 999; // wrap around after QA999
 
-    // Find the last issued token number (numerically)
-    let maxTokenNum = 0;
-    activeTokens.forEach(token => {
-        const num = parseInt(token.slice(2), 10); // remove "QA" and parse number
-        if (num > maxTokenNum) maxTokenNum = num;
-    });
+    const padded = nextNum.toString().padStart(3, "0");
+    const token = `QA${padded}`;
 
-    // Try the next token number
-    for (let attempt = 1; attempt <= 999; attempt++) {
-        let nextNum = maxTokenNum + attempt;
-        if (nextNum > 999) nextNum -= 999; // wrap around after QA999
-
-        const padded = nextNum.toString().padStart(3, '0');
-        const token = `QA${padded}`;
-
-        if (!activeTokens.has(token)) {
-            console.log("Token generated:", token);
-            return token;
-        }
+    if (!activeTokens.has(token)) {
+      console.log("✅ Token generated:", token);
+      return token;
     }
+  }
 
-    throw new Error("All token numbers are in use.");
+  throw new Error("All token numbers are in use.");
 }
+
+
+
+// async function generateTokenNumber() {
+//     console.log("generateTokenNumber() called");
+
+//     // Get all active (non-completed) token numbers
+//    const { data: activeOrders, error } = await supabase
+//     .from('orders')
+//     .select('token_number, status(name)')
+//     .not('status.name', 'eq', 'DELIVERED');
+
+
+//     if (error) {
+//         console.error("Error fetching active orders:", error);
+//         throw error;
+//     }
+
+//     const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+
+//     // Find the last issued token number (numerically)
+//     let maxTokenNum = 0;
+//     activeTokens.forEach(token => {
+//         const num = parseInt(token.slice(2), 10); // remove "QA" and parse number
+//         if (num > maxTokenNum) maxTokenNum = num;
+//     });
+
+//     // Try the next token number
+//     for (let attempt = 1; attempt <= 999; attempt++) {
+//         let nextNum = maxTokenNum + attempt;
+//         if (nextNum > 999) nextNum -= 999; // wrap around after QA999
+
+//         const padded = nextNum.toString().padStart(3, '0');
+//         const token = `QA${padded}`;
+
+//         if (!activeTokens.has(token)) {
+//             console.log("Token generated:", token);
+//             return token;
+//         }
+//     }
+
+//     throw new Error("All token numbers are in use.");
+// }
 
 
 async function fetchData() {
