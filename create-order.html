@@ -316,6 +316,7 @@ grandTotal += rowTotal;
 totalPriceEl.textContent = grandTotal.toFixed(2);
 }
 
+
 window.submitOrder = async function () {
   console.log("in submit order :");
 
@@ -400,9 +401,10 @@ window.submitOrder = async function () {
     const token_number = await generateTokenNumber();
     console.log(" token generated " + token_number);
 
-    // ✅ get values from localStorage
-    let orderType = localStorage.getItem("orderType") || null;
+    // ✅ Get values from localStorage
+    let orderType = localStorage.getItem("orderType") || "pickup";
     let serveAt = localStorage.getItem("serveAt") || null;
+    let customerId = localStorage.getItem("customerId") || null;
 
     console.log(" orderType--> " + orderType);
 
@@ -410,12 +412,146 @@ window.submitOrder = async function () {
     const { data: statusData, error: statusError } = await supabase
       .from("order_statuses")
       .select("id")
-      .eq("status_name", "NEW")
+      .eq("status_name", "new")
       .single();
 
     if (statusError) {
       throw statusError;
     }
+    const status_id = statusData.id;
+
+    // ✅ Step 2: Insert into orders
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .insert([{
+        customer_id: customerId,
+        grain_details: grainDetails, // JSONB
+        total_price: total_price,
+        token_number: token_number,
+        order_type: orderType,
+        grain_type: null,            // optional if using grain_details
+        quantity_kg: null,           // optional if using grain_details
+        status_id: status_id,        // ✅ foreign key
+        serve_at: serveAt,
+        status_backup: "new"         // ✅ fallback text
+      }])
+      .select("*")
+      .single();
+
+    if (orderError) {
+      throw orderError;
+    }
+
+    console.log("✅ Order inserted:", orderData);
+    alert("Order placed successfully! Token: " + token_number);
+
+  } catch (err) {
+    console.error("❌ Error placing order:", err);
+    alert("Something went wrong. Please try again.");
+  }
+};
+
+
+// window.submitOrder = async function () {
+//   console.log("in submit order :");
+
+//   const service = localStorage.getItem("orderService");
+//   let grainDetails = [];
+//   let hasError = false;
+
+//   // ---------------------------
+//   // 1. Collect Grain Details
+//   // ---------------------------
+//   if (service && service.toLowerCase().includes("buy")) {
+//     // 👉 Buy + Mill Flow
+//     const rows = [...orderRows.querySelectorAll(".row")];
+//     rows.forEach(row => {
+//       const check = row.querySelector(".grain-check");
+//       const qtyInput = row.querySelector(".grain-qty");
+//       if (!check.checked) return; // skip if not selected
+
+//       const name = row.querySelector("strong").textContent;
+//       const priceMatch = row.innerHTML.match(/₹(\d+)/);
+//       const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+//       const qty = parseFloat(qtyInput.value || 0);
+
+//       if (qty <= 0) {
+//         row.style.border = "2px solid red";
+//         hasError = true;
+//       } else {
+//         row.style.border = "1px solid #ccc";
+//       }
+
+//       grainDetails.push({
+//         grain: name,
+//         quantity: qty,
+//         price,
+//         total: price * qty
+//       });
+//     });
+//   } else {
+//     // 👉 Milling Flow
+//     const rows = [...orderRows.children];
+//     rows.forEach(row => {
+//       const select = row.querySelector('select');
+//       const qtyInput = row.querySelector('input');
+//       const errorEl = row.querySelector('.error');
+//       errorEl.textContent = '';
+
+//       const grain = select.value;
+//       const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+//       const qty = parseFloat(qtyInput.value || 0);
+
+//       if (!grain || qty <= 0) {
+//         errorEl.textContent = "Select grain and enter valid quantity.";
+//         hasError = true;
+//         return;
+//       }
+
+//       grainDetails.push({
+//         grain,
+//         quantity: qty,
+//         price,
+//         total: price * qty
+//       });
+//     });
+//   }
+
+//   // ---------------------------
+//   // 2. Stop if error
+//   // ---------------------------
+//   if (hasError || grainDetails.length === 0) {
+//     alert("Please fix errors before submitting.");
+//     return;
+//   }
+
+//   // ---------------------------
+//   // 3. Calculate Total
+//   // ---------------------------
+//   const total_price = parseFloat(totalPriceEl.textContent);
+
+//   try {
+//     // ✅ Generate token number FIRST
+//     console.log("About to generate token...");
+//     const token_number = await generateTokenNumber();
+//     console.log(" token generated " + token_number);
+
+//     // ✅ get values from localStorage
+//     let orderType = localStorage.getItem("orderType") || null;
+//     let serveAt = localStorage.getItem("serveAt") || null;
+
+//     console.log(" orderType--> " + orderType);
+
+//     // ✅ Step 1: Fetch status_id for "new"
+//     const { data: statusData, error: statusError } = await supabase
+//       .from("order_statuses")
+//       .select("id")
+//       .eq("status", "new")
+//       .single();
+
+//     if (statusError) {
+//       throw statusError;
+//     }
 
     const statusId = statusData.id;
 
