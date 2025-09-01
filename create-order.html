@@ -463,7 +463,7 @@ window.submitOrder = async function () {
     const { data: statusData, error: statusError } = await supabase
       .from("order_statuses")
       .select("id")
-      .eq("status_name", "new")
+      .eq("status_name", "NEW")
       .single();
 
     if (statusError) {
