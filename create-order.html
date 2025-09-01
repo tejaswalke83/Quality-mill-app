@@ -72,7 +72,7 @@ async function generateTokenNumber() {
     const { data: activeOrders, error } = await supabase
         .from('orders')
         .select('token_number')
-        .not('status', 'eq', 'completed');
+        .not('status_id', 'eq', 'delivered');
 
     if (error) {
         console.error("Error fetching active orders:", error);
