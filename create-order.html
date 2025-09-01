@@ -553,33 +553,33 @@ window.submitOrder = async function () {
 //       throw statusError;
 //     }
 
-    const statusId = statusData.id;
+//     const statusId = statusData.id;
 
-    // ✅ Step 2: Insert order with status_id
-    const { error } = await supabase
-      .from("orders")
-      .insert([{
-        customer_id: user.id,
-        grain_details: grainDetails,
-        total_price,
-        status_id: statusId,   // ✅ use FK now
-        token_number: token_number,
-        order_type: orderType,
-        serve_at: serveAt
-      }]);
+//     // ✅ Step 2: Insert order with status_id
+//     const { error } = await supabase
+//       .from("orders")
+//       .insert([{
+//         customer_id: user.id,
+//         grain_details: grainDetails,
+//         total_price,
+//         status_id: statusId,   // ✅ use FK now
+//         token_number: token_number,
+//         order_type: orderType,
+//         serve_at: serveAt
+//       }]);
 
-    if (error) {
-      alert("Failed to place order!");
-      console.error(error);
-    } else {
-      alert("Order placed successfully!");
-      window.location.href = '/my-orders.html?phone=' + phone;
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Failed to generate token number or fetch status!");
-  }
-};
+//     if (error) {
+//       alert("Failed to place order!");
+//       console.error(error);
+//     } else {
+//       alert("Order placed successfully!");
+//       window.location.href = '/my-orders.html?phone=' + phone;
+//     }
+//   } catch (err) {
+//     console.error(err);
+//     alert("Failed to generate token number or fetch status!");
+//   }
+// };
 
 
 // window.submitOrder = async function () {
