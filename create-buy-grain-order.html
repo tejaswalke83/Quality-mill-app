@@ -162,10 +162,15 @@
 
     // ✅ Generate token number (re-use from your old page)
     async function generateTokenNumber() {
-      const { data: activeOrders } = await supabase
-        .from("orders")
-        .select("token_number")
-        .not("status", "eq", "completed");
+  const { data: activeOrders, error } = await supabase
+    .from("orders")
+    .select("token_number, order_statuses!inner(status)")
+    .neq("order_statuses.status", "completed");   // ✅ join with order_statuses
+
+  if (error) {
+    console.error("Error fetching active orders:", error);
+    return "QA001"; // fallback
+  }
 
       const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
       let maxTokenNum = 0;
@@ -225,15 +230,32 @@
       let orderType = localStorage.getItem("orderType") || null;
       let serveAt = localStorage.getItem("serveAt") || null;
 
-      const { error } = await supabase.from("orders").insert([{
-        customer_id: user.id,
-        grain_details: grainDetails,
-        total_price,
-        status: "new",
-        token_number,
-        order_type: orderType,
-        serve_at: serveAt
-      }]);
+const statusId = await getStatusId("new");
+
+async function getStatusId(statusName) {
+  const { data, error } = await supabase
+    .from("order_statuses")
+    .select("id")
+    .eq("status", statusName)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("Could not fetch status id:", error);
+    return null;
+  }
+  return data.id;
+}
+
+const { error } = await supabase.from("orders").insert([{
+  customer_id: user.id,
+  grain_details: grainDetails,
+  total_price,
+  token_number,
+  order_type: orderType,
+  serve_at: serveAt,
+  status_id: statusId   // ✅ correct way
+}]);
+
 
       if (error) {
         alert("Failed to place order");
