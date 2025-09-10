@@ -169,22 +169,51 @@ async function fetchStatuses() {
 // Get next status id for this order
 function getNextStatus(order) {
   const flow = statusFlows[order.order_type] || [];
+  console.log("----flow-order type--->", order.order_type, flow);
 
-   console.log("----flow-order type---> "+flow);
-  
-  // Get current status id from the joined order_statuses object
-  const currentStatusId = order.order_statuses?.id;
-  console.log("----currentStatusId---> "+currentStatusId);
-  if (!currentStatusId) return null;
+  // Ensure order_statuses exists
+  if (!order.order_statuses) {
+    console.warn("Order has no order_statuses:", order.id);
+    return null;
+  }
 
-  // Find the index of current status in the flow
+  const currentStatusId = order.order_statuses.id;
+  console.log("----currentStatusId--->", currentStatusId);
+
+  // Find current index in the flow
   const idx = flow.indexOf(currentStatusId);
-  if (idx === -1 || idx + 1 >= flow.length) return null;
+  if (idx === -1) {
+    console.warn("Current status not in flow:", currentStatusId);
+    return null;
+  }
+  if (idx + 1 >= flow.length) return null;
 
   const nextId = flow[idx + 1];
-  // Find the next status object from statusesCache
-  return statusesCache.find(s => s.id === nextId);
+  const nextStatus = statusesCache.find(s => s.id === nextId);
+
+  console.log("----nextStatus--->", nextStatus);
+  return nextStatus || null;
 }
+
+
+// function getNextStatus(order) {
+//   const flow = statusFlows[order.order_type] || [];
+
+//    console.log("----flow-order type---> "+flow);
+  
+//   // Get current status id from the joined order_statuses object
+//   const currentStatusId = order.order_statuses?.id;
+//   console.log("----currentStatusId---> "+currentStatusId);
+//   if (!currentStatusId) return null;
+
+//   // Find the index of current status in the flow
+//   const idx = flow.indexOf(currentStatusId);
+//   if (idx === -1 || idx + 1 >= flow.length) return null;
+
+//   const nextId = flow[idx + 1];
+//   // Find the next status object from statusesCache
+//   return statusesCache.find(s => s.id === nextId);
+// }
 
 
 
