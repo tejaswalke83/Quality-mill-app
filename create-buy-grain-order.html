@@ -245,7 +245,7 @@ async function getStatusId(statusName) {
   }
   return data.id;
 }
-const statusId = await getStatusId("new");
+const statusId = await getStatusId("NEW");
 
 const { error } = await supabase.from("orders").insert([{
   customer_id: user.id,
