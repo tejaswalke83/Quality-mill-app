@@ -206,15 +206,30 @@ async function initializeFlows() {
 function getNextStatus(order) {
   const flow = statusFlows[order.order_type] || [];
 
-  const currentStatusId = order.order_statuses?.id;
+  // ✅ Use the actual status_id from the order
+  const currentStatusId = order.status_id;
   if (!currentStatusId) return null;
 
   const idx = flow.indexOf(currentStatusId);
   if (idx === -1 || idx + 1 >= flow.length) return null;
 
   const nextId = flow[idx + 1];
+  // ✅ Find the next status object in cache
   return statusesCache.find(s => s.id === nextId);
 }
+
+// function getNextStatus(order) {
+//   const flow = statusFlows[order.order_type] || [];
+
+//   const currentStatusId = order.order_statuses?.id;
+//   if (!currentStatusId) return null;
+
+//   const idx = flow.indexOf(currentStatusId);
+//   if (idx === -1 || idx + 1 >= flow.length) return null;
+
+//   const nextId = flow[idx + 1];
+//   return statusesCache.find(s => s.id === nextId);
+// }
 
 // function getNextStatus(order) {
 //   const flow = statusFlows[order.order_type] || [];
@@ -268,19 +283,20 @@ await initializeFlows();
 loadOrders();
 
 
-async function updateOrderStatus(orderId, newStatusName) {
+async function updateOrderStatus(orderId, newStatusId) {
   const { error } = await supabase
     .from('orders')
-    .update({ status: newStatusName })
+    .update({ status_id: newStatusId }) // ✅ use status_id
     .eq('id', orderId);
 
   if (error) {
     alert('Failed to update status');
     console.error(error);
   } else {
-    loadOrders();
+    loadOrders(); // reload orders after update
   }
 }
+
 
 
 async function loadFilterButtons() {
@@ -374,8 +390,8 @@ async function loadOrders() {
       ${grainsHTML ? `<p><strong>Grains:</strong>${grainsHTML}</p>` : ''}
       <div class="card-footer">
         <span><strong>Status:</strong> ${statusLabel}</span>
-        ${next 
-  ? `<button onclick="updateOrderStatus('${order.id}', '${next.status_name}')">
+       ${next 
+  ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')">
        Move to ${next.status_name}
      </button>` 
   : ''
