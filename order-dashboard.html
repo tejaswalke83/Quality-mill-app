@@ -169,21 +169,37 @@ async function fetchStatuses() {
 // Get next status id for this order
 function getNextStatus(order) {
   const flow = statusFlows[order.order_type] || [];
-
-  // ✅ Get current status from joined order_statuses
-  const currentStatusId = order.status_id;
+  
+  // Get current status id from the joined order_statuses object
+  const currentStatusId = order.order_statuses?.id;
   if (!currentStatusId) return null;
 
-  const currentStatus = statusesCache.find(s => s.id === currentStatusId);
-  if (!currentStatus) return null;
-
-  // ✅ Compare IDs instead of sort_order
-  const idx = flow.indexOf(currentStatus.id);
+  // Find the index of current status in the flow
+  const idx = flow.indexOf(currentStatusId);
   if (idx === -1 || idx + 1 >= flow.length) return null;
 
   const nextId = flow[idx + 1];
+  // Find the next status object from statusesCache
   return statusesCache.find(s => s.id === nextId);
 }
+
+// function getNextStatus(order) {
+//   const flow = statusFlows[order.order_type] || [];
+
+//   // ✅ Get current status from joined order_statuses
+//   const currentStatusId = order.status_id;
+//   if (!currentStatusId) return null;
+
+//   const currentStatus = statusesCache.find(s => s.id === currentStatusId);
+//   if (!currentStatus) return null;
+
+//   // ✅ Compare IDs instead of sort_order
+//   const idx = flow.indexOf(currentStatus.id);
+//   if (idx === -1 || idx + 1 >= flow.length) return null;
+
+//   const nextId = flow[idx + 1];
+//   return statusesCache.find(s => s.id === nextId);
+// }
 
 // function getNextStatus(order) {
 //   const flow = statusFlows[order.order_type] || [];
@@ -211,11 +227,10 @@ function getNextStatus(order) {
 //   return statusesCache.find(s => s.sort_order === nextSortOrder);
 // }
 
-
-async function updateOrderStatus(orderId, newStatus) {
+async function updateOrderStatus(orderId, newStatusName) {
   const { error } = await supabase
     .from('orders')
-    .update({ status: newStatus })
+    .update({ status: newStatusName })
     .eq('id', orderId);
 
   if (error) {
@@ -225,6 +240,20 @@ async function updateOrderStatus(orderId, newStatus) {
     loadOrders();
   }
 }
+
+// async function updateOrderStatus(orderId, newStatus) {
+//   const { error } = await supabase
+//     .from('orders')
+//     .update({ status: newStatus })
+//     .eq('id', orderId);
+
+//   if (error) {
+//     alert('Failed to update status');
+//     console.error(error);
+//   } else {
+//     loadOrders();
+//   }
+// }
 
 
 
@@ -333,11 +362,12 @@ async function loadOrders() {
       <div class="card-footer">
         <span><strong>Status:</strong> ${statusLabel}</span>
         ${next 
-          ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')">
-               Move to ${next.status_name}
-             </button>` 
-          : ''
-        }
+  ? `<button onclick="updateOrderStatus('${order.id}', '${next.status_name}')">
+       Move to ${next.status_name}
+     </button>` 
+  : ''
+}
+
       </div>
     `;
 
