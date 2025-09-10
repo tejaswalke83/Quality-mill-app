@@ -165,7 +165,7 @@
   const { data: activeOrders, error } = await supabase
     .from("orders")
     .select("token_number, order_statuses!inner(status_name)")
-    .neq("order_statuses.status", "completed");   // ✅ join with order_statuses
+    .neq("order_statuses.status_name", "completed");   // ✅ join with order_statuses
 
   if (error) {
     console.error("Error fetching active orders:", error);
