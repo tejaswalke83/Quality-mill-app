@@ -475,7 +475,7 @@ window.submitOrder = async function () {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .insert([{
-        customer_id: customerId,
+        customer_id: user.id,
         grain_details: grainDetails, // JSONB
         total_price: total_price,
         token_number: token_number,
