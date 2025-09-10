@@ -236,7 +236,7 @@ async function getStatusId(statusName) {
   const { data, error } = await supabase
     .from("order_statuses")
     .select("id")
-    .eq("status", statusName)
+    .eq("status_name", statusName)
     .maybeSingle();
 
   if (error || !data) {
