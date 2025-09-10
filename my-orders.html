@@ -67,7 +67,7 @@ async function loadOrders() {
   const { data: allOrders, error: allError } = await supabase
     .from('orders')
     .select('*')
-    .in('status', ['new', 'in_progress', 'milling_completed'])
+    .in('order_statuses.status_name', ['NEW', 'IN PROCESS', 'MILLING COMPLETED'])
     .order('created_at', { ascending: true });
 
   if (allError) {
