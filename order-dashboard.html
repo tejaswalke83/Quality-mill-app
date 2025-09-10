@@ -169,17 +169,35 @@ async function fetchStatuses() {
 // Get next status id for this order
 function getNextStatus(order) {
   const flow = statusFlows[order.order_type] || [];
-  const currentStatus = statusesCache.find(
-    s => s.status_name.toLowerCase() === order.status.toLowerCase()
-  );
+
+  // ✅ Get current status from joined order_statuses
+  const currentStatusId = order.status_id;
+  if (!currentStatusId) return null;
+
+  const currentStatus = statusesCache.find(s => s.id === currentStatusId);
   if (!currentStatus) return null;
 
-  const idx = flow.indexOf(currentStatus.id); // ✅ use id not sort_order
+  // ✅ Compare IDs instead of sort_order
+  const idx = flow.indexOf(currentStatus.id);
   if (idx === -1 || idx + 1 >= flow.length) return null;
 
   const nextId = flow[idx + 1];
   return statusesCache.find(s => s.id === nextId);
 }
+
+// function getNextStatus(order) {
+//   const flow = statusFlows[order.order_type] || [];
+//   const currentStatus = statusesCache.find(
+//     s => s.status_name.toLowerCase() === order.status.toLowerCase()
+//   );
+//   if (!currentStatus) return null;
+
+//   const idx = flow.indexOf(currentStatus.id); // ✅ use id not sort_order
+//   if (idx === -1 || idx + 1 >= flow.length) return null;
+
+//   const nextId = flow[idx + 1];
+//   return statusesCache.find(s => s.id === nextId);
+// }
 
 // function getNextStatus(order) {
 //   const flow = statusFlows[order.order_type] || [];
