@@ -243,44 +243,38 @@ async function loadFilterButtons() {
     });
   });
 } 
-
 async function loadOrders() {
   const allOrders = await fetchAllOrders();
 
   const activeFilterEl = document.querySelector('.filter-btn.active');
-  const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all'; // default to 'all'
+  const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
 
   const searchTerm = document.getElementById('searchBox').value.toLowerCase();
 
   let filtered = allOrders;
 
+  // 🔹 Filter by status
   if (activeFilter !== 'all') {
-    filtered = filtered.filter(o => o.status === activeFilter);
+    filtered = filtered.filter(o => 
+      o.order_statuses?.status_name === activeFilter
+    );
   }
 
-  // if (searchTerm.trim() !== '') {
-  //   filtered = filtered.filter(o =>
-  //     (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
-  //     (o.customers?.phone_number || '').includes(searchTerm)
-  //   );
-  // }
-
+  // 🔹 Search across fields
   if (searchTerm.trim() !== '') {
-  filtered = filtered.filter(o =>
-    (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
-    (o.customers?.phone_number || '').includes(searchTerm) ||
-    (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
-    (o.total_price?.toString() || '').includes(searchTerm) ||
-    (o.status?.toLowerCase() || '').includes(searchTerm) ||
-    // search inside grain_details (array of objects)
-    (Array.isArray(o.grain_details) &&
-      o.grain_details.some(g =>
-        (g.grain?.toLowerCase() || '').includes(searchTerm)
-      ))
-  );
+    filtered = filtered.filter(o =>
+      (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+      (o.customers?.phone_number || '').includes(searchTerm) ||
+      (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
+      (o.total_price?.toString() || '').includes(searchTerm) ||
+      (o.order_statuses?.status_name?.toLowerCase() || '').includes(searchTerm) ||
+      (Array.isArray(o.grain_details) &&
+        o.grain_details.some(g =>
+          (g.grain?.toLowerCase() || '').includes(searchTerm)
+        ))
+    );
   }
 
- 
   const container = document.getElementById('ordersList');
   container.innerHTML = '';
 
@@ -299,6 +293,9 @@ async function loadOrders() {
       ).join('') + '</ul>';
     }
 
+    const statusLabel = order.order_statuses?.status_name || "Unknown";
+    const next = getNextStatus(order);
+
     const div = document.createElement('div');
     div.className = 'card';
     div.innerHTML = `
@@ -313,22 +310,105 @@ async function loadOrders() {
       <p><strong>Created:</strong> ${window.convertUTCToIST(order.created_at)}</p>
       ${grainsHTML ? `<p><strong>Grains:</strong>${grainsHTML}</p>` : ''}
       <div class="card-footer">
-       <span><strong>Status:</strong> ${order.order_statuses?.status_name}</span>
-${(() => {
-   const next = getNextStatus(order);
-   return next 
-     ? `<button onclick="updateOrderStatus('${order.id}', '${next.status_name}')">
-          Move to ${next.status_name}
-        </button>` 
-     : '';
- })()}
-
+        <span><strong>Status:</strong> ${statusLabel}</span>
+        ${next 
+          ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')">
+               Move to ${next.status_name}
+             </button>` 
+          : ''
+        }
       </div>
     `;
 
     container.appendChild(div);
   });
 }
+
+// async function loadOrders() {
+//   const allOrders = await fetchAllOrders();
+
+//   const activeFilterEl = document.querySelector('.filter-btn.active');
+//   const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all'; // default to 'all'
+
+//   const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+
+//   let filtered = allOrders;
+
+//   if (activeFilter !== 'all') {
+//     filtered = filtered.filter(o => o.status === activeFilter);
+//   }
+
+//   // if (searchTerm.trim() !== '') {
+//   //   filtered = filtered.filter(o =>
+//   //     (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+//   //     (o.customers?.phone_number || '').includes(searchTerm)
+//   //   );
+//   // }
+
+//   if (searchTerm.trim() !== '') {
+//   filtered = filtered.filter(o =>
+//     (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+//     (o.customers?.phone_number || '').includes(searchTerm) ||
+//     (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
+//     (o.total_price?.toString() || '').includes(searchTerm) ||
+//     (o.status?.toLowerCase() || '').includes(searchTerm) ||
+//     // search inside grain_details (array of objects)
+//     (Array.isArray(o.grain_details) &&
+//       o.grain_details.some(g =>
+//         (g.grain?.toLowerCase() || '').includes(searchTerm)
+//       ))
+//   );
+//   }
+
+ 
+//   const container = document.getElementById('ordersList');
+//   container.innerHTML = '';
+
+//   if (filtered.length === 0) {
+//     container.innerHTML = '<p>No orders found.</p>';
+//     return;
+//   }
+
+//   filtered.forEach(order => {
+//     let grainsHTML = '';
+//     let totalPrice = order.total_price || 0;
+
+//     if (order.grain_details && Array.isArray(order.grain_details)) {
+//       grainsHTML = '<ul>' + order.grain_details.map(g =>
+//         `<li>${g.grain} - ${g.quantity} kg</li>`
+//       ).join('') + '</ul>';
+//     }
+
+//     const div = document.createElement('div');
+//     div.className = 'card';
+//     div.innerHTML = `
+//       <div class="card-header">
+//         <h3>${order.customers?.name || 'N/A'}</h3>
+//         <div style="text-align:right">
+//           <strong>Token:</strong> ${order.token_number || ''}<br>
+//           <strong>Total:</strong> ₹${totalPrice.toFixed(2)}
+//         </div>
+//       </div>
+//       <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+//       <p><strong>Created:</strong> ${window.convertUTCToIST(order.created_at)}</p>
+//       ${grainsHTML ? `<p><strong>Grains:</strong>${grainsHTML}</p>` : ''}
+//       <div class="card-footer">
+//        <span><strong>Status:</strong> ${order.order_statuses?.status_name}</span>
+// ${(() => {
+//    const next = getNextStatus(order);
+//    return next 
+//      ? `<button onclick="updateOrderStatus('${order.id}', '${next.status_name}')">
+//           Move to ${next.status_name}
+//         </button>` 
+//      : '';
+//  })()}
+
+//       </div>
+//     `;
+
+//     container.appendChild(div);
+//   });
+// }
 
 function resetSearch() {
   document.getElementById('searchBox').value = '';
