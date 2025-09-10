@@ -164,7 +164,7 @@
     async function generateTokenNumber() {
   const { data: activeOrders, error } = await supabase
     .from("orders")
-    .select("token_number, order_statuses!inner(status)")
+    .select("token_number, order_statuses!inner(status_name)")
     .neq("order_statuses.status", "completed");   // ✅ join with order_statuses
 
   if (error) {
