@@ -169,9 +169,12 @@ async function fetchStatuses() {
 // Get next status id for this order
 function getNextStatus(order) {
   const flow = statusFlows[order.order_type] || [];
+
+   console.log("----flow-order type---> "+flow);
   
   // Get current status id from the joined order_statuses object
   const currentStatusId = order.order_statuses?.id;
+  console.log("----currentStatusId---> "+currentStatusId);
   if (!currentStatusId) return null;
 
   // Find the index of current status in the flow
@@ -295,7 +298,7 @@ async function loadOrders() {
   ? `<button onclick="updateOrderStatus('${order.id}', '${next.status_name}')">
        Move to ${next.status_name}
      </button>` 
-  : 'button to be shown'
+  : ''
 }
 
       </div>
