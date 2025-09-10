@@ -142,13 +142,41 @@ async function fetchAllOrders() {
   return data;
 }
 
+
+
 // Define status flows
-const statusFlows = {
-  shop_milling:    [1, 4, 5, 7],
-  shop_buy_mill:   [1, 4, 5, 7],
-  home_milling:    [1, 2, 3, 4, 5, 6, 7],
-  home_buy_mill:   [1, 2, 3, 4, 5, 6, 7]
-};
+async function buildStatusFlows() {
+  const { data: statuses, error } = await supabase
+    .from('order_statuses')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching statuses:', error);
+    return {};
+  }
+
+  statusesCache = statuses;
+
+  // Build flows for each order_type automatically
+  // Example mapping for different order types
+  const flows = {
+    "shop-milling": statuses.map(s => s.id),      // all statuses in order
+    "shop-buy-mill": statuses.map(s => s.id),     // customize if needed
+    "home-milling": statuses.map(s => s.id),
+    "home-buy-mill": statuses.map(s => s.id)
+  };
+
+  return flows;
+}
+
+
+// const statusFlows = {
+//   shop_milling:    [1, 4, 5, 7],
+//   shop_buy_mill:   [1, 4, 5, 7],
+//   home_milling:    [1, 2, 3, 4, 5, 6, 7],
+//   home_buy_mill:   [1, 2, 3, 4, 5, 6, 7]
+// };
 
 let statusesCache = []; // cache statuses for labels
 
@@ -167,33 +195,52 @@ async function fetchStatuses() {
 }
 
 // Get next status id for this order
+let statusFlows = {}; // will be filled dynamically
+
+async function initializeFlows() {
+  statusFlows = await buildStatusFlows();
+}
+
 function getNextStatus(order) {
   const flow = statusFlows[order.order_type] || [];
-  console.log("----flow-order type--->", order.order_type, flow);
 
-  // Ensure order_statuses exists
-  if (!order.order_statuses) {
-    console.warn("Order has no order_statuses:", order.id);
-    return null;
-  }
+  const currentStatusId = order.order_statuses?.id;
+  if (!currentStatusId) return null;
 
-  const currentStatusId = order.order_statuses.id;
-  console.log("----currentStatusId--->", currentStatusId);
-
-  // Find current index in the flow
   const idx = flow.indexOf(currentStatusId);
-  if (idx === -1) {
-    console.warn("Current status not in flow:", currentStatusId);
-    return null;
-  }
-  if (idx + 1 >= flow.length) return null;
+  if (idx === -1 || idx + 1 >= flow.length) return null;
 
   const nextId = flow[idx + 1];
-  const nextStatus = statusesCache.find(s => s.id === nextId);
-
-  console.log("----nextStatus--->", nextStatus);
-  return nextStatus || null;
+  return statusesCache.find(s => s.id === nextId);
 }
+
+// function getNextStatus(order) {
+//   const flow = statusFlows[order.order_type] || [];
+//   console.log("----flow-order type--->", order.order_type, flow);
+
+//   // Ensure order_statuses exists
+//   if (!order.order_statuses) {
+//     console.warn("Order has no order_statuses:", order.id);
+//     return null;
+//   }
+
+//   const currentStatusId = order.order_statuses.id;
+//   console.log("----currentStatusId--->", currentStatusId);
+
+//   // Find current index in the flow
+//   const idx = flow.indexOf(currentStatusId);
+//   if (idx === -1) {
+//     console.warn("Current status not in flow:", currentStatusId);
+//     return null;
+//   }
+//   if (idx + 1 >= flow.length) return null;
+
+//   const nextId = flow[idx + 1];
+//   const nextStatus = statusesCache.find(s => s.id === nextId);
+
+//   console.log("----nextStatus--->", nextStatus);
+//   return nextStatus || null;
+// }
 
 
 // function getNextStatus(order) {
@@ -215,6 +262,8 @@ function getNextStatus(order) {
 //   return statusesCache.find(s => s.id === nextId);
 // }
 
+await initializeFlows();
+loadOrders();
 
 
 async function updateOrderStatus(orderId, newStatusName) {
