@@ -167,25 +167,32 @@ async function buildStatusFlows() {
   // 🔹 Define custom flows for each order_type
   const flows = {
     "shop-milling": [
-      statusMap["new"],
-      statusMap["in_progress"],
-      statusMap["milling_completed"],
-      statusMap["delivered"]
+      statusMap["NEW"],
+      statusMap["IN PROCESS"],
+      statusMap["MILLING COMPLETED"],
+      statusMap["DELIVERED"],
     ],
     "shop-buy-mill": [
-      statusMap["new"],
-      statusMap["milling_completed"],
-      statusMap["delivered"]
+      statusMap["NEW"],
+      statusMap["IN PROCESS"],
+      statusMap["MILLING COMPLETED"],
+      statusMap["DELIVERED"],
     ],
     "home-milling": [
-      statusMap["new"],
-      statusMap["in_progress"],
-      statusMap["milling_completed"],
-      statusMap["delivered"]
+      statusMap["NEW"],
+      statusMap["PICKED UP"],
+      statusMap["RECEIVED AT MILL"],
+      statusMap["IN PROCESS"],
+      statusMap["MILLING COMPLETED"],
+      statusMap["OUT FOR DELIVERY"],
+       statusMap["DELIVERED"],
     ],
     "home-buy-mill": [
-      statusMap["new"],
-      statusMap["delivered"]
+      statusMap["NEW"],
+       statusMap["IN PROCESS"],
+      statusMap["MILLING COMPLETED"],
+      statusMap["OUT FOR DELIVERY"],
+       statusMap["DELIVERED"],
     ]
   };
 
