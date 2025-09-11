@@ -93,7 +93,7 @@
   // Step 2: Filter only current user's active orders (exclude completed ones)
   const myOrders = (allOrders || [])
     .filter(o => o.customer_id === user.id && 
-                 ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'N PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'].includes(o.order_statuses?.status_name))
+                 ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'].includes(o.order_statuses?.status_name))
     .reverse();
 
     // ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'N PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'])
