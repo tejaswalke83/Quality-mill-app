@@ -80,8 +80,9 @@ async function loadOrders() {
         status_name
       )
     `)
-    .in('order_statuses.status_name', ['NEW', 'IN PROCESS', 'MILLING COMPLETED'])
-    .order('created_at', { ascending: true });
+    .in('order_statuses.status_name', ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'N PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'])
+    .order('created_at', { ascending: true });6
+
 
   if (allError) {
     console.error(allError);
