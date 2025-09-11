@@ -193,8 +193,8 @@
     let nextNum = maxTokenNum + attempt;
     if (nextNum > 999) nextNum -= 999;
 
-    const padded = nextNum.toString().padStart(3, "0");
-    const token = `QA${padded}`;
+    //const padded = nextNum.toString().padStart(3, "0");
+    const token = `QA${nextNum}`;
 
     if (!activeTokens.has(token)) {
       console.log("✅ Token generated:", token);
