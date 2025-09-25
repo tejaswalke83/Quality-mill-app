@@ -12,9 +12,10 @@
     body { font-family: "Inter", sans-serif; }
   </style>
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#007bff">
-  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
-  <script defer src="/common.js"></script>
+<meta name="theme-color" content="#007bff">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+<script defer src="/common.js"></script>
+
 </head>
 <body class="bg-gray-100 min-h-screen p-4 md:p-8">
 
@@ -46,6 +47,7 @@
   <!-- Orders -->
   <div id="orders-container" class="space-y-4"></div>
 
+<script src="script.js"></script>
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -57,20 +59,6 @@
   const urlParams = new URLSearchParams(window.location.search);
   const phone = urlParams.get('phone');
   let user = null;
-
-  // ✅ Status color mapping (same as dashboard)
-  function getStatusClass(status) {
-    const map = {
-      "NEW": "bg-yellow-100 text-yellow-800",
-      "IN PROCESS": "bg-blue-100 text-blue-800",
-      "MILLING COMPLETED": "bg-green-100 text-green-800",
-      "DELIVERED": "bg-gray-200 text-gray-800",
-      "PICKED UP": "bg-purple-100 text-purple-800",
-      "RECEIVED AT MILL": "bg-orange-100 text-orange-800",
-      "OUT FOR DELIVERY": "bg-pink-100 text-pink-800"
-    };
-    return map[status] || "bg-gray-100 text-gray-700";
-  }
 
   async function fetchCustomer() {
     const { data, error } = await supabase
@@ -147,35 +135,58 @@
         } catch (e) { console.warn("Bad grain_details format", o.grain_details); }
       });
 
-      const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10);
-      const hours = Math.floor(timeInMinutes / 60);
-      const minutes = timeInMinutes % 60;
-      let estimatedTime = hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+    //   const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10);
+    //   const grainsHTML = (order.grain_details || [])
+    //     .map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
 
-      const grainsHTML = (order.grain_details || [])
-        .map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
+    // //   const date = window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at;
+    //   const date = window.convertUTCToIST(order.created_at);
 
-      const date = window.convertUTCToIST(order.created_at);
-      const statusLabel = order.order_statuses?.status_name || 'PENDING';
-      const statusClass = getStatusClass(statusLabel);
+    //   const card = document.createElement('div');
+    //   card.className = 'bg-white shadow rounded-lg p-4';
+    //   card.innerHTML = `
+    //     <div class="flex justify-between items-start mb-2">
+    //       <div>
+    //         <p class="font-semibold text-gray-800">Token: ${order.token_number || 'N/A'}</p>
+    //         <p class="text-sm text-gray-600">Date: ${date}</p>
+    //       </div>
+    //       <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 font-medium">
+    //         ${order.order_statuses?.status_name || 'PENDING'}
+    //       </span>
+    //     </div>
+    //     <ul class="list-disc ml-5 text-sm text-gray-700 mb-2">${grainsHTML}</ul>
+    //     <p class="text-sm"><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
+    //     <p class="text-sm text-gray-600">Orders before you: ${indexInQueue}</p>
+    //     <p class="text-sm text-gray-600">Estimated Time: ${timeInMinutes} minutes</p>
+    //   `;
 
-      const card = document.createElement('div');
-      card.className = 'bg-white shadow rounded-lg p-4';
-      card.innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-          <div>
-            <p class="font-semibold text-gray-800">Token: ${order.token_number || 'N/A'}</p>
-            <p class="text-sm text-gray-600">Date: ${date}</p>
-          </div>
-          <span class="px-2 py-1 text-xs rounded font-medium ${statusClass}">
-            ${statusLabel}
-          </span>
-        </div>
-        <ul class="list-disc ml-5 text-sm text-gray-700 mb-2">${grainsHTML}</ul>
-        <p class="text-sm"><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
-        <p class="text-sm text-gray-600">Orders before you: ${indexInQueue}</p>
-        <p class="text-sm text-gray-600">Estimated Time: ${estimatedTime}</p>
-      `;
+const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10);
+const hours = Math.floor(timeInMinutes / 60);
+const minutes = timeInMinutes % 60;
+let estimatedTime = hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+
+const grainsHTML = (order.grain_details || [])
+  .map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
+
+const date = window.convertUTCToIST(order.created_at);
+
+const card = document.createElement('div');
+card.className = 'bg-white shadow rounded-lg p-4';
+card.innerHTML = `
+  <div class="flex justify-between items-start mb-2">
+    <div>
+      <p class="font-semibold text-gray-800">Token: ${order.token_number || 'N/A'}</p>
+      <p class="text-sm text-gray-600">Date: ${date}</p>
+    </div>
+    <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 font-medium">
+      ${order.order_statuses?.status_name || 'PENDING'}
+    </span>
+  </div>
+  <ul class="list-disc ml-5 text-sm text-gray-700 mb-2">${grainsHTML}</ul>
+  <p class="text-sm"><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
+  <p class="text-sm text-gray-600">Orders before you: ${indexInQueue}</p>
+  <p class="text-sm text-gray-600">Estimated Time: ${estimatedTime}</p>
+`;
 
       container.appendChild(card);
     });
