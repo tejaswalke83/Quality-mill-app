@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Order by Grain</title>
+  <style>
+    .row {
+      border: 1px solid #ccc;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .row .error {
+      color: red;
+      flex-basis: 100%;
+    }
+    .totals {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Create Order (By Grain)</h2>
+  <div id="user-info"></div>
+  <hr>
+
+  <div id="order-rows"></div>
+
+  <div class="totals">
+    Selected Items: <span id="total-items">0</span> <br>
+    Total Quantity: <span id="total-qty">0</span> kg <br>
+    Total Price: ₹<span id="total-price">0</span>
+  </div>
+
+  <div class="actions">
+    <button onclick="submitOrder()">Create Order</button>
+    <button onclick="window.location.href='user reg.html'">Cancel</button>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://odczzymxgjsjhbufffxm.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'
+    );
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+    let user = null;
+
+    const orderRows = document.getElementById("order-rows");
+    const totalItemsEl = document.getElementById("total-items");
+    const totalQtyEl = document.getElementById("total-qty");
+    const totalPriceEl = document.getElementById("total-price");
+
+    // ✅ Load customer
+    async function loadUser() {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("phone_number", phone)
+        .maybeSingle();
+
+      if (error || !data) {
+        document.getElementById("user-info").innerHTML = `<p style="color:red;">Customer not found!</p>`;
+        return;
+      }
+
+      user = data;
+      document.getElementById("user-info").innerHTML = `
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Mobile:</strong> ${user.phone_number}</p>
+        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+        <p><strong>Society:</strong> ${user.society_name}</p>
+      `;
+    }
+
+    // ✅ Load grains for sale
+    async function loadGrains() {
+      const { data: grains, error } = await supabase
+        .from("Grain_for_sell")
+        .select("*")
+        .eq("is_active", true);
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      grains.forEach(g => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+          <input type="checkbox" class="grain-check"/>
+          <div style="flex:2;">
+            <strong>${g.product_name}</strong><br>
+            Price: ₹${g.price_per_kg}/kg <br>
+            Stock: ${g.stock_qty} kg
+          </div>
+          <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" class="grain-qty" style="width:80px;"/>
+          <div class="total">₹<span>0</span></div>
+          <div class="error"></div>
+        `;
+        orderRows.appendChild(row);
+      });
+
+      // event listeners
+      orderRows.addEventListener("input", updateTotals);
+      orderRows.addEventListener("change", updateTotals);
+    }
+
+    // ✅ Update totals
+    function updateTotals() {
+      let totalItems = 0, totalQty = 0, totalPrice = 0;
+
+      [...orderRows.querySelectorAll(".row")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+        const totalEl = row.querySelector(".total span");
+
+        errorEl.textContent = "";
+        let qty = parseFloat(qtyInput.value) || 0;
+
+        // Auto-check if qty entered
+        if (qty > 0) check.checked = true;
+
+        if (check.checked) {
+          if (qty <= 0) {
+            errorEl.textContent = "Please enter quantity";
+            totalEl.textContent = "0";
+            return;
+          }
+
+          const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
+          const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+          const rowTotal = price * qty;
+
+          totalEl.textContent = rowTotal.toFixed(2);
+
+          totalItems++;
+          totalQty += qty;
+          totalPrice += rowTotal;
+        } else {
+          totalEl.textContent = "0";
+        }
+      });
+
+      totalItemsEl.textContent = totalItems;
+      totalQtyEl.textContent = totalQty;
+      totalPriceEl.textContent = totalPrice.toFixed(2);
+    }
+
+
+    async function generateTokenNumber() {
+  console.log("generateTokenNumber() called");
+
+  // ❌ statuses that should NOT get a token
+  const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+
+  // ✅ Fetch only active orders directly from DB
+  const { data: activeOrders, error } = await supabase
+    .from("orders")
+    .select("token_number, order_statuses!inner(status_name)")
+    .not("order_statuses.status_name", "in", `(${inactiveStatuses.map(s => `'${s}'`).join(",")})`);
+
+  if (error) {
+    console.error("❌ Error fetching active orders:", error);
+    return "QA001"; // fallback
+  }
+
+  // ✅ Collect tokens from only active orders
+  const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+
+  // ✅ Find the highest token number
+  let maxTokenNum = 0;
+  activeTokens.forEach(token => {
+    const num = parseInt(token?.slice(2), 10);
+    if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+  });
+
+  // ✅ Generate the next available token
+  for (let attempt = 1; attempt <= 999; attempt++) {
+    let nextNum = maxTokenNum + attempt;
+    if (nextNum > 999) nextNum -= 999;
+
+    //const padded = nextNum.toString().padStart(3, "0");
+    const token = `QA${nextNum}`;
+
+    if (!activeTokens.has(token)) {
+      console.log("✅ Token generated:", token);
+      return token;
+    }
+  }
+
+  throw new Error("All token numbers are in use.");
+}
+
+    // ✅ Generate token number (re-use from your old page)
+  //   async function generateTokenNumber() {
+  // const { data: activeOrders, error } = await supabase
+  //   .from("orders")
+  //   .select("token_number, order_statuses!inner(status_name)")
+  //   .neq("order_statuses.status_name", "completed");   // ✅ join with order_statuses
+
+  // if (error) {
+  //   console.error("Error fetching active orders:", error);
+  //   return "QA001"; // fallback
+  // }
+
+  //     const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+  //     let maxTokenNum = 0;
+  //     activeTokens.forEach(token => {
+  //       const num = parseInt(token.slice(2), 10);
+  //       if (num > maxTokenNum) maxTokenNum = num;
+  //     });
+
+  //     for (let attempt = 1; attempt <= 999; attempt++) {
+  //       let nextNum = maxTokenNum + attempt;
+  //       if (nextNum > 999) nextNum -= 999;
+  //       const padded = nextNum.toString().padStart(3, "0");
+  //       const token = `QA${padded}`;
+  //       if (!activeTokens.has(token)) return token;
+  //     }
+  //     throw new Error("All tokens in use");
+  //   }
+
+    // ✅ Submit order
+    window.submitOrder = async function() {
+      let grainDetails = [];
+      let hasError = false;
+
+      [...orderRows.querySelectorAll(".row")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+
+        if (!check.checked) return;
+
+        const name = row.querySelector("strong").textContent;
+        const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
+        const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+        const qty = parseFloat(qtyInput.value || 0);
+
+        if (qty <= 0) {
+          errorEl.textContent = "Please enter quantity";
+          hasError = true;
+        } else {
+          grainDetails.push({
+            grain: name,
+            quantity: qty,
+            price,
+            total: price * qty
+          });
+        }
+      });
+
+      if (hasError || grainDetails.length === 0) {
+        alert("Fix errors before submitting");
+        return;
+      }
+
+      const total_price = parseFloat(totalPriceEl.textContent);
+      const token_number = await generateTokenNumber();
+
+      let orderType = localStorage.getItem("orderType") || null;
+      let serveAt = localStorage.getItem("serveAt") || null;
+ let customerId = localStorage.getItem("customerId") || null;
+
+
+async function getStatusId(statusName) {
+  const { data, error } = await supabase
+    .from("order_statuses")
+    .select("id")
+    .eq("status_name", statusName)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error("Could not fetch status id:", error);
+    return null;
+  }
+  return data.id;
+}
+const statusId = await getStatusId("NEW");
+
+const { error } = await supabase.from("orders").insert([{
+  customer_id: user.id,
+  grain_details: grainDetails,
+  total_price,
+  token_number,
+  order_type: orderType,
+  serve_at: serveAt,
+  status_id: statusId   // ✅ correct way
+}]);
+
+
+      if (error) {
+        alert("Failed to place order");
+        console.error(error);
+      } else {
+        alert("Order placed successfully!");
+        window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
+      }
+    };
+
+    loadUser();
+    loadGrains();
+  </script>
+</body>
+</html>
