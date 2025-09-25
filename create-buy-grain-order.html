@@ -132,11 +132,15 @@ async function loadGrains() {
           class="grain-qty w-20 p-2 border rounded"/>
       </div>
 
-      <!-- Line 2 -->
-      <div class="flex items-center justify-between text-sm text-gray-700">
-        <span>Price: ₹${g.price_per_kg}/kg (Stock: ${g.stock_qty} kg)</span>
-        <span>Total: ₹<span class="row-total">0</span></span>
-      </div>
+      
+     <!-- Line 2 -->
+<div class="flex items-center justify-between text-sm text-gray-700">
+  <span class="price" data-price="${g.price_per_kg}">
+    Price: ₹${g.price_per_kg}/kg (Stock: ${g.stock_qty} kg)
+  </span>
+  <span>Total: ₹<span class="row-total">0</span></span>
+</div>
+
 
       <!-- Line 3 -->
       <div class="error text-red-500 text-sm"></div>
@@ -298,70 +302,74 @@ function updateTotals() {
 
     // ✅ Submit order (unchanged logic, only toast for UX)
     window.submitOrder = async function() {
-      let grainDetails = [];
-      let hasError = false;
+  let grainDetails = [];
+  let hasError = false;
 
-      [...orderRows.querySelectorAll(".flex")].forEach(row => {
-        const check = row.querySelector(".grain-check");
-        const qtyInput = row.querySelector(".grain-qty");
-        const errorEl = row.querySelector(".error");
+  [...orderRows.querySelectorAll(".p-3")].forEach(row => {
+    const check = row.querySelector(".grain-check");
+    const qtyInput = row.querySelector(".grain-qty");
+    const errorEl = row.querySelector(".error");
+    const totalEl = row.querySelector(".row-total");
+    const priceEl = row.querySelector(".price");
 
-        if (!check.checked) return;
+    if (!check.checked) return;
 
-        const name = row.querySelector("strong").textContent;
-        const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
-        const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
-        const qty = parseFloat(qtyInput.value || 0);
+    const name = row.querySelector("strong").textContent;
+    const price = parseFloat(priceEl.dataset.price || 0);
+    const qty = parseFloat(qtyInput.value || 0);
 
-        if (qty <= 0) {
-          errorEl.textContent = "Please enter quantity";
-          hasError = true;
-        } else {
-          grainDetails.push({ grain: name, quantity: qty, price, total: price * qty });
-        }
-      });
+    if (qty <= 0) {
+      errorEl.textContent = "Please enter quantity";
+      hasError = true;
+    } else {
+      const rowTotal = price * qty;
+      totalEl.textContent = rowTotal.toFixed(2);
+      grainDetails.push({ grain: name, quantity: qty, price, total: rowTotal });
+    }
+  });
 
-      if (hasError || grainDetails.length === 0) {
-        showToast("Fix errors before submitting", "error");
-        return;
-      }
+  if (hasError || grainDetails.length === 0) {
+    showToast("Fix errors before submitting", "error");
+    return;
+  }
 
-      const total_price = parseFloat(totalPriceEl.textContent);
-      const token_number = await generateTokenNumber();
+  const total_price = parseFloat(totalPriceEl.textContent);
+  const token_number = await generateTokenNumber();
 
-      let orderType = localStorage.getItem("orderType") || null;
-      let serveAt = localStorage.getItem("serveAt") || null;
+  let orderType = localStorage.getItem("orderType") || null;
+  let serveAt = localStorage.getItem("serveAt") || null;
 
-      async function getStatusId(statusName) {
-        const { data, error } = await supabase
-          .from("order_statuses")
-          .select("id")
-          .eq("status_name", statusName)
-          .maybeSingle();
-        return data?.id || null;
-      }
+  async function getStatusId(statusName) {
+    const { data, error } = await supabase
+      .from("order_statuses")
+      .select("id")
+      .eq("status_name", statusName)
+      .maybeSingle();
+    return data?.id || null;
+  }
 
-      const statusId = await getStatusId("NEW");
+  const statusId = await getStatusId("NEW");
 
-      const { error } = await supabase.from("orders").insert([{
-        customer_id: user.id,
-        grain_details: grainDetails,
-        total_price,
-        token_number,
-        order_type: orderType,
-        serve_at: serveAt,
-        status_id: statusId
-      }]);
+  const { error } = await supabase.from("orders").insert([{
+    customer_id: user.id,
+    grain_details: grainDetails,
+    total_price,
+    token_number,
+    order_type: orderType,
+    serve_at: serveAt,
+    status_id: statusId
+  }]);
 
-      if (error) {
-        showToast("❌ Failed to place order", "error");
-      } else {
-        showToast("✅ Order placed! Token: " + token_number);
-        setTimeout(() => {
-          window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
-        }, 2000);
-      }
-    };
+  if (error) {
+    showToast("❌ Failed to place order", "error");
+  } else {
+    showToast("✅ Order placed! Token: " + token_number);
+    setTimeout(() => {
+      window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
+    }, 2000);
+  }
+};
+
 
     loadUser();
     loadGrains();
