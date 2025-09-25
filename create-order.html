@@ -173,29 +173,61 @@
       addRow();
     }
 
-    window.addRow = function () {
-      const row = document.createElement('div');
-      row.className = 'flex items-center gap-3 p-3 border rounded-lg shadow-sm bg-gray-50';
+window.addRow = function () {
+  const row = document.createElement('div');
+  row.className = 'p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2';
 
-      row.innerHTML = `
-        <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
-          <option value="">Select Grain</option>
-          ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-        </select>
+  row.innerHTML = `
+    <!-- Line 1: Grain + Qty -->
+    <div class="flex items-center gap-3">
+      <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
+        <option value="">Select Grain</option>
+        ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+      </select>
 
-        <input type="number" min="1" placeholder="Qty (kg)" 
-          oninput="updateTotal()" 
-          class="w-24 p-2 border rounded" />
+      <input type="number" min="1" placeholder="Qty (kg)" 
+        oninput="updateTotal()" 
+        class="w-28 p-2 border rounded" />
+    </div>
 
-        <div class="text-gray-700">₹<span>0</span></div>
+    <!-- Line 2: Milling price + Total + Remove -->
+    <div class="flex items-center justify-between text-sm text-gray-700">
+      <span class="milling-price">Milling Price: ₹0/kg</span>
+      <span>Total: ₹<span class="row-total">0</span></span>
+      <button class="text-red-600 border border-red-600 px-2 py-1 rounded text-xs" 
+        onclick="this.closest('.p-3').remove(); updateTotal();">Remove</button>
+    </div>
 
-        <button class="text-red-600 border border-red-600 px-2 py-1 rounded" 
-          onclick="this.parentElement.remove(); updateTotal();">Remove</button>
+    <!-- Line 3: Error -->
+    <div class="error text-red-500 text-sm"></div>
+  `;
+  orderRows.appendChild(row);
+}
 
-        <div class="error text-red-500 text-sm flex-1"></div>
-      `;
-      orderRows.appendChild(row);
-    }
+
+    // window.addRow = function () {
+    //   const row = document.createElement('div');
+    //   row.className = 'flex items-center gap-3 p-3 border rounded-lg shadow-sm bg-gray-50';
+
+    //   row.innerHTML = `
+    //     <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
+    //       <option value="">Select Grain</option>
+    //       ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+    //     </select>
+
+    //     <input type="number" min="1" placeholder="Qty (kg)" 
+    //       oninput="updateTotal()" 
+    //       class="w-24 p-2 border rounded" />
+
+    //     <div class="text-gray-700">₹<span>0</span></div>
+
+    //     <button class="text-red-600 border border-red-600 px-2 py-1 rounded" 
+    //       onclick="this.parentElement.remove(); updateTotal();">Remove</button>
+
+    //     <div class="error text-red-500 text-sm flex-1"></div>
+    //   `;
+    //   orderRows.appendChild(row);
+    // }
 
     window.updatePrice = function () {
       updateTotal();
