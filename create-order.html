@@ -495,7 +495,7 @@ window.submitOrder = async function () {
 
     console.log("✅ Order inserted:", orderData);
     alert("Order placed successfully! Token: " + token_number);
-    window.location.href = '/my-orders.html?phone=' + phone;
+   window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
 
 
   } catch (err) {
