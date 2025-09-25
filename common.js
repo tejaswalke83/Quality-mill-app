@@ -28,20 +28,26 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(installBtn);
   });
-
 window.convertUTCToIST = function (utcString) {
   if (!utcString) return "";
-  const date = new Date(utcString); // UTC string from Supabase
-  return date.toLocaleString("en-IN", {
+
+  const utcDate = new Date(utcString);
+
+  // Convert to IST (+5:30 offset)
+  const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
+
+  // Format nicely
+  return istDate.toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "short",
     day: "2-digit",
+    month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true
   });
 };
+
 
 
 
