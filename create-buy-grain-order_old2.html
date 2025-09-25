@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Order by Grain</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: "Inter", system-ui, sans-serif; }
+  </style>
+  <link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#007bff">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+<script defer src="/common.js"></script>
+
+</head>
+<body class="bg-gray-50 min-h-screen p-4">
+  <div class="max-w-3xl mx-auto">
+    <div class="bg-white shadow-md rounded-xl p-6">
+      <h2 class="text-2xl font-bold mb-4">Create Order (By Grain)</h2>
+
+      <div id="user-info" class="mb-4 text-gray-700"></div>
+      <hr class="my-4">
+
+      <div id="order-rows" class="space-y-4"></div>
+
+      <!-- Totals -->
+      <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <h3 class="font-semibold mb-2">Order Summary</h3>
+        <div class="flex justify-between text-gray-600">
+          <span>Selected Items</span>
+          <span id="total-items">0</span>
+        </div>
+        <div class="flex justify-between text-gray-600">
+          <span>Total Quantity</span>
+          <span id="total-qty">0 kg</span>
+        </div>
+        <div class="flex justify-between font-bold text-lg border-t pt-2">
+          <span>Total Price</span>
+          <span>₹<span id="total-price">0</span></span>
+        </div>
+      </div>
+
+      <div class="flex space-x-3">
+        <button onclick="submitOrder()" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">
+          Create Order
+        </button>
+        <button onclick="window.location.href='user reg.html'" class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://odczzymxgjsjhbufffxm.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'
+    );
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+    let user = null;
+
+    const orderRows = document.getElementById("order-rows");
+    const totalItemsEl = document.getElementById("total-items");
+    const totalQtyEl = document.getElementById("total-qty");
+    const totalPriceEl = document.getElementById("total-price");
+    const toast = document.getElementById("toast");
+
+    function showToast(message, type = "success") {
+      toast.textContent = message;
+      toast.className = `fixed bottom-5 right-5 px-4 py-2 rounded shadow text-white ${
+        type === "success" ? "bg-green-600" : "bg-red-600"
+      }`;
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 3000);
+    }
+
+    // ✅ Load customer
+    async function loadUser() {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("phone_number", phone)
+        .maybeSingle();
+
+      if (error || !data) {
+        document.getElementById("user-info").innerHTML = `<p class="text-red-600">Customer not found!</p>`;
+        return;
+      }
+
+      user = data;
+      document.getElementById("user-info").innerHTML = `
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Mobile:</strong> ${user.phone_number}</p>
+        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+        <p><strong>Society:</strong> ${user.society_name}</p>
+      `;
+    }
+
+    // ✅ Load grains
+    async function loadGrains() {
+      const { data: grains, error } = await supabase
+        .from("Grain_for_sell")
+        .select("*")
+        .eq("is_active", true);
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      grains.forEach(g => {
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-3 p-3 border rounded-lg shadow-sm bg-gray-50";
+        row.innerHTML = `
+          <input type="checkbox" class="grain-check"/>
+          <div class="flex-1">
+            <strong>${g.product_name}</strong><br>
+            <span class="text-gray-600">Price: ₹${g.price_per_kg}/kg</span><br>
+            <span class="text-gray-600">Stock: ${g.stock_qty} kg</span>
+          </div>
+          <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" class="grain-qty w-20 p-2 border rounded"/>
+          <div class="text-gray-700">₹<span>0</span></div>
+          <div class="error text-red-500 text-sm flex-1"></div>
+        `;
+        orderRows.appendChild(row);
+      });
+
+      orderRows.addEventListener("input", updateTotals);
+      orderRows.addEventListener("change", updateTotals);
+    }
+
+    // ✅ Update totals
+    function updateTotals() {
+      let totalItems = 0, totalQty = 0, totalPrice = 0;
+
+      [...orderRows.querySelectorAll(".row, .flex")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+        const totalEl = row.querySelector(".text-gray-700 span");
+
+        errorEl.textContent = "";
+        let qty = parseFloat(qtyInput.value) || 0;
+
+        if (qty > 0) check.checked = true;
+
+        if (check.checked) {
+          if (qty <= 0) {
+            errorEl.textContent = "Please enter quantity";
+            totalEl.textContent = "0";
+            return;
+          }
+
+          const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
+          const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+          const rowTotal = price * qty;
+
+          totalEl.textContent = rowTotal.toFixed(2);
+
+          totalItems++;
+          totalQty += qty;
+          totalPrice += rowTotal;
+        } else {
+          totalEl.textContent = "0";
+        }
+      });
+
+      totalItemsEl.textContent = totalItems;
+      totalQtyEl.textContent = totalQty;
+      totalPriceEl.textContent = totalPrice.toFixed(2);
+    }
+
+    // ✅ Token generator (same logic preserved)
+    async function generateTokenNumber() {
+      const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+
+      const { data: activeOrders, error } = await supabase
+        .from("orders")
+        .select("token_number, order_statuses!inner(status_name)")
+        .not("order_statuses.status_name", "in", `(${inactiveStatuses.map(s => `'${s}'`).join(",")})`);
+
+      if (error) {
+        console.error("❌ Error fetching active orders:", error);
+        return "QA1";
+      }
+
+      const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+
+      let maxTokenNum = 0;
+      activeTokens.forEach(token => {
+        const num = parseInt(token?.slice(2), 10);
+        if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+      });
+
+      for (let attempt = 1; attempt <= 999; attempt++) {
+        let nextNum = maxTokenNum + attempt;
+        if (nextNum > 999) nextNum -= 999;
+        const token = `QA${nextNum}`;
+        if (!activeTokens.has(token)) return token;
+      }
+      throw new Error("All tokens in use");
+    }
+
+    // ✅ Submit order (unchanged logic, only toast for UX)
+    window.submitOrder = async function() {
+      let grainDetails = [];
+      let hasError = false;
+
+      [...orderRows.querySelectorAll(".flex")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+
+        if (!check.checked) return;
+
+        const name = row.querySelector("strong").textContent;
+        const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
+        const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+        const qty = parseFloat(qtyInput.value || 0);
+
+        if (qty <= 0) {
+          errorEl.textContent = "Please enter quantity";
+          hasError = true;
+        } else {
+          grainDetails.push({ grain: name, quantity: qty, price, total: price * qty });
+        }
+      });
+
+      if (hasError || grainDetails.length === 0) {
+        showToast("Fix errors before submitting", "error");
+        return;
+      }
+
+      const total_price = parseFloat(totalPriceEl.textContent);
+      const token_number = await generateTokenNumber();
+
+      let orderType = localStorage.getItem("orderType") || null;
+      let serveAt = localStorage.getItem("serveAt") || null;
+
+      async function getStatusId(statusName) {
+        const { data, error } = await supabase
+          .from("order_statuses")
+          .select("id")
+          .eq("status_name", statusName)
+          .maybeSingle();
+        return data?.id || null;
+      }
+
+      const statusId = await getStatusId("NEW");
+
+      const { error } = await supabase.from("orders").insert([{
+        customer_id: user.id,
+        grain_details: grainDetails,
+        total_price,
+        token_number,
+        order_type: orderType,
+        serve_at: serveAt,
+        status_id: statusId
+      }]);
+
+      if (error) {
+        showToast("❌ Failed to place order", "error");
+      } else {
+        showToast("✅ Order placed! Token: " + token_number);
+        setTimeout(() => {
+          window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
+        }, 2000);
+      }
+    };
+
+    loadUser();
+    loadGrains();
+  </script>
+</body>
+</html>
