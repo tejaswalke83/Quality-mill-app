@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Orders</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toast" 
+     style="position: fixed; top: 20px; right: 20px; 
+            background: #4CAF50; color: white; padding: 12px 20px; 
+            border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); 
+            display: none; z-index: 9999;">
+</div>
+
+  <div class="card">
+    <div class="top-bar">
+      <div>
+        <h2>My Orders</h2>
+        <div id="user-info"></div>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" onclick="loadOrders()">Refresh</button>
+        <a id="newOrderBtn" class="btn btn-primary">New Order</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="orders-container"></div>
+<script src="script.js"></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://odczzymxgjsjhbufffxm.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'
+    );
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const phone = urlParams.get('phone');
+    let user = null;
+
+    async function fetchCustomer() {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone_number', phone)
+        .maybeSingle();
+
+      if (error || !data) {
+        document.getElementById('user-info').innerHTML = `<p style="color:red;">Customer not found!</p>`;
+        return;
+      }
+
+      user = data;
+      document.getElementById('user-info').innerHTML = `
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Phone:</strong> ${user.phone_number}</p>
+        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
+        <p><strong>Society:</strong> ${user.society_name}</p>
+      `;
+
+      // Set href for New Order button
+      document.getElementById("newOrderBtn").href = `select-order-type.html?phone=${phone}`;
+    }
+
+
+    async function loadOrders() {
+  const container = document.getElementById('orders-container');
+  container.innerHTML = '';
+
+  // Step 1: Fetch all orders with joined status info
+  const { data: allOrders, error: allError } = await supabase
+    .from('orders')
+    .select(`
+      id,
+      customer_id,
+      grain_details,
+      total_price,
+      token_number,
+      created_at,
+      order_type,
+      serve_at,
+      status_id,
+      order_statuses:order_statuses!orders_status_id_fkey (
+        id,
+        status_name
+      )
+    `)
+    .order('created_at', { ascending: true });
+
+  if (allError) {
+    console.error(allError);
+    container.innerHTML = '<p style="color:red;">Failed to load orders.</p>';
+    return;
+  }
+
+  // Step 2: Filter only current user's active orders (exclude completed ones)
+  const myOrders = (allOrders || [])
+    .filter(o => o.customer_id === user.id && 
+                 ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'].includes(o.order_statuses?.status_name))
+    .reverse();
+
+    // ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'N PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'])
+
+  if (!myOrders.length) {
+    container.innerHTML = '<p style="text-align:center; color: grey;">No active orders found.</p>';
+    return;
+  }
+
+  // Step 3: Render each order
+  myOrders.forEach(order => {
+    // Queue position
+    const indexInQueue = allOrders.findIndex(o => o.id === order.id);
+
+    // Orders before this one
+    const ordersBefore = allOrders.slice(0, indexInQueue);
+
+    // Sum kg ahead
+    let totalKgBefore = 0;
+    ordersBefore.forEach(o => {
+      try {
+        (o.grain_details || []).forEach(g => {
+          totalKgBefore += Number(g.quantity || 0);
+        });
+      } catch (e) {
+        console.warn("Bad grain_details format", o.grain_details);
+      }
+    });
+
+    const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10); // 10 mins per 5kg
+    const grainsHTML = (order.grain_details || []).map(g =>
+      `<div class="grain-item">${g.grain} - ${g.quantity} kg</div>`
+    ).join('');
+
+    const date = window.convertUTCToIST(order.created_at);
+
+    // Card
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    card.innerHTML = `
+      <p><strong>Token:</strong> ${order.token_number || 'N/A'}</p>
+      <p><strong>Order Date:</strong> ${date}</p>
+      <div class="grain-list">${grainsHTML}</div>
+      <p><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
+      <p class="status"><strong>Status:</strong> ${order.order_statuses?.status_name || 'PENDING'}</p>
+      <p><strong>Orders before you:</strong> ${indexInQueue}</p>
+      <p><strong>Estimated Time:</strong> ${timeInMinutes} minutes</p>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+// async function loadOrders() {
+//   const container = document.getElementById('orders-container');
+//   container.innerHTML = '';
+
+//   // Step 1: Fetch all active orders + join statuses
+//   const { data: allOrders, error: allError } = await supabase
+//     .from('orders')
+//     .select(`
+//       id,
+//       customer_id,
+//       grain_details,
+//       total_price,
+//       token_number,
+//       created_at,
+//       order_type,
+//       serve_at,
+//       order_statuses:order_statuses!orders_status_id_fkey (
+//         status_name
+//       )
+//     `)
+//     .in('order_statuses.status_name', ['NEW', 'PICKED UP','RECEIVED AT MILL' ,'N PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED'])
+//     .order('created_at', { ascending: true });6
+
+
+//   if (allError) {
+//     console.error(allError);
+//     container.innerHTML = '<p style="color:red;">Failed to load orders.</p>';
+//     return;
+//   }
+
+//   // Step 2: Filter only the orders for the current user
+//   const myOrders = (allOrders || [])
+//     .filter(o => o.customer_id === user.id)
+//     .reverse(); // newest first
+
+//   if (!myOrders.length) {
+//     container.innerHTML = '<p style="text-align:center; color: grey;">No orders found.</p>';
+//     return;
+//   }
+
+//   // Step 3: Render each order
+//   myOrders.forEach(order => {
+//     // Queue position
+//     const indexInQueue = allOrders.findIndex(o => o.id === order.id);
+
+//     // Orders before this one
+//     const ordersBefore = allOrders.slice(0, indexInQueue);
+
+//     // Sum grain quantities before
+//     let totalKgBefore = 0;
+//     ordersBefore.forEach(o => {
+//       try {
+//         (o.grain_details || []).forEach(g => {
+//           totalKgBefore += Number(g.quantity || 0);
+//         });
+//       } catch (e) {
+//         console.warn("Bad grain_details format", o.grain_details);
+//       }
+//     });
+
+//     const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10); // 10 mins per 5kg
+//     const grainsHTML = (order.grain_details || []).map(g =>
+//       `<div class="grain-item">${g.grain} - ${g.quantity} kg</div>`
+//     ).join('');
+
+//     const date = window.convertUTCToIST(order.created_at);
+
+//     // Card HTML
+//     const card = document.createElement('div');
+//     card.className = 'order-card';
+//     card.innerHTML = `
+//       <p><strong>Token:</strong> ${order.token_number || 'N/A'}</p>
+//       <p><strong>Order Date:</strong> ${date}</p>
+//       <div class="grain-list">${grainsHTML}</div>
+//       <p><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
+//       <p class="status">Status: ${order.order_statuses?.status_name || 'PENDING'}</p>
+//       <p><strong>Orders before you:</strong> ${indexInQueue}</p>
+//       <p><strong>Estimated Time:</strong> ${timeInMinutes} minutes</p>
+//     `;
+
+//     container.appendChild(card);
+//   });
+// }
+
+
+// async function loadOrders() {
+//   const container = document.getElementById('orders-container');
+//   container.innerHTML = '';
+
+//   // Step 1: Fetch all active orders (non-completed), sorted by creation time
+//   const { data: allOrders, error: allError } = await supabase
+//     .from('orders')
+//     .select('*')
+//     .in('order_statuses.status_name', ['NEW', 'IN PROCESS', 'MILLING COMPLETED'])
+//     .order('created_at', { ascending: true });
+
+//   if (allError) {
+//     console.error(allError);
+//     container.innerHTML = '<p style="color:red;">Failed to load orders.</p>';
+//     return;
+//   }
+
+//   // Step 2: Filter only the orders for the current user
+//   const myOrders = allOrders.filter(o => o.customer_id === user.id).reverse(); // newest first for user display
+
+//   if (!myOrders.length) {
+//     container.innerHTML = '<p style="text-align:center; color: grey;">No orders found.</p>';
+//     return;
+//   }
+
+//   // Step 3: For each of the user's orders, calculate queue position and time
+//   myOrders.forEach(order => {
+//     // Find index of this order in global queue
+//     const indexInQueue = allOrders.findIndex(o => o.id === order.id);
+
+//     // Get all orders before this one
+//     const ordersBefore = allOrders.slice(0, indexInQueue);
+
+//     // Sum total grain quantity ahead
+//     let totalKgBefore = 0;
+//     ordersBefore.forEach(o => {
+//       o.grain_details.forEach(g => {
+//         totalKgBefore += Number(g.quantity || 0);
+//       });
+//     });
+
+//     const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10); // 10 mins per 5kg
+//     const grainsHTML = order.grain_details.map(g =>
+//       `<div class="grain-item">${g.grain} - ${g.quantity} kg</div>`
+//     ).join('');
+
+//     const date = window.convertUTCToIST(order.created_at);
+
+
+//     const card = document.createElement('div');
+//     card.className = 'order-card';
+//     card.innerHTML = `
+//       <p><strong>Token:</strong> ${order.token_number || 'N/A'}</p>
+//       <p><strong>Order Date:</strong> ${date}</p>
+//       <div class="grain-list">${grainsHTML}</div>
+//       <p><strong>Total:</strong> ₹${order.total_price.toFixed(2)}</p>
+//       <p class="status">Status: ${order.status}</p>
+//       <p><strong>Orders before you:</strong> ${indexInQueue}</p>
+//       <p><strong>Estimated Time:</strong> ${timeInMinutes} minutes</p>
+//     `;
+
+//     container.appendChild(card);
+//   });
+// }
+
+// ✅ Parse query parameters
+const urlParams1 = new URLSearchParams(window.location.search);
+const token = urlParams1.get("token");
+
+if (token) {
+  const toast = document.getElementById("toast");
+  toast.textContent = "✅ Order placed successfully! Token: " + token;
+  toast.style.display = "block";
+
+  // Hide toast after 4 seconds
+  setTimeout(() => {
+    toast.style.display = "none";
+  }, 2000);
+}
+
+
+
+
+    
+    
+    // Load on start
+    await fetchCustomer();
+    if (user) loadOrders();
+    window.loadOrders = loadOrders;
+  </script>
+</body>
+</html>
