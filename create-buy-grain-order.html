@@ -123,28 +123,27 @@ async function loadGrains() {
     const row = document.createElement("div");
     row.className = "p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2";
 
-    row.innerHTML = `
-      <!-- Line 1 -->
-      <div class="flex items-center gap-3">
-        <input type="checkbox" class="grain-check"/>
-        <div class="flex-1 font-semibold">${g.product_name}</div>
-        <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" 
-          class="grain-qty w-20 p-2 border rounded"/>
-      </div>
+   row.innerHTML = `
+  <!-- Line 1 -->
+  <div class="flex items-center gap-3">
+    <input type="checkbox" class="grain-check"/>
+    <div class="grain-name flex-1 font-semibold">${g.product_name}</div>
+    <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" 
+      class="grain-qty w-20 p-2 border rounded"/>
+  </div>
 
-      
-     <!-- Line 2 -->
-<div class="flex items-center justify-between text-sm text-gray-700">
-  <span class="price" data-price="${g.price_per_kg}">
-    Price: ₹${g.price_per_kg}/kg (Stock: ${g.stock_qty} kg)
-  </span>
-  <span>Total: ₹<span class="row-total">0</span></span>
-</div>
+  <!-- Line 2 -->
+  <div class="flex items-center justify-between text-sm text-gray-700">
+    <span class="price" data-price="${g.price_per_kg}">
+      Price: ₹${g.price_per_kg}/kg (Stock: ${g.stock_qty} kg)
+    </span>
+    <span>Total: ₹<span class="row-total">0</span></span>
+  </div>
 
+  <!-- Line 3 -->
+  <div class="error text-red-500 text-sm"></div>
+`;
 
-      <!-- Line 3 -->
-      <div class="error text-red-500 text-sm"></div>
-    `;
     orderRows.appendChild(row);
   });
 
@@ -314,7 +313,9 @@ function updateTotals() {
 
     if (!check.checked) return;
 
-    const name = row.querySelector("strong").textContent;
+    // const name = row.querySelector("strong").textContent;
+    const name = row.querySelector(".flex-1").textContent.trim();
+
     const price = parseFloat(priceEl.dataset.price || 0);
     const qty = parseFloat(qtyInput.value || 0);
 
