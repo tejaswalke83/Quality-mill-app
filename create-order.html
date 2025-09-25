@@ -233,20 +233,38 @@ window.addRow = function () {
       updateTotal();
     }
 
+    // window.updateTotal = function() {
+    //   let grandTotal = 0;
+    //   [...orderRows.children].forEach(row => {
+    //     const select = row.querySelector('select');
+    //     const qtyInput = row.querySelector('input');
+    //     const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+    //     const qty = parseFloat(qtyInput.value || 0);
+    //     const rowTotal = price * qty;
+    //     row.querySelector('span').textContent = rowTotal.toFixed(2);
+    //     grandTotal += rowTotal;
+    //   });
+    //   subtotalEl.textContent = `₹${grandTotal.toFixed(2)}`;
+    //   totalPriceEl.textContent = `₹${grandTotal.toFixed(2)}`;
+    // }
     window.updateTotal = function() {
-      let grandTotal = 0;
-      [...orderRows.children].forEach(row => {
-        const select = row.querySelector('select');
-        const qtyInput = row.querySelector('input');
-        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(qtyInput.value || 0);
-        const rowTotal = price * qty;
-        row.querySelector('span').textContent = rowTotal.toFixed(2);
-        grandTotal += rowTotal;
-      });
-      subtotalEl.textContent = `₹${grandTotal.toFixed(2)}`;
-      totalPriceEl.textContent = `₹${grandTotal.toFixed(2)}`;
-    }
+  let grandTotal = 0;
+  [...orderRows.children].forEach(row => {
+    const select = row.querySelector('select');
+    const qtyInput = row.querySelector('input');
+    const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+    const qty = parseFloat(qtyInput.value || 0);
+    const rowTotal = price * qty;
+
+    // Update row values
+    row.querySelector('.row-total').textContent = rowTotal.toFixed(2);
+    row.querySelector('.milling-price').textContent = price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
+
+    grandTotal += rowTotal;
+  });
+  subtotalEl.textContent = `₹${grandTotal.toFixed(2)}`;
+  totalPriceEl.textContent = `₹${grandTotal.toFixed(2)}`;
+}
 
     window.submitOrder = async function () {
       let grainDetails = [];
