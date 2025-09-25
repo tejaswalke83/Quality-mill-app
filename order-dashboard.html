@@ -5,64 +5,69 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Order Dashboard</title>
 
-  <!-- Tailwind (CDN quick setup) -->
+  <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Google font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
   <style>
-    body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    body {
+      font-family: 'Inter', sans-serif;
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-  <div class="max-w-6xl mx-auto">
-    <h1 class="text-2xl font-bold text-gray-800 text-center mb-6">Order Dashboard</h1>
+  <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard</h1>
 
-    <!-- Controls -->
-    <div class="bg-white p-4 rounded-lg shadow mb-6">
-      <!-- Search -->
-      <div class="flex flex-wrap items-center gap-3 mb-4">
-        <input 
-          type="text" 
-          id="searchBox" 
-          placeholder="Search by name, phone, token, total, status, grain..." 
-          oninput="debouncedSearch()" 
-          class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button onclick="resetSearch()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Reset</button>
-      </div>
-
-      <!-- Filters -->
-      <div class="flex flex-wrap items-center gap-2 filter-group">
-        <label class="font-semibold text-gray-700">Filter by:</label>
-        <!-- buttons will load here dynamically -->
-      </div>
+  <!-- Controls -->
+  <div class="bg-white shadow rounded-lg p-4 mb-6">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <input 
+        type="text" 
+        id="searchBox" 
+        placeholder="Search by name, phone, token, total, status, grain..." 
+        oninput="handleSearchInput()" 
+        class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <button id="searchBtn" onclick="searchAndScroll()" disabled
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+        Search
+      </button>
+      <button onclick="resetSearch()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+        Reset
+      </button>
     </div>
 
-    <!-- Orders List -->
-    <div id="ordersList" class="space-y-4"></div>
+    <div class="flex flex-wrap items-center gap-3 filter-group text-sm">
+      <!-- Filter buttons will be loaded dynamically -->
+    </div>
   </div>
 
-<script src="script.js"></script>
+  <!-- Orders -->
+  <div id="ordersList" class="space-y-4"></div>
+
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-  // ✅ Your Supabase credentials (restored)
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
   let statusFlows = {};
-
   let searchTimeout;
+
   function debouncedSearch() {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      loadOrders();
-    }, 300);
+    searchTimeout = setTimeout(() => loadOrders(), 300);
   }
+  window.debouncedSearch = debouncedSearch;
+
+  function handleSearchInput() {
+    const searchBox = document.getElementById('searchBox');
+    const searchBtn = document.getElementById('searchBtn');
+    searchBtn.disabled = searchBox.value.trim() === '';
+    debouncedSearch();
+  }
+  window.handleSearchInput = handleSearchInput;
 
   async function fetchAllOrders() {
     const { data, error } = await supabase
@@ -81,55 +86,6 @@
     return data;
   }
 
-  async function buildStatusFlows() {
-    const { data: statuses, error } = await supabase
-      .from('order_statuses')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching statuses:', error);
-      return {};
-    }
-
-    statusesCache = statuses;
-
-    const statusMap = {};
-    statuses.forEach(s => statusMap[s.status_name] = s.id);
-
-    // 🔹 Flows per order_type
-    return {
-      "shop-milling": [
-        statusMap["NEW"],
-        statusMap["IN PROCESS"],
-        statusMap["MILLING COMPLETED"],
-        statusMap["DELIVERED"],
-      ],
-      "shop-buy-mill": [
-        statusMap["NEW"],
-        statusMap["IN PROCESS"],
-        statusMap["MILLING COMPLETED"],
-        statusMap["DELIVERED"],
-      ],
-      "home-milling": [
-        statusMap["NEW"],
-        statusMap["PICKED UP"],
-        statusMap["RECEIVED AT MILL"],
-        statusMap["IN PROCESS"],
-        statusMap["MILLING COMPLETED"],
-        statusMap["OUT FOR DELIVERY"],
-        statusMap["DELIVERED"],
-      ],
-      "home-buy-mill": [
-        statusMap["NEW"],
-        statusMap["IN PROCESS"],
-        statusMap["MILLING COMPLETED"],
-        statusMap["OUT FOR DELIVERY"],
-        statusMap["DELIVERED"],
-      ]
-    };
-  }
-
   async function fetchStatuses() {
     const { data, error } = await supabase
       .from('order_statuses')
@@ -142,6 +98,28 @@
     }
     statusesCache = data;
     return data;
+  }
+
+  async function buildStatusFlows() {
+    const statuses = await fetchStatuses();
+    const statusMap = {};
+    statuses.forEach(s => statusMap[s.status_name] = s.id);
+
+    return {
+      "shop-milling": [
+        statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"],
+      ],
+      "shop-buy-mill": [
+        statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"],
+      ],
+      "home-milling": [
+        statusMap["NEW"], statusMap["PICKED UP"], statusMap["RECEIVED AT MILL"],
+        statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"],
+      ],
+      "home-buy-mill": [
+        statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"],
+      ]
+    };
   }
 
   async function initializeFlows() {
@@ -178,23 +156,20 @@
   async function loadFilterButtons() {
     const statuses = await fetchStatuses();
     const filterGroup = document.querySelector('.filter-group');
-    filterGroup.innerHTML = `
-      <label class="font-semibold text-gray-700">Filter by:</label>
-      <button class="filter-btn active px-3 py-1 rounded bg-blue-500 text-white" data-value="all">All</button>
-    `;
+    filterGroup.innerHTML = `<label class="font-medium">Filter by:</label>
+      <button class="filter-btn active px-3 py-1 border rounded" data-value="all">All</button>`;
 
     statuses.forEach(s => {
       filterGroup.innerHTML += `
-        <button class="filter-btn px-3 py-1 rounded bg-gray-200 hover:bg-blue-100" data-value="${s.status_name}">
+        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.status_name}">
           ${s.status_name}
-        </button>
-      `;
+        </button>`;
     });
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
-        btn.classList.add('bg-blue-500', 'text-white');
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-500', 'text-white'));
+        btn.classList.add('active', 'bg-blue-500', 'text-white');
         loadOrders();
       });
     });
@@ -203,17 +178,14 @@
   async function loadOrders() {
     const allOrders = await fetchAllOrders();
 
-    const activeFilterEl = document.querySelector('.filter-btn.bg-blue-500');
+    const activeFilterEl = document.querySelector('.filter-btn.active');
     const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
-
     const searchTerm = document.getElementById('searchBox').value.toLowerCase();
 
     let filtered = allOrders;
-
     if (activeFilter !== 'all') {
       filtered = filtered.filter(o => o.order_statuses?.status_name === activeFilter);
     }
-
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(o =>
         (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
@@ -221,8 +193,8 @@
         (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
         (o.total_price?.toString() || '').includes(searchTerm) ||
         (o.order_statuses?.status_name?.toLowerCase() || '').includes(searchTerm) ||
-        (Array.isArray(o.grain_details) &&
-          o.grain_details.some(g => (g.grain?.toLowerCase() || '').includes(searchTerm)))
+        (Array.isArray(o.grain_details) && o.grain_details.some(g =>
+          (g.grain?.toLowerCase() || '').includes(searchTerm)))
       );
     }
 
@@ -230,61 +202,71 @@
     container.innerHTML = '';
 
     if (filtered.length === 0) {
-      container.innerHTML = '<p class="text-center text-gray-500">No orders found.</p>';
+      container.innerHTML = '<p class="text-gray-500">No orders found.</p>';
       return;
     }
 
     filtered.forEach(order => {
-      let grainsHTML = '';
-      if (Array.isArray(order.grain_details)) {
-        grainsHTML = `
-          <ul class="list-disc list-inside text-sm text-gray-700">
-            ${order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('')}
-          </ul>
-        `;
-      }
+      const grainsHTML = Array.isArray(order.grain_details)
+        ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+          order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+          '</ul>'
+        : '';
 
       const statusLabel = order.order_statuses?.status_name || "Unknown";
       const next = getNextStatus(order);
 
       const div = document.createElement('div');
-      div.className = 'bg-white shadow rounded-lg p-4';
+      div.className = 'order-card bg-white shadow rounded-lg p-4';
       div.innerHTML = `
         <div class="flex justify-between items-start mb-2">
-          <h3 class="text-lg font-semibold text-gray-800">${order.customers?.name || 'N/A'}</h3>
+          <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
           <div class="text-right text-sm text-gray-600">
-            <div><strong>Token:</strong> ${order.token_number || ''}</div>
-            <div><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</div>
+            <strong>Token:</strong> ${order.token_number || ''}<br>
+            <strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}
           </div>
         </div>
-        <p class="text-sm text-gray-600"><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-        <p class="text-sm text-gray-600"><strong>Created:</strong> ${window.convertUTCToIST(order.created_at)}</p>
+        <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+        <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
         ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
         <div class="flex justify-between items-center mt-4">
-          <span class="text-sm font-medium text-gray-700"><strong>Status:</strong> ${statusLabel}</span>
+          <span class="text-sm"><strong>Status:</strong> ${statusLabel}</span>
           ${next 
             ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-                  class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-                 Move to ${next.status_name}
-               </button>` 
-            : ''
-          }
+                class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
+                Move to ${next.status_name}
+              </button>` 
+            : ''}
         </div>
       `;
       container.appendChild(div);
     });
   }
 
+  async function searchAndScroll() {
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox.value.trim() === '') return;
+
+    await loadOrders();
+    const container = document.getElementById('ordersList');
+    const firstOrder = container.querySelector('.order-card');
+    if (firstOrder) {
+      firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstOrder.classList.add("ring-2", "ring-blue-400");
+      setTimeout(() => firstOrder.classList.remove("ring-2", "ring-blue-400"), 2000);
+    }
+  }
+  window.searchAndScroll = searchAndScroll;
+
   function resetSearch() {
     document.getElementById('searchBox').value = '';
+    handleSearchInput();
     loadOrders();
   }
-  window.debouncedSearch = debouncedSearch;
-  window.loadOrders = loadOrders;
   window.resetSearch = resetSearch;
 
   await initializeFlows();
-  loadFilterButtons();
+  await loadFilterButtons();
   loadOrders();
 </script>
 </body>
