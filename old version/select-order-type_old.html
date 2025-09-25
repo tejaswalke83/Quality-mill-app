@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Select Order Type</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f5f5f5;
+      padding: 30px;
+    }
+    h3 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .section-heading {
+      font-weight: 600;
+      margin: 30px auto 10px;
+      max-width: 500px;
+      color: #444;
+      font-size: 1.2rem;
+    }
+    .option-card {
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      padding: 20px;
+      cursor: pointer;
+      position: relative;
+      background: white;
+      transition: border-color 0.3s ease, background 0.3s ease;
+      user-select: none;
+    }
+    .option-card:hover:not(.disabled) {
+      border-color: #007bff;
+    }
+    .option-card.disabled {
+      border-color: #ddd;
+      background: #eee;
+      color: #999;
+      cursor: not-allowed;
+    }
+    .option-card.disabled:hover {
+      border-color: #ddd;
+    }
+    .option-card.selected {
+      background: #eaf4ff;
+      border-color: #007bff;
+    }
+    .tick {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: green;
+      font-size: 20px;
+    }
+    .hidden {
+      display: none;
+    }
+    .options-container {
+      display: flex;
+      gap: 20px;
+      flex-direction: column;
+      max-width: 500px;
+      margin: auto;
+    }
+    /* Modal styles */
+    #locationModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #locationModal .modal-content {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 12px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    }
+    #locationModal h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    #locationModal button {
+      margin: 10px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    #locationModal button:hover {
+      background-color: #0056b3;
+    }
+    /* Radio container */
+    #radioContainer {
+      max-width: 500px;
+      margin: 0 auto 20px;
+      display: flex;
+      gap: 30px;
+      justify-content: flex-end;
+      font-weight: 500;
+      color: #555;
+      user-select: none;
+    }
+    #radioContainer label {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Modal -->
+  <div id="locationModal">
+    <div class="modal-content">
+      <h2>I am at</h2>
+      <button id="btnAtHome">At Home</button>
+      <button id="btnAtShop">At Shop</button>
+    </div>
+  </div>
+
+  <h3>What would you like to do today?</h3>
+  <hr/>
+
+  <!-- Radio buttons to select location -->
+  <div id="radioContainer" title="Select where you are">
+    <label>
+      <input type="radio" name="location" value="ShopService" id="radioShop" />
+      At Shop
+    </label>
+    <label>
+      <input type="radio" name="location" value="HomeService" id="radioHome" />
+      At Home
+    </label>
+  </div>
+
+    <div class="section-heading">At Shop Services</div>
+  <div class="options-container" id="shopServices">
+    <div onclick="selectOrderType('shop-milling')" class="option-card" data-serveat="ShopService" id="card-shop-milling">
+      <strong>Milling Service – At Shop</strong>
+      <p>Bring your grains to our shop and get them milled on the spot.</p>
+      <span id="tick-shop-milling" class="tick hidden">✔️</span>
+    </div>
+
+    <div onclick="selectOrderType('shop-buy-mill')" class="option-card" data-serveat="ShopService" id="card-shop-buy-mill">
+      <strong>Buy & Mill – At Shop</strong>
+      <p>Select grains from our shop, mill fresh atta, and take it home.</p>
+      <span id="tick-shop-buy-mill" class="tick hidden">✔️</span>
+    </div>
+  </div>
+
+  <div class="section-heading">At Home Services</div>
+  <div class="options-container" id="homeServices">
+    <div onclick="selectOrderType('home-milling')" class="option-card" data-serveat="HomeService" id="card-home-milling">
+      <strong>Home Service – Milling</strong>
+      <p>We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
+      <span id="tick-home-milling" class="tick hidden">✔️</span>
+    </div>
+
+    <div onclick="selectOrderType('home-buy-mill')" class="option-card" data-serveat="HomeService" id="card-home-buy-mill">
+      <strong>Home Service – Buy & Mill</strong>
+      <p>Select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
+      <span id="tick-home-buy-mill" class="tick hidden">✔️</span>
+    </div>
+  </div>
+
+
+
+<script>
+  const modal = document.getElementById('locationModal');
+  const btnAtHome = document.getElementById('btnAtHome');
+  const btnAtShop = document.getElementById('btnAtShop');
+  const radioShop = document.getElementById('radioShop');
+  const radioHome = document.getElementById('radioHome');
+
+  function disableCards(serveAtToDisable) {
+    const cards = document.querySelectorAll('.option-card');
+    cards.forEach(card => {
+      if (card.dataset.serveat === serveAtToDisable) {
+        card.classList.add('disabled');
+        card.onclick = null; // disable click
+      } else {
+        card.classList.remove('disabled');
+        card.onclick = () => selectOrderType(card.id.replace('card-', ''));
+      }
+    });
+  }
+
+  function setRadioSelection(serveAt) {
+    radioShop.checked = serveAt === 'ShopService';
+    radioHome.checked = serveAt === 'HomeService';
+  }
+
+  // Modal buttons
+  btnAtHome.addEventListener('click', () => {
+    localStorage.setItem('serveAt', 'HomeService');
+    disableCards('ShopService');
+    modal.style.display = 'none';
+    setRadioSelection('HomeService');
+  });
+
+  btnAtShop.addEventListener('click', () => {
+    localStorage.setItem('serveAt', 'ShopService');
+    disableCards('HomeService');
+    modal.style.display = 'none';
+    setRadioSelection('ShopService');
+  });
+
+  // Radio button listeners
+  radioHome.addEventListener('change', () => {
+    if (radioHome.checked) {
+      localStorage.setItem('serveAt', 'HomeService');
+      disableCards('ShopService');
+    }
+  });
+
+  radioShop.addEventListener('change', () => {
+    if (radioShop.checked) {
+      localStorage.setItem('serveAt', 'ShopService');
+      disableCards('HomeService');
+    }
+  });
+
+
+  function selectOrderType(type) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const phone = urlParams.get('phone');
+
+  localStorage.setItem('orderType', type);
+  const card = document.getElementById(`card-${type}`);
+  if (card) {
+    localStorage.setItem('serveAt', card.dataset.serveat);
+  }
+
+  // Clear ticks + highlight
+  document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+
+  // Tick selected
+  const tickId = `tick-${type}`;
+  const tick = document.getElementById(tickId);
+  if (tick) tick.classList.remove('hidden');
+  if (card) card.classList.add('selected');
+
+  // ✅ Decide where to go
+  let nextPage = "create-order.html"; 
+  if (type === "shop-buy-mill" || type === "home-buy-mill") {
+    nextPage = "create-buy-grain-order.html";
+  }
+
+  setTimeout(() => {
+    window.location.href = `${nextPage}?phone=${phone}`;
+  }, 500);
+}
+
+  // function selectOrderType(type) {
+  //   const urlParams = new URLSearchParams(window.location.search);
+  //   const phone = urlParams.get('phone');
+
+  //   localStorage.setItem('orderType', type);
+  //   const card = document.getElementById(`card-${type}`);
+  //   if (card) {
+  //     localStorage.setItem('serveAt', card.dataset.serveat);
+  //   }
+
+  //   // Clear ticks + highlight
+  //   document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  //   document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+
+  //   // Tick selected
+  //   const tickId = `tick-${type}`;
+  //   const tick = document.getElementById(tickId);
+  //   if (tick) tick.classList.remove('hidden');
+  //   if (card) card.classList.add('selected');
+
+  //   setTimeout(() => {
+  //     window.location.href = `create-order.html?phone=${phone}`;
+  //   }, 500);
+  // }
+
+  // On page load
+  window.onload = () => {
+    const serveAt = localStorage.getItem('serveAt');
+    if (serveAt === 'HomeService' || serveAt === 'ShopService') {
+      modal.style.display = 'none';
+      disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
+      setRadioSelection(serveAt);
+    } else {
+      modal.style.display = 'flex';
+      disableCards('none');
+      setRadioSelection(null);
+    }
+    document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+  };
+</script>
+</body>
+</html>
