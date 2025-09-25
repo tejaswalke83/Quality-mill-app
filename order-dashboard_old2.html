@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order Dashboard</title>
+
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+  <link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#007bff">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+<script defer src="/common.js"></script>
+
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard</h1>
+
+  <!-- Controls -->
+  <div class="bg-white shadow rounded-lg p-4 mb-6">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <input 
+        type="text" 
+        id="searchBox" 
+        placeholder="Search by name, phone, token, total, status, grain..." 
+        oninput="handleSearchInput()" 
+        class="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <button id="searchBtn" onclick="searchAndScroll()" disabled
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+        Search
+      </button>
+      <button onclick="resetSearch()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+        Reset
+      </button>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 filter-group text-sm">
+      <!-- Filter buttons will be loaded dynamically -->
+    </div>
+  </div>
+
+  <!-- Orders -->
+  <div id="ordersList" class="space-y-4"></div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+  // ✅ Your Supabase credentials
+  const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  let statusesCache = [];
+  let statusFlows = {};
+  let searchTimeout;
+
+  function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadOrders(), 300);
+  }
+  window.debouncedSearch = debouncedSearch;
+
+  function handleSearchInput() {
+    const searchBox = document.getElementById('searchBox');
+    const searchBtn = document.getElementById('searchBtn');
+    searchBtn.disabled = searchBox.value.trim() === '';
+    debouncedSearch();
+  }
+  window.handleSearchInput = handleSearchInput;
+
+  async function fetchAllOrders() {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        customers(name, phone_number),
+        order_statuses(status_name, sort_order, id)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return [];
+    }
+    return data;
+  }
+
+  async function fetchStatuses() {
+    const { data, error } = await supabase
+      .from('order_statuses')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching statuses:', error);
+      return [];
+    }
+    statusesCache = data;
+    return data;
+  }
+
+  async function buildStatusFlows() {
+    const statuses = await fetchStatuses();
+    const statusMap = {};
+    statuses.forEach(s => statusMap[s.status_name] = s.id);
+
+    return {
+      "shop-milling": [
+        statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"],
+      ],
+      "shop-buy-mill": [
+        statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"],
+      ],
+      "home-milling": [
+        statusMap["NEW"], statusMap["PICKED UP"], statusMap["RECEIVED AT MILL"],
+        statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"],
+      ],
+      "home-buy-mill": [
+        statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"],
+      ]
+    };
+  }
+
+  async function initializeFlows() {
+    statusFlows = await buildStatusFlows();
+  }
+
+  function getNextStatus(order) {
+    const flow = statusFlows[order.order_type] || [];
+    const currentStatusId = order.status_id;
+    if (!currentStatusId) return null;
+
+    const idx = flow.indexOf(currentStatusId);
+    if (idx === -1 || idx + 1 >= flow.length) return null;
+
+    const nextId = flow[idx + 1];
+    return statusesCache.find(s => s.id === nextId);
+  }
+
+  async function updateOrderStatus(orderId, newStatusId) {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status_id: newStatusId })
+      .eq('id', orderId);
+
+    if (error) {
+      alert('Failed to update status');
+      console.error(error);
+    } else {
+      loadOrders();
+    }
+  }
+  window.updateOrderStatus = updateOrderStatus;
+
+  async function loadFilterButtons() {
+    const statuses = await fetchStatuses();
+    const filterGroup = document.querySelector('.filter-group');
+    filterGroup.innerHTML = `<label class="font-medium">Filter by:</label>
+      <button class="filter-btn active px-3 py-1 border rounded" data-value="all">All</button>`;
+
+    statuses.forEach(s => {
+      filterGroup.innerHTML += `
+        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.status_name}">
+          ${s.status_name}
+        </button>`;
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-500', 'text-white'));
+        btn.classList.add('active', 'bg-blue-500', 'text-white');
+        loadOrders();
+      });
+    });
+  }
+
+  async function loadOrders() {
+    const allOrders = await fetchAllOrders();
+
+    const activeFilterEl = document.querySelector('.filter-btn.active');
+    const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
+    const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+
+    let filtered = allOrders;
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter(o => o.order_statuses?.status_name === activeFilter);
+    }
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(o =>
+        (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+        (o.customers?.phone_number || '').includes(searchTerm) ||
+        (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
+        (o.total_price?.toString() || '').includes(searchTerm) ||
+        (o.order_statuses?.status_name?.toLowerCase() || '').includes(searchTerm) ||
+        (Array.isArray(o.grain_details) && o.grain_details.some(g =>
+          (g.grain?.toLowerCase() || '').includes(searchTerm)))
+      );
+    }
+
+    const container = document.getElementById('ordersList');
+    container.innerHTML = '';
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<p class="text-gray-500">No orders found.</p>';
+      return;
+    }
+
+    filtered.forEach(order => {
+      const grainsHTML = Array.isArray(order.grain_details)
+        ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+          order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+          '</ul>'
+        : '';
+
+      const statusLabel = order.order_statuses?.status_name || "Unknown";
+      const next = getNextStatus(order);
+
+      const div = document.createElement('div');
+      div.className = 'order-card bg-white shadow rounded-lg p-4';
+      div.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
+          <div class="text-right text-sm text-gray-600">
+            <strong>Token:</strong> ${order.token_number || ''}<br>
+            <strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}
+          </div>
+        </div>
+        <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+        <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+        ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
+        <div class="flex justify-between items-center mt-4">
+          <span class="text-sm"><strong>Status:</strong> ${statusLabel}</span>
+          ${next 
+            ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+                class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
+                Move to ${next.status_name}
+              </button>` 
+            : ''}
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  async function searchAndScroll() {
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox.value.trim() === '') return;
+
+    await loadOrders();
+    const container = document.getElementById('ordersList');
+    const firstOrder = container.querySelector('.order-card');
+    if (firstOrder) {
+      firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstOrder.classList.add("ring-2", "ring-blue-400");
+      setTimeout(() => firstOrder.classList.remove("ring-2", "ring-blue-400"), 2000);
+    }
+  }
+  window.searchAndScroll = searchAndScroll;
+
+  function resetSearch() {
+    document.getElementById('searchBox').value = '';
+    handleSearchInput();
+    loadOrders();
+  }
+  window.resetSearch = resetSearch;
+
+  await initializeFlows();
+  await loadFilterButtons();
+  loadOrders();
+</script>
+</body>
+</html>
