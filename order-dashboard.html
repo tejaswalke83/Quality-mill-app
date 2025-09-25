@@ -34,8 +34,9 @@
       </button>
     </div>
 
+    <!-- Filter buttons -->
     <div class="flex flex-wrap items-center gap-3 filter-group text-sm">
-      <!-- Filter buttons will be loaded dynamically -->
+      <!-- dynamically injected -->
     </div>
   </div>
 
@@ -54,14 +55,15 @@
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabaseKey = 'YOUR_KEY_HERE';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
   let statusFlows = {};
+  let searchTimeout;
   let currentOpenOrder = null;
 
-  // --- Utility: Subtle color mapping for statuses ---
+  // --- Status color chips ---
   function getStatusClass(status) {
     const map = {
       "NEW": "bg-yellow-100 text-yellow-800",
@@ -74,6 +76,21 @@
     };
     return map[status] || "bg-gray-100 text-gray-700";
   }
+
+  // --- Search handling ---
+  function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadOrders(), 300);
+  }
+  window.debouncedSearch = debouncedSearch;
+
+  function handleSearchInput() {
+    const searchBox = document.getElementById('searchBox');
+    const searchBtn = document.getElementById('searchBtn');
+    searchBtn.disabled = searchBox.value.trim() === '';
+    debouncedSearch();
+  }
+  window.handleSearchInput = handleSearchInput;
 
   async function fetchAllOrders() {
     const { data, error } = await supabase
@@ -119,18 +136,66 @@
   async function updateOrderStatus(orderId, newStatusId) {
     const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
     if (!error) {
-      closeModal(); // ✅ Close after update
+      closeModal();
       loadOrders();
     }
   }
   window.updateOrderStatus = updateOrderStatus;
 
+  async function loadFilterButtons() {
+    const statuses = await fetchStatuses();
+    const filterGroup = document.querySelector('.filter-group');
+    filterGroup.innerHTML = `<label class="font-medium">Filter by:</label>
+      <button class="filter-btn active px-3 py-1 border rounded" data-value="all">All</button>`;
+
+    statuses.forEach(s => {
+      filterGroup.innerHTML += `
+        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.status_name}">
+          ${s.status_name}
+        </button>`;
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-500', 'text-white'));
+        btn.classList.add('active', 'bg-blue-500', 'text-white');
+        loadOrders();
+      });
+    });
+  }
+
   async function loadOrders() {
     const allOrders = await fetchAllOrders();
+
+    const activeFilterEl = document.querySelector('.filter-btn.active');
+    const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
+    const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+
+    let filtered = allOrders;
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter(o => o.order_statuses?.status_name === activeFilter);
+    }
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(o =>
+        (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
+        (o.customers?.phone_number || '').includes(searchTerm) ||
+        (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
+        (o.total_price?.toString() || '').includes(searchTerm) ||
+        (o.order_statuses?.status_name?.toLowerCase() || '').includes(searchTerm) ||
+        (Array.isArray(o.grain_details) && o.grain_details.some(g =>
+          (g.grain?.toLowerCase() || '').includes(searchTerm)))
+      );
+    }
+
     const container = document.getElementById('ordersList');
     container.innerHTML = '';
 
-    allOrders.forEach(order => {
+    if (filtered.length === 0) {
+      container.innerHTML = '<p class="text-gray-500">No orders found.</p>';
+      return;
+    }
+
+    filtered.forEach(order => {
       const grainsHTML = Array.isArray(order.grain_details)
         ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
           order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
@@ -159,13 +224,12 @@
     });
   }
 
-  // --- Modal handling ---
+  // --- Modal ---
   function openModal(order) {
     const modal = document.getElementById("orderModal");
     const content = document.getElementById("modalContent");
 
     currentOpenOrder = order;
-
     const grainsHTML = Array.isArray(order.grain_details)
       ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
         order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
@@ -198,7 +262,30 @@
   }
   window.closeModal = closeModal;
 
+  async function searchAndScroll() {
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox.value.trim() === '') return;
+
+    await loadOrders();
+    const container = document.getElementById('ordersList');
+    const firstOrder = container.querySelector('.order-card');
+    if (firstOrder) {
+      firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstOrder.classList.add("ring-2", "ring-blue-400");
+      setTimeout(() => firstOrder.classList.remove("ring-2", "ring-blue-400"), 2000);
+    }
+  }
+  window.searchAndScroll = searchAndScroll;
+
+  function resetSearch() {
+    document.getElementById('searchBox').value = '';
+    handleSearchInput();
+    loadOrders();
+  }
+  window.resetSearch = resetSearch;
+
   await initializeFlows();
+  await loadFilterButtons();
   loadOrders();
 </script>
 </body>
