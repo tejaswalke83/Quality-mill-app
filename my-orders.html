@@ -139,7 +139,8 @@
       const grainsHTML = (order.grain_details || [])
         .map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
 
-      const date = window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at;
+    //   const date = window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at;
+      const date = window.convertUTCToIST(order.created_at);
 
       const card = document.createElement('div');
       card.className = 'bg-white shadow rounded-lg p-4';

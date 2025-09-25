@@ -29,6 +29,22 @@
     document.body.appendChild(installBtn);
   });
 
+window.convertUTCToIST = function (utcString) {
+  if (!utcString) return "";
+  const date = new Date(utcString); // UTC string from Supabase
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  });
+};
+
+
+
   // --- Toast container (reused) ---
   function showToast(text, timeout = 3000) {
     let toast = document.getElementById('pwa-toast');
