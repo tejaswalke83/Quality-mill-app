@@ -59,6 +59,7 @@
 
   let statusesCache = [];
   let statusFlows = {};
+  let currentOpenOrder = null;
 
   // --- Utility: Subtle color mapping for statuses ---
   function getStatusClass(status) {
@@ -117,7 +118,10 @@
 
   async function updateOrderStatus(orderId, newStatusId) {
     const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
-    if (!error) loadOrders();
+    if (!error) {
+      closeModal(); // ✅ Close after update
+      loadOrders();
+    }
   }
   window.updateOrderStatus = updateOrderStatus;
 
@@ -127,18 +131,28 @@
     container.innerHTML = '';
 
     allOrders.forEach(order => {
+      const grainsHTML = Array.isArray(order.grain_details)
+        ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+          order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+          '</ul>' : '';
+
       const statusLabel = order.order_statuses?.status_name || "Unknown";
       const statusClass = getStatusClass(statusLabel);
 
       const div = document.createElement('div');
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
       div.innerHTML = `
-        <div class="flex justify-between items-center">
-          <h3 class="font-semibold">${order.customers?.name || 'N/A'}</h3>
-          <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span>
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
+          <div class="text-right text-sm text-gray-600">
+            <strong>Token:</strong> ${order.token_number || ''}<br>
+            <strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}
+          </div>
         </div>
-        <p class="text-sm text-gray-600">Token: ${order.token_number || ''}</p>
-        <p class="text-sm text-gray-600">Total: ₹${(order.total_price || 0).toFixed(2)}</p>
+        <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+        <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+        ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
+        <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
       `;
       div.addEventListener('click', () => openModal(order));
       container.appendChild(div);
@@ -149,6 +163,8 @@
   function openModal(order) {
     const modal = document.getElementById("orderModal");
     const content = document.getElementById("modalContent");
+
+    currentOpenOrder = order;
 
     const grainsHTML = Array.isArray(order.grain_details)
       ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
@@ -176,7 +192,10 @@
     modal.classList.remove("hidden");
   }
 
-  function closeModal() { document.getElementById("orderModal").classList.add("hidden"); }
+  function closeModal() { 
+    document.getElementById("orderModal").classList.add("hidden"); 
+    currentOpenOrder = null;
+  }
   window.closeModal = closeModal;
 
   await initializeFlows();
