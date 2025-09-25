@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Registration</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f5f5f5;
+      padding: 30px;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-container {
+      background: #fff;
+      padding: 25px 30px;
+      border-radius: 12px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    label {
+      font-weight: 500;
+      display: block;
+      margin-bottom: 6px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+    }
+    .error {
+      color: red;
+      font-size: 13px;
+      margin-top: 5px;
+    }
+    .inline-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .inline-group input {
+      flex: 1;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .hidden {
+      display: none;
+    }
+    #status {
+      margin-top: 20px;
+      text-align: center;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>User Registration</h2>
+
+  <div class="form-container">
+
+    <!-- Mobile number input -->
+    <div id="mobile-section" class="form-group">
+      <label for="mobile">Mobile Number</label>
+      <div class="inline-group">
+        <input type="tel" id="mobile" placeholder="Enter 10-digit mobile number" />
+        <button onclick="checkUser()">Proceed</button>
+      </div>
+      <div id="mobile-error" class="error"></div>
+    </div>
+
+    <!-- Staff password input, hidden initially -->
+<div id="staff-password-section" class="form-group hidden">
+  <label for="staff-password">Enter Password</label>
+  <div class="inline-group">
+    <input type="password" id="staff-password" placeholder="Enter your password" />
+    <button onclick="verifyStaffPassword()">Login</button>
+  </div>
+  <div id="password-error" class="error"></div>
+</div>
+
+    <!-- Registration form (hidden by default) -->
+    <div id="register-section" class="hidden">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" placeholder="Enter full name" />
+        <div id="name-error" class="error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="society">Society</label>
+        <select id="society">
+          <option value="">Select</option>
+        </select>
+        <div id="society-error" class="error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="wing">Wing</label>
+        <input type="text" id="wing" placeholder="Enter wing" />
+        <div id="wing-error" class="error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="flat">Flat Number</label>
+        <input type="text" id="flat" placeholder="Enter flat number" />
+        <div id="flat-error" class="error"></div>
+      </div>
+
+    <div class="form-group">
+  <label>Milling Preference</label><br/>
+  <label><input type="radio" name="milling" value="fine" /> Fine</label><br/>
+  <label><input type="radio" name="milling" value="medium" /> Medium</label><br/>
+  <label><input type="radio" name="milling" value="coarse" /> Coarse</label>
+  <div id="milling-error" class="error"></div>
+</div>
+
+
+      <button onclick="registerUser()">Register</button>
+    </div>
+
+    <!-- Order Type Selection (initially hidden) -->
+<!-- <div id="order-type-section" class="hidden">
+  <h3>What would you like to do today?</h3>
+  <div style="display: flex; gap: 20px; flex-direction: column; margin-top: 20px;">
+
+    <div onclick="selectOrderType('pickup')" style="border: 2px solid #ccc; border-radius: 10px; padding: 20px; cursor: pointer; position: relative;">
+      <strong>Pickup & Delivery</strong>
+      <p>We’ll pick up your grains from your door step, mill them, and deliver back to you.</p>
+      <span id="tick-pickup" class="hidden" style="position: absolute; top: 10px; left: 10px; color: green;">✔️</span>
+    </div>
+
+    <div onclick="selectOrderType('fresh-milled')" style="border: 2px solid #ccc; border-radius: 10px; padding: 20px; cursor: pointer; position: relative;">
+      <strong>Freshly Milled Flour</strong>
+      <p>Select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
+      <span id="tick-fresh-milled" class="hidden" style="position: absolute; top: 10px; left: 10px; color: green;">✔️</span>
+    </div>
+
+  </div>
+</div> -->
+
+
+    <!-- Output -->
+    <div id="status" class="form-group"></div>
+
+  </div>
+
+  <!-- Supabase and JS -->
+<script src="script.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+
+    document.getElementById('register-section').classList.add('hidden');
+
+    const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function checkUser() {
+  const mobile = document.getElementById('mobile').value.trim();
+  clearErrors();
+
+  if (!/^\d{10}$/.test(mobile)) {
+    document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
+    return;
+  }
+
+  document.getElementById('status').innerText = "Checking user...";
+
+  try {
+    // First check users (staff)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone_number', mobile)
+      .maybeSingle();
+
+    if (userError) throw userError;
+
+    if (userData) {
+      // Phone number belongs to staff user
+      if (['admin', 'manager', 'operator', 'delivery'].includes(userData.role)) {
+        // Show password input to staff
+        document.getElementById('staff-password-section').classList.remove('hidden');
+        document.getElementById('mobile-section').classList.add('hidden');
+        document.getElementById('status').innerText = "Staff Login. Please enter your password.";
+        // Store user data temporarily for verification
+        window.currentStaffUser = userData;
+        return;
+      }
+    }
+
+    // Not a staff user, check customers table
+    const { data: customerData, error: customerError } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('phone_number', mobile)
+      .maybeSingle();
+
+    if (customerError) throw customerError;
+
+    if (customerData) {
+      // Existing customer flow
+      const { data: orders, error: orderError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('customer_id', customerData.id)
+        .limit(1);
+
+      if (orderError) {
+        alert("Something went wrong while checking user's orders.");
+        return;
+      }
+
+      if (orders && orders.length > 0) {
+        document.getElementById('status').innerText = "User found. Redirecting to my-orders.html...";
+        setTimeout(() => {
+          window.location.href = `my-orders.html?phone=${mobile}`;
+        }, 1000);
+      } else {
+        document.getElementById('status').innerText = "User found. Please choose your order type.";
+      //  showOrderTypeSection();
+        window.location.href = `select-order-type.html?phone=${mobile}`;
+      }
+    } else {
+      // New user registration flow
+      document.getElementById('status').innerText = "New user. Please register.";
+      document.getElementById('register-section').classList.remove('hidden');
+      loadSocieties();
+    }
+  } catch (err) {
+    console.error('Error checking user:', err);
+    alert("Something went wrong while checking the user. Please try again.");
+    document.getElementById('status').innerText = "";
+  }
+}
+
+
+
+
+async function verifyStaffPassword() {
+  const passwordInput = document.getElementById('staff-password').value;
+  const staffUser = window.currentStaffUser;
+
+  document.getElementById('password-error').innerText = "";
+
+  if (!passwordInput) {
+    document.getElementById('password-error').innerText = "Password cannot be empty.";
+    return;
+  }
+
+  // For simplicity, assuming plaintext password check. 
+  // Ideally, hash password and verify on server or Supabase RPC.
+
+  if (passwordInput === staffUser.password) {
+    document.getElementById('status').innerText = "Login successful! Redirecting to order-dashboard.html...";
+    setTimeout(() => {
+      window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
+    }, 1000);
+  } else {
+    document.getElementById('password-error').innerText = "Incorrect password. Please try again.";
+  }
+}
+
+
+    
+    async function loadSocieties() {
+      try {
+        const { data, error } = await supabase
+          .from('societies')
+          .select('*');
+
+        if (error) throw error;
+
+        const dropdown = document.getElementById('society');
+        dropdown.innerHTML = '<option value="">Select</option>';
+        data.forEach(soc => {
+          const opt = document.createElement('option');
+          opt.value = soc.id;
+          opt.text = soc.name;
+          dropdown.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Error loading societies:', err);
+        alert("Error loading societies. Check console for details.");
+      }
+    }
+
+    async function registerUser() {
+      const phoneNumber = document.getElementById('mobile').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const societyId = document.getElementById('society').value;
+      const flatNumber = document.getElementById('flat').value.trim();
+      const wing = document.getElementById('wing').value.trim();
+      const millingPreference = document.querySelector('input[name="milling"]:checked')?.value || '';
+
+
+      clearErrors();
+
+      if (!phoneNumber || !name || !societyId || !flatNumber || !wing || !millingPreference) {
+        showError("Please fill in all required fields.");
+        return;
+      }
+
+      try {
+        const { data: societyData, error: societyFetchError } = await supabase
+          .from('societies')
+          .select('name')
+          .eq('id', societyId)
+          .single();
+
+        if (societyFetchError || !societyData) {
+          console.error("Error fetching society name:", societyFetchError);
+          showError("Failed to fetch society details.");
+          return;
+        }
+
+        const societyName = societyData.name;
+
+        const { error } = await supabase.from('customers').insert([{
+          phone_number: phoneNumber,
+          name: name,
+          society_id: societyId,
+          society_name: societyName,
+          flat_number: flatNumber,
+          wing: wing,
+          milling_preference: millingPreference
+        }]);
+
+        if (error) {
+          console.error("Error registering user: ", error);
+          showError("Error registering user. Please try again.");
+          return;
+        }
+
+        alert("User registered successfully!");
+        document.getElementById('status').innerText = "Registration successful. Please choose your order type.";
+//showOrderTypeSection();
+        window.location.href = `select-order-type.html?phone=${phoneNumber}`;
+
+
+        // location.reload();
+      } catch (err) {
+        console.error("Unexpected error during registration:", err);
+        showError("Unexpected error. Please try again.");
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('status').innerText = msg;
+    }
+
+    function clearErrors() {
+      ['mobile-error', 'name-error', 'society-error', 'wing-error', 'flat-error', 'milling-error']
+        .forEach(id => document.getElementById(id).innerText = '');
+      document.getElementById('status').innerText = "";
+    }
+function showOrderTypeSection() {
+  document.getElementById('mobile-section').classList.add('hidden');
+  document.getElementById('register-section').classList.add('hidden');
+  document.getElementById('order-type-section').classList.remove('hidden');
+}
+
+function selectOrderType(type) {
+  localStorage.setItem('orderType', type);
+  
+  // Add green tick visual feedback
+  document.getElementById('tick-pickup').classList.add('hidden');
+  document.getElementById('tick-fresh-milled').classList.add('hidden');
+
+  if (type === 'pickup') {
+    document.getElementById('tick-pickup').classList.remove('hidden');
+  } else {
+    document.getElementById('tick-fresh-milled').classList.remove('hidden');
+  }
+
+  // Redirect after 500ms for visual effect
+  const phone = document.getElementById('mobile').value.trim();
+  setTimeout(() => {
+    window.location.href = `create-order.html?phone=${phone}`;
+  }, 500);
+}
+
+  </script>
+</body>
+</html>
