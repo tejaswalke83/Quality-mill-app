@@ -74,27 +74,22 @@
       display: none;
     }
     #status {
-      margin-top: 10px;
+      margin-top: 20px;
       text-align: center;
       font-weight: 500;
     }
-    /* For radio buttons inline with label */
-    .radio-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
   </style>
 
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#007bff">
-  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
-  <script defer src="/common.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#007bff">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+<script defer src="/common.js"></script>
+
+
 </head>
 <body>
 
-  <h2>Start Here</h2>
+  <h2>User Registration</h2>
 
   <div class="form-container">
 
@@ -120,10 +115,6 @@
 
     <!-- Registration form (hidden by default) -->
     <div id="register-section" class="hidden">
-
-      <!-- New user message -->
-      <p id="new-user-msg" class="text-blue-600 font-medium mb-4">New user. Please register.</p>
-
       <div class="form-group">
         <label for="name">Full Name</label>
         <input type="text" id="name" placeholder="Enter full name" />
@@ -151,18 +142,10 @@
       </div>
 
       <div class="form-group">
-        <label>Milling Preference</label>
-        <div>
-          <label class="radio-label">
-            <input type="radio" name="milling" value="fine" /> Fine
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="milling" value="medium" /> Medium
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="milling" value="coarse" /> Coarse
-          </label>
-        </div>
+        <label>Milling Preference</label><br/>
+        <label><input type="radio" name="milling" value="fine" /> Fine</label><br/>
+        <label><input type="radio" name="milling" value="medium" /> Medium</label><br/>
+        <label><input type="radio" name="milling" value="coarse" /> Coarse</label>
         <div id="milling-error" class="error"></div>
       </div>
 
@@ -243,9 +226,8 @@
           }
         } else {
           // New user
-          document.getElementById('status').innerText = "";
+          document.getElementById('status').innerText = "New user. Please register.";
           document.getElementById('register-section').classList.remove('hidden');
-          document.getElementById('new-user-msg').classList.remove('hidden');
           loadSocieties();
         }
       } catch (err) {
