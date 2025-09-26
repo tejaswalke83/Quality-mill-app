@@ -262,9 +262,17 @@ window.addRow = function () {
 
     grandTotal += rowTotal;
   });
-  subtotalEl.textContent = `₹${grandTotal.toFixed(2)}`;
-  totalPriceEl.textContent = `₹${grandTotal.toFixed(2)}`;
+
+  // ✅ Round to nearest integer
+  const total_price = Math.round(
+  parseFloat(totalPriceEl.textContent.replace("₹", ""))
+);
+
+
+  subtotalEl.textContent = `₹${roundedTotal}`;
+  totalPriceEl.textContent = `₹${roundedTotal}`;
 }
+
 
     window.submitOrder = async function () {
       let grainDetails = [];
