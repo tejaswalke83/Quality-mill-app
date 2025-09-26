@@ -173,12 +173,6 @@
         <div id="society-error" class="error"></div>
       </div>
 
-      <!-- Custom society name (only if "Other") -->
-      <div class="form-group hidden" id="other-society-group">
-        <label for="other-society">Enter Society Name</label>
-        <input type="text" id="other-society" placeholder="Enter society name" />
-      </div>
-
       <div class="form-group">
         <label for="wing">Wing</label>
         <input type="text" id="wing" placeholder="Enter wing" />
@@ -265,6 +259,27 @@
       }
     };
 
+    // ✅ Verify staff login
+    window.verifyStaffPassword = async function() {
+      const passwordInput = document.getElementById('staff-password').value;
+      const staffUser = window.currentStaffUser;
+      document.getElementById('password-error').innerText = "";
+
+      if (!passwordInput) {
+        document.getElementById('password-error').innerText = "Password cannot be empty.";
+        return;
+      }
+
+      if (passwordInput === staffUser.password) {
+        document.getElementById('status').innerText = "Login successful! Redirecting...";
+        setTimeout(() => {
+          window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
+        }, 1000);
+      } else {
+        document.getElementById('password-error').innerText = "Incorrect password.";
+      }
+    };
+
     // ✅ Societies typeahead
     async function loadSocieties() {
       try {
@@ -282,9 +297,6 @@
             return;
           }
           let matches = societiesCache.filter(s => s.name.toLowerCase().includes(val));
-          if (matches.length === 0) {
-            matches = [{ id: 'other', name: 'Other' }];
-          }
           matches.forEach(soc => {
             const div = document.createElement('div');
             div.className = 'suggestion';
@@ -293,56 +305,32 @@
               input.value = soc.name;
               suggestions.innerHTML = '';
               suggestions.classList.add('hidden');
-              if (soc.id === 'other') {
-                document.getElementById('other-society-group').classList.remove('hidden');
-              } else {
-                document.getElementById('other-society-group').classList.add('hidden');
-              }
             };
             suggestions.appendChild(div);
           });
-          suggestions.classList.remove('hidden');
+          if (matches.length > 0) {
+            suggestions.classList.remove('hidden');
+          } else {
+            suggestions.classList.add('hidden');
+          }
         });
       } catch (err) {
         console.error('Error loading societies:', err);
       }
     }
-// ✅ Verify staff login
-window.verifyStaffPassword = async function() {
-  const passwordInput = document.getElementById('staff-password').value;
-  const staffUser = window.currentStaffUser;
-  document.getElementById('password-error').innerText = "";
-
-  if (!passwordInput) {
-    document.getElementById('password-error').innerText = "Password cannot be empty.";
-    return;
-  }
-
-  if (passwordInput === staffUser.password) {
-    document.getElementById('status').innerText = "Login successful! Redirecting...";
-    setTimeout(() => {
-      window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-    }, 1000);
-  } else {
-    document.getElementById('password-error').innerText = "Incorrect password.";
-  }
-};
 
     // ✅ Register user
     window.registerUser = async function() {
       const phoneNumber = document.getElementById('mobile').value.trim();
       const name = document.getElementById('name').value.trim();
       const societyName = document.getElementById('society-input').value.trim();
-      const customSociety = document.getElementById('other-society').value.trim();
       const wing = document.getElementById('wing').value.trim();
       const flatNumber = document.getElementById('flat').value.trim();
       const millingPreference = document.querySelector('input[name="milling"]:checked')?.value || '';
 
       clearErrors();
 
-      const finalSocietyName = societyName === 'Other' ? customSociety : societyName;
-
-      if (!phoneNumber || !name || !finalSocietyName || !wing || !flatNumber || !millingPreference) {
+      if (!phoneNumber || !name || !societyName || !wing || !flatNumber || !millingPreference) {
         showError("Please fill in all required fields.");
         return;
       }
@@ -351,7 +339,7 @@ window.verifyStaffPassword = async function() {
         const { error } = await supabase.from('customers').insert([{
           phone_number: phoneNumber,
           name: name,
-          society_name: finalSocietyName,
+          society_name: societyName,
           flat_number: flatNumber,
           wing: wing,
           milling_preference: millingPreference
