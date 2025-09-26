@@ -94,13 +94,13 @@
 
     // ✅ Load customer
     async function loadUser() {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("customers")
         .select("*")
         .eq("phone_number", phone)
         .maybeSingle();
 
-      if (error || !data) {
+      if (!data) {
         document.getElementById("user-info").innerHTML = `<p class="text-red-600">Customer not found!</p>`;
         return;
       }
@@ -116,49 +116,58 @@
 
     // ✅ Load grains
     async function loadGrains() {
-      const { data: grains, error } = await supabase
+      const { data: grains } = await supabase
         .from("Grain_for_sell")
         .select("*")
         .eq("is_active", true);
-
-      if (error) {
-        console.error(error);
-        return;
-      }
 
       grains.forEach(g => {
         const row = document.createElement("div");
         row.className = "p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2";
 
         row.innerHTML = `
-          <!-- Line 1 -->
           <div class="flex items-center gap-3">
             <input type="checkbox" class="grain-check"/>
             <div class="grain-name flex-1 font-semibold">${g.product_name}</div>
-            <input type="number" min="1" max="999" placeholder="Qty (kg)" 
-              class="grain-qty w-20 p-2 border rounded"/>
+            <input type="number" min="1" placeholder="Qty (kg)" class="grain-qty w-20 p-2 border rounded"/>
           </div>
-
-          <!-- Line 2 -->
           <div class="flex flex-col text-sm text-gray-700">
-            <span class="price" data-price="${g.price_per_kg}">
-              Grain Price: ₹${g.price_per_kg}/kg
-            </span>
-            <span class="milling" data-milling="${g.milling_price_per_kg || 0}">
-              Milling Price: ₹${g.milling_price_per_kg || 0}/kg
-            </span>
+            <span class="price" data-price="${g.price_per_kg}">Grain Price: ₹${g.price_per_kg}/kg</span>
+            <span class="milling" data-milling="${g.milling_price_per_kg || 0}">Milling Price: ₹${g.milling_price_per_kg || 0}/kg</span>
             <span>Total: ₹<span class="row-total">0</span></span>
           </div>
-
-          <!-- Line 3 -->
           <div class="error text-red-500 text-sm"></div>
         `;
 
+        const checkbox = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+
+        // ✅ Checkbox toggle behavior
+        checkbox.addEventListener("change", () => {
+          errorEl.textContent = "";
+          if (!checkbox.checked) {
+            qtyInput.value = "";
+            row.querySelector(".row-total").textContent = "0";
+          } else if (!qtyInput.value) {
+            errorEl.textContent = "Please enter quantity";
+          }
+          updateTotals();
+        });
+
+        // ✅ Auto-check when qty is entered
+        qtyInput.addEventListener("input", () => {
+          if (parseFloat(qtyInput.value) > 0) {
+            checkbox.checked = true;
+            errorEl.textContent = "";
+          } else {
+            checkbox.checked = false;
+          }
+          updateTotals();
+        });
+
         orderRows.appendChild(row);
       });
-
-      orderRows.addEventListener("input", updateTotals);
-      orderRows.addEventListener("change", updateTotals);
     }
 
     // ✅ Update totals
@@ -168,15 +177,13 @@
       [...orderRows.querySelectorAll(".p-3")].forEach(row => {
         const check = row.querySelector(".grain-check");
         const qtyInput = row.querySelector(".grain-qty");
-        const errorEl = row.querySelector(".error");
         const totalEl = row.querySelector(".row-total");
         const priceEl = row.querySelector(".price");
         const millingEl = row.querySelector(".milling");
+        const errorEl = row.querySelector(".error");
 
         errorEl.textContent = "";
         let qty = parseFloat(qtyInput.value) || 0;
-
-        if (qty > 0) check.checked = true;
 
         if (check.checked) {
           if (qty <= 0) {
@@ -187,14 +194,13 @@
 
           const price = parseFloat(priceEl.dataset.price || 0);
           const milling = parseFloat(millingEl.dataset.milling || 0);
-
           const rowTotal = (price + milling) * qty;
-          totalEl.textContent = rowTotal.toFixed(2);
 
+          totalEl.textContent = rowTotal.toFixed(2);
           totalItems++;
           totalQty += qty;
           totalPrice += rowTotal;
-          millingTotal += (milling * qty);
+          millingTotal += milling * qty;
         } else {
           totalEl.textContent = "0";
         }
@@ -205,104 +211,6 @@
       millingTotalEl.textContent = Math.round(millingTotal);
       totalPriceEl.textContent = Math.round(totalPrice);
     }
-
-    // ✅ Token generator (same logic preserved)
-    async function generateTokenNumber() {
-      const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
-
-      const { data: activeOrders } = await supabase
-        .from("orders")
-        .select("token_number, order_statuses!inner(status_name)")
-        .not("order_statuses.status_name", "in", `(${inactiveStatuses.map(s => `'${s}'`).join(",")})`);
-
-      const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
-
-      let maxTokenNum = 0;
-      activeTokens.forEach(token => {
-        const num = parseInt(token?.slice(2), 10);
-        if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
-      });
-
-      for (let attempt = 1; attempt <= 999; attempt++) {
-        let nextNum = maxTokenNum + attempt;
-        if (nextNum > 999) nextNum -= 999;
-        const token = `QA${nextNum}`;
-        if (!activeTokens.has(token)) return token;
-      }
-      throw new Error("All tokens in use");
-    }
-
-    // ✅ Submit order
-    window.submitOrder = async function() {
-      let grainDetails = [];
-      let hasError = false;
-
-      [...orderRows.querySelectorAll(".p-3")].forEach(row => {
-        const check = row.querySelector(".grain-check");
-        const qtyInput = row.querySelector(".grain-qty");
-        const errorEl = row.querySelector(".error");
-        const totalEl = row.querySelector(".row-total");
-        const priceEl = row.querySelector(".price");
-        const millingEl = row.querySelector(".milling");
-
-        if (!check.checked) return;
-
-        const name = row.querySelector(".grain-name").textContent.trim();
-        const price = parseFloat(priceEl.dataset.price || 0);
-        const milling = parseFloat(millingEl.dataset.milling || 0);
-        const qty = parseFloat(qtyInput.value || 0);
-
-        if (qty <= 0) {
-          errorEl.textContent = "Please enter quantity";
-          hasError = true;
-        } else {
-          const rowTotal = (price + milling) * qty;
-          totalEl.textContent = rowTotal.toFixed(2);
-          grainDetails.push({ grain: name, quantity: qty, price, milling, total: rowTotal });
-        }
-      });
-
-      if (hasError || grainDetails.length === 0) {
-        showToast("Fix errors before submitting", "error");
-        return;
-      }
-
-      const total_price = Math.round(parseFloat(totalPriceEl.textContent));
-      const token_number = await generateTokenNumber();
-
-      let orderType = localStorage.getItem("orderType") || null;
-      let serveAt = localStorage.getItem("serveAt") || null;
-
-      async function getStatusId(statusName) {
-        const { data } = await supabase
-          .from("order_statuses")
-          .select("id")
-          .eq("status_name", statusName)
-          .maybeSingle();
-        return data?.id || null;
-      }
-
-      const statusId = await getStatusId("NEW");
-
-      const { error } = await supabase.from("orders").insert([{
-        customer_id: user.id,
-        grain_details: grainDetails,
-        total_price,
-        token_number,
-        order_type: orderType,
-        serve_at: serveAt,
-        status_id: statusId
-      }]);
-
-      if (error) {
-        showToast("❌ Failed to place order", "error");
-      } else {
-        showToast("✅ Order placed! Token: " + token_number);
-        setTimeout(() => {
-          window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
-        }, 2000);
-      }
-    };
 
     loadUser();
     loadGrains();
