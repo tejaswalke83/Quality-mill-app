@@ -336,10 +336,25 @@
       }
 
       try {
+        // ✅ Check if society exists
+        let { data: existingSoc } = await supabase.from('societies').select('*').eq('name', societyName).maybeSingle();
+
+        if (!existingSoc) {
+          // Insert new society if not found
+          const { data: newSoc, error: insertError } = await supabase.from('societies').insert([{ name: societyName }]).select().single();
+          if (insertError) {
+            console.error("Error inserting new society:", insertError);
+          } else {
+            existingSoc = newSoc;
+          }
+        }
+
+        // ✅ Insert new customer
         const { error } = await supabase.from('customers').insert([{
           phone_number: phoneNumber,
           name: name,
           society_name: societyName,
+          society_id: existingSoc?.id || null,
           flat_number: flatNumber,
           wing: wing,
           milling_preference: millingPreference
