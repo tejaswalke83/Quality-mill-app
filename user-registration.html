@@ -32,14 +32,14 @@
       display: block;
       margin-bottom: 6px;
     }
-    input, select {
+    input {
       width: 100%;
       padding: 10px 12px;
       font-size: 1rem;
       border: 1px solid #ccc;
       border-radius: 8px;
     }
-    input:focus, select:focus {
+    input:focus {
       outline: none;
       border-color: #007bff;
       box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
@@ -78,23 +78,48 @@
       text-align: center;
       font-weight: 500;
     }
-    /* For radio buttons inline with label */
-    .radio-label {
+    /* Radio buttons inline */
+    .radio-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 6px;
+    }
+    .radio-group label {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 6px;
+      margin: 0;
+      font-weight: normal;
     }
-    /* Advertisement styling */
-    #advertise {
-      margin-top: 20px;
-      padding: 20px;
-      background: #e9f5ff;
-      border: 1px dashed #007bff;
-      border-radius: 8px;
+    /* Typeahead dropdown */
+    .suggestions {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-top: 4px;
+      max-height: 120px;
+      overflow-y: auto;
+      background: #fff;
+      position: absolute;
+      z-index: 10;
+      width: 100%;
+    }
+    .suggestion {
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    .suggestion:hover {
+      background: #f0f0f0;
+    }
+    /* Advertisement */
+    #advertisement {
+      margin: 30px auto;
+      max-width: 500px;
       text-align: center;
-      color: #007bff;
-      font-weight: 500;
+      background: #fff;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      color: #555;
     }
   </style>
 
@@ -106,6 +131,13 @@
 <body>
 
   <h2>Start Here</h2>
+
+  <!-- Advertisement (hidden when form appears) -->
+  <div id="advertisement">
+    <h3>🌾 Quality Milling</h3>
+    <p>Fast, fresh, and healthy flour at your doorstep.</p>
+    <img src="https://via.placeholder.com/400x200?text=Your+Ad+Here" alt="Ad" style="width:100%; border-radius:8px; margin-top:15px;">
+  </div>
 
   <div class="form-container">
 
@@ -119,13 +151,7 @@
       <div id="mobile-error" class="error"></div>
     </div>
 
-    <!-- Advertisement -->
-    <div id="advertise">
-      📢 Special Offer! Get fresh flour delivered to your home.  
-      Register now and enjoy smooth ordering.
-    </div>
-
-    <!-- Staff password input, hidden initially -->
+    <!-- Staff password input -->
     <div id="staff-password-section" class="form-group hidden">
       <label for="staff-password">Enter Password</label>
       <div class="inline-group">
@@ -135,10 +161,9 @@
       <div id="password-error" class="error"></div>
     </div>
 
-    <!-- Registration form (hidden by default) -->
+    <!-- Registration form -->
     <div id="register-section" class="hidden">
 
-      <!-- New user message -->
       <p id="new-user-msg" class="text-blue-600 font-medium mb-4">New user. Please register.</p>
 
       <div class="form-group">
@@ -147,12 +172,18 @@
         <div id="name-error" class="error"></div>
       </div>
 
-      <div class="form-group">
-        <label for="society">Society</label>
-        <select id="society">
-          <option value="">Select</option>
-        </select>
+      <!-- Society with typeahead -->
+      <div class="form-group" style="position: relative;">
+        <label for="society-input">Society</label>
+        <input type="text" id="society-input" placeholder="Search or type society name" autocomplete="off" />
+        <div id="society-suggestions" class="suggestions hidden"></div>
         <div id="society-error" class="error"></div>
+      </div>
+
+      <!-- Custom society name (only if "Other") -->
+      <div class="form-group hidden" id="other-society-group">
+        <label for="other-society">Enter Society Name</label>
+        <input type="text" id="other-society" placeholder="Enter society name" />
       </div>
 
       <div class="form-group">
@@ -169,16 +200,10 @@
 
       <div class="form-group">
         <label>Milling Preference</label>
-        <div>
-          <label class="radio-label">
-            <input type="radio" name="milling" value="fine" /> Fine
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="milling" value="medium" /> Medium
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="milling" value="coarse" /> Coarse
-          </label>
+        <div class="radio-group">
+          <label><input type="radio" name="milling" value="fine" /> Fine</label>
+          <label><input type="radio" name="milling" value="medium" /> Medium</label>
+          <label><input type="radio" name="milling" value="coarse" /> Coarse</label>
         </div>
         <div id="milling-error" class="error"></div>
       </div>
@@ -187,18 +212,18 @@
     </div>
 
     <div id="status" class="form-group"></div>
-
   </div>
 
   <!-- Supabase and JS -->
-  <script src="script.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
-    const SUPABASE_KEY = 'YOUR_SUPABASE_KEY';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ✅ Expose functions globally
+    let societiesCache = [];
+
+    // ✅ Check user flow
     window.checkUser = async function() {
       const mobile = document.getElementById('mobile').value.trim();
       clearErrors();
@@ -211,15 +236,8 @@
       document.getElementById('status').innerText = "Checking user...";
 
       try {
-        // First check staff users
-        const { data: userData } = await supabase
-          .from('users')
-          .select('*')
-          .eq('phone_number', mobile)
-          .maybeSingle();
-
+        const { data: userData } = await supabase.from('users').select('*').eq('phone_number', mobile).maybeSingle();
         if (userData && ['admin','manager','operator','delivery'].includes(userData.role)) {
-          document.getElementById('advertise').classList.add('hidden'); // Hide ad
           document.getElementById('staff-password-section').classList.remove('hidden');
           document.getElementById('mobile-section').classList.add('hidden');
           document.getElementById('status').innerText = "Staff Login. Please enter your password.";
@@ -227,25 +245,17 @@
           return;
         }
 
-        // Check customers table
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('phone_number', mobile)
-          .maybeSingle();
-
+        const { data: customerData } = await supabase.from('customers').select('*').eq('phone_number', mobile).maybeSingle();
         if (customerData) {
-          document.getElementById('advertise').classList.add('hidden'); // Hide ad
           document.getElementById('status').innerText = "User found. Redirecting...";
           setTimeout(() => {
             window.location.href = `my-orders.html?phone=${mobile}`;
           }, 1000);
         } else {
           // New user
-          document.getElementById('advertise').classList.add('hidden'); // Hide ad
           document.getElementById('status').innerText = "";
           document.getElementById('register-section').classList.remove('hidden');
-          document.getElementById('new-user-msg').classList.remove('hidden');
+          document.getElementById('advertisement').classList.add('hidden');
           loadSocieties();
         }
       } catch (err) {
@@ -255,55 +265,73 @@
       }
     };
 
-    window.verifyStaffPassword = async function() {
-      const passwordInput = document.getElementById('staff-password').value;
-      const staffUser = window.currentStaffUser;
-      document.getElementById('password-error').innerText = "";
+    // ✅ Societies typeahead
+    async function loadSocieties() {
+      try {
+        const { data } = await supabase.from('societies').select('*');
+        societiesCache = data || [];
 
-      if (!passwordInput) {
-        document.getElementById('password-error').innerText = "Password cannot be empty.";
-        return;
+        const input = document.getElementById('society-input');
+        const suggestions = document.getElementById('society-suggestions');
+
+        input.addEventListener('input', () => {
+          const val = input.value.toLowerCase();
+          suggestions.innerHTML = '';
+          if (!val) {
+            suggestions.classList.add('hidden');
+            return;
+          }
+          let matches = societiesCache.filter(s => s.name.toLowerCase().includes(val));
+          if (matches.length === 0) {
+            matches = [{ id: 'other', name: 'Other' }];
+          }
+          matches.forEach(soc => {
+            const div = document.createElement('div');
+            div.className = 'suggestion';
+            div.textContent = soc.name;
+            div.onclick = () => {
+              input.value = soc.name;
+              suggestions.innerHTML = '';
+              suggestions.classList.add('hidden');
+              if (soc.id === 'other') {
+                document.getElementById('other-society-group').classList.remove('hidden');
+              } else {
+                document.getElementById('other-society-group').classList.add('hidden');
+              }
+            };
+            suggestions.appendChild(div);
+          });
+          suggestions.classList.remove('hidden');
+        });
+      } catch (err) {
+        console.error('Error loading societies:', err);
       }
+    }
 
-      if (passwordInput === staffUser.password) {
-        document.getElementById('status').innerText = "Login successful! Redirecting...";
-        setTimeout(() => {
-          window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-        }, 1000);
-      } else {
-        document.getElementById('password-error').innerText = "Incorrect password.";
-      }
-    };
-
+    // ✅ Register user
     window.registerUser = async function() {
       const phoneNumber = document.getElementById('mobile').value.trim();
       const name = document.getElementById('name').value.trim();
-      const societyId = document.getElementById('society').value;
-      const flatNumber = document.getElementById('flat').value.trim();
+      const societyName = document.getElementById('society-input').value.trim();
+      const customSociety = document.getElementById('other-society').value.trim();
       const wing = document.getElementById('wing').value.trim();
+      const flatNumber = document.getElementById('flat').value.trim();
       const millingPreference = document.querySelector('input[name="milling"]:checked')?.value || '';
 
       clearErrors();
 
-      if (!phoneNumber || !name || !societyId || !flatNumber || !wing || !millingPreference) {
+      const finalSocietyName = societyName === 'Other' ? customSociety : societyName;
+
+      if (!phoneNumber || !name || !finalSocietyName || !wing || !flatNumber || !millingPreference) {
         showError("Please fill in all required fields.");
         return;
       }
 
       try {
-        const { data: societyData } = await supabase
-          .from('societies')
-          .select('name')
-          .eq('id', societyId)
-          .single();
-
-        const societyName = societyData?.name || societyId; // fallback for "Other"
-
         const { error } = await supabase.from('customers').insert([{
           phone_number: phoneNumber,
           name: name,
-          society_id: societyId,
-          society_name: societyName,
+          society_name: finalSocietyName,
           flat_number: flatNumber,
           wing: wing,
           milling_preference: millingPreference
@@ -322,28 +350,6 @@
         showError("Unexpected error. Please try again.");
       }
     };
-
-    async function loadSocieties() {
-      try {
-        const { data } = await supabase.from('societies').select('*');
-        const dropdown = document.getElementById('society');
-        dropdown.innerHTML = '<option value="">Select</option>';
-        data.forEach(soc => {
-          const opt = document.createElement('option');
-          opt.value = soc.id;
-          opt.text = soc.name;
-          dropdown.appendChild(opt);
-        });
-        // Add "Other" option
-        const otherOpt = document.createElement('option');
-        otherOpt.value = "other";
-        otherOpt.text = "Other";
-        dropdown.appendChild(otherOpt);
-      } catch (err) {
-        console.error('Error loading societies:', err);
-        alert("Error loading societies.");
-      }
-    }
 
     function showError(msg) {
       document.getElementById('status').innerText = msg;
