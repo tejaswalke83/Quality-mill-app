@@ -249,6 +249,7 @@ window.addRow = function () {
     // }
     window.updateTotal = function() {
   let grandTotal = 0;
+
   [...orderRows.children].forEach(row => {
     const select = row.querySelector('select');
     const qtyInput = row.querySelector('input');
@@ -258,20 +259,19 @@ window.addRow = function () {
 
     // Update row values
     row.querySelector('.row-total').textContent = rowTotal.toFixed(2);
-    row.querySelector('.milling-price').textContent = price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
+    row.querySelector('.milling-price').textContent =
+      price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
 
     grandTotal += rowTotal;
   });
 
-  // ✅ Round to nearest integer
-  const total_price = Math.round(
-  parseFloat(totalPriceEl.textContent.replace("₹", ""))
-);
+  // ✅ Round the final total
+  const roundedGrandTotal = Math.round(grandTotal);
 
+  subtotalEl.textContent = `₹${roundedGrandTotal}`;
+  totalPriceEl.textContent = `₹${roundedGrandTotal}`;
+};
 
-  subtotalEl.textContent = `₹${roundedTotal}`;
-  totalPriceEl.textContent = `₹${roundedTotal}`;
-}
 
 
     window.submitOrder = async function () {
@@ -303,7 +303,7 @@ window.addRow = function () {
         return;
       }
 
-      const total_price = parseFloat(totalPriceEl.textContent.replace("₹", ""));
+      const total_price = Math.round(parseFloat(totalPriceEl.textContent.replace("₹", "")));
 
       try {
         const token_number = await generateTokenNumber();
