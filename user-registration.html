@@ -210,7 +210,7 @@
   <!-- Advertisement at bottom -->
   <div id="advertisement">
     <h3>🌾 Quality Atta Mills </h3>
-    <p>Fast, fresh, and healthy flour.</p>
+    <p>Fast, fresh, and healthy flour</p>
     <img src="https://via.placeholder.com/400x200?text=Your+Ad+Here" alt="Ad" style="width:100%; border-radius:8px; margin-top:15px;">
   </div>
 
@@ -307,6 +307,26 @@
         console.error('Error loading societies:', err);
       }
     }
+// ✅ Verify staff login
+window.verifyStaffPassword = async function() {
+  const passwordInput = document.getElementById('staff-password').value;
+  const staffUser = window.currentStaffUser;
+  document.getElementById('password-error').innerText = "";
+
+  if (!passwordInput) {
+    document.getElementById('password-error').innerText = "Password cannot be empty.";
+    return;
+  }
+
+  if (passwordInput === staffUser.password) {
+    document.getElementById('status').innerText = "Login successful! Redirecting...";
+    setTimeout(() => {
+      window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
+    }, 1000);
+  } else {
+    document.getElementById('password-error').innerText = "Incorrect password.";
+  }
+};
 
     // ✅ Register user
     window.registerUser = async function() {
