@@ -45,19 +45,23 @@
 
       <hr class="my-6">
 
+      
       <!-- Pricing breakdown -->
-      <div class="bg-gray-50 p-4 rounded-lg mb-4">
-        <h3 class="font-semibold mb-2">Pricing Breakdown</h3>
-        <div class="flex justify-between mb-1">
-          <span class="text-gray-600">Subtotal</span>
-          <span id="subtotal" class="font-medium">₹0</span>
-        </div>
-        <!-- Removed GST and Grain cost -->
-        <div class="flex justify-between font-bold text-lg border-t pt-2">
-          <span>Total</span>
-          <span id="total-price">₹0</span>
-        </div>
-      </div>
+<div class="bg-gray-50 p-4 rounded-lg mb-4">
+  <h3 class="font-semibold mb-1">Pricing Breakdown</h3>
+  <p class="text-xs text-gray-500 mb-2">*Values are rounded off to the nearest number</p>
+
+  <div class="flex justify-between mb-1">
+    <span class="text-gray-600">Subtotal</span>
+    <span id="subtotal" class="font-medium">₹0</span>
+  </div>
+
+  <div class="flex justify-between font-bold text-lg border-t pt-2">
+    <span>Total</span>
+    <span id="total-price">₹0</span>
+  </div>
+</div>
+
 
       <div class="flex space-x-3">
         <button class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700" onclick="submitOrder()">
