@@ -13,10 +13,9 @@
     body { font-family: "Inter", system-ui, sans-serif; }
   </style>
   <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#007bff">
-<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
-<script defer src="/common.js"></script>
-
+  <meta name="theme-color" content="#007bff">
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">
+  <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen p-4">
   <div class="max-w-3xl mx-auto">
@@ -30,7 +29,9 @@
 
       <!-- Totals -->
       <div class="bg-gray-50 p-4 rounded-lg mb-4">
-        <h3 class="font-semibold mb-2">Order Summary</h3>
+        <h3 class="font-semibold mb-1">Order Summary</h3>
+        <p class="text-xs text-gray-500 mb-2">*Values are rounded off to the nearest number</p>
+
         <div class="flex justify-between text-gray-600">
           <span>Selected Items</span>
           <span id="total-items">0</span>
@@ -38,6 +39,10 @@
         <div class="flex justify-between text-gray-600">
           <span>Total Quantity</span>
           <span id="total-qty">0 kg</span>
+        </div>
+        <div class="flex justify-between text-gray-600">
+          <span>Milling Charges</span>
+          <span>₹<span id="milling-total">0</span></span>
         </div>
         <div class="flex justify-between font-bold text-lg border-t pt-2">
           <span>Total Price</span>
@@ -74,6 +79,7 @@
     const orderRows = document.getElementById("order-rows");
     const totalItemsEl = document.getElementById("total-items");
     const totalQtyEl = document.getElementById("total-qty");
+    const millingTotalEl = document.getElementById("milling-total");
     const totalPriceEl = document.getElementById("total-price");
     const toast = document.getElementById("toast");
 
@@ -107,183 +113,107 @@
         <p><strong>Society:</strong> ${user.society_name}</p>
       `;
     }
-// ✅ Load grains
-async function loadGrains() {
-  const { data: grains, error } = await supabase
-    .from("Grain_for_sell")
-    .select("*")
-    .eq("is_active", true);
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+    // ✅ Load grains
+    async function loadGrains() {
+      const { data: grains, error } = await supabase
+        .from("Grain_for_sell")
+        .select("*")
+        .eq("is_active", true);
 
-  grains.forEach(g => {
-    const row = document.createElement("div");
-    row.className = "p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2";
-
-   row.innerHTML = `
-  <!-- Line 1 -->
-  <div class="flex items-center gap-3">
-    <input type="checkbox" class="grain-check"/>
-    <div class="grain-name flex-1 font-semibold">${g.product_name}</div>
-    <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" 
-      class="grain-qty w-20 p-2 border rounded"/>
-  </div>
-
-  <!-- Line 2 -->
-  <div class="flex items-center justify-between text-sm text-gray-700">
-    <span class="price" data-price="${g.price_per_kg}">
-      Price: ₹${g.price_per_kg}/kg (Stock: ${g.stock_qty} kg)
-    </span>
-    <span>Total: ₹<span class="row-total">0</span></span>
-  </div>
-
-  <!-- Line 3 -->
-  <div class="error text-red-500 text-sm"></div>
-`;
-
-    orderRows.appendChild(row);
-  });
-
-  orderRows.addEventListener("input", updateTotals);
-  orderRows.addEventListener("change", updateTotals);
-}
-
-// ✅ Update totals
-function updateTotals() {
-  let totalItems = 0, totalQty = 0, totalPrice = 0;
-
-  [...orderRows.querySelectorAll(".p-3")].forEach(row => {
-    const check = row.querySelector(".grain-check");
-    const qtyInput = row.querySelector(".grain-qty");
-    const errorEl = row.querySelector(".error");
-    const totalEl = row.querySelector(".row-total");
-
-    errorEl.textContent = "";
-    let qty = parseFloat(qtyInput.value) || 0;
-
-    if (qty > 0) check.checked = true;
-
-    if (check.checked) {
-      if (qty <= 0) {
-        errorEl.textContent = "Please enter quantity";
-        totalEl.textContent = "0";
+      if (error) {
+        console.error(error);
         return;
       }
 
-      const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
-      const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
+      grains.forEach(g => {
+        const row = document.createElement("div");
+        row.className = "p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2";
 
-      const rowTotal = price * qty;
-      totalEl.textContent = rowTotal.toFixed(2);
+        row.innerHTML = `
+          <!-- Line 1 -->
+          <div class="flex items-center gap-3">
+            <input type="checkbox" class="grain-check"/>
+            <div class="grain-name flex-1 font-semibold">${g.product_name}</div>
+            <input type="number" min="1" max="999" placeholder="Qty (kg)" 
+              class="grain-qty w-20 p-2 border rounded"/>
+          </div>
 
-      totalItems++;
-      totalQty += qty;
-      totalPrice += rowTotal;
-    } else {
-      totalEl.textContent = "0";
+          <!-- Line 2 -->
+          <div class="flex flex-col text-sm text-gray-700">
+            <span class="price" data-price="${g.price_per_kg}">
+              Grain Price: ₹${g.price_per_kg}/kg
+            </span>
+            <span class="milling" data-milling="${g.milling_price_per_kg || 0}">
+              Milling Price: ₹${g.milling_price_per_kg || 0}/kg
+            </span>
+            <span>Total: ₹<span class="row-total">0</span></span>
+          </div>
+
+          <!-- Line 3 -->
+          <div class="error text-red-500 text-sm"></div>
+        `;
+
+        orderRows.appendChild(row);
+      });
+
+      orderRows.addEventListener("input", updateTotals);
+      orderRows.addEventListener("change", updateTotals);
     }
-  });
 
-  // ✅ Round total to nearest integer
-  const roundedTotal = Math.round(totalPrice);
+    // ✅ Update totals
+    function updateTotals() {
+      let totalItems = 0, totalQty = 0, totalPrice = 0, millingTotal = 0;
 
-  totalItemsEl.textContent = totalItems;
-  totalQtyEl.textContent = totalQty;
-  totalPriceEl.textContent = roundedTotal;
-}
+      [...orderRows.querySelectorAll(".p-3")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+        const totalEl = row.querySelector(".row-total");
+        const priceEl = row.querySelector(".price");
+        const millingEl = row.querySelector(".milling");
 
+        errorEl.textContent = "";
+        let qty = parseFloat(qtyInput.value) || 0;
 
+        if (qty > 0) check.checked = true;
 
-    // // ✅ Load grains
-    // async function loadGrains() {
-    //   const { data: grains, error } = await supabase
-    //     .from("Grain_for_sell")
-    //     .select("*")
-    //     .eq("is_active", true);
+        if (check.checked) {
+          if (qty <= 0) {
+            errorEl.textContent = "Please enter quantity";
+            totalEl.textContent = "0";
+            return;
+          }
 
-    //   if (error) {
-    //     console.error(error);
-    //     return;
-    //   }
+          const price = parseFloat(priceEl.dataset.price || 0);
+          const milling = parseFloat(millingEl.dataset.milling || 0);
 
-    //   grains.forEach(g => {
-    //     const row = document.createElement("div");
-    //     row.className = "flex items-center gap-3 p-3 border rounded-lg shadow-sm bg-gray-50";
-    //     row.innerHTML = `
-    //       <input type="checkbox" class="grain-check"/>
-    //       <div class="flex-1">
-    //         <strong>${g.product_name}</strong><br>
-    //         <span class="text-gray-600">Price: ₹${g.price_per_kg}/kg</span><br>
-    //         <span class="text-gray-600">Stock: ${g.stock_qty} kg</span>
-    //       </div>
-    //       <input type="number" min="1" max="${g.stock_qty}" placeholder="Qty (kg)" class="grain-qty w-20 p-2 border rounded"/>
-    //       <div class="text-gray-700">₹<span>0</span></div>
-    //       <div class="error text-red-500 text-sm flex-1"></div>
-    //     `;
-    //     orderRows.appendChild(row);
-    //   });
+          const rowTotal = (price + milling) * qty;
+          totalEl.textContent = rowTotal.toFixed(2);
 
-    //   orderRows.addEventListener("input", updateTotals);
-    //   orderRows.addEventListener("change", updateTotals);
-    // }
+          totalItems++;
+          totalQty += qty;
+          totalPrice += rowTotal;
+          millingTotal += (milling * qty);
+        } else {
+          totalEl.textContent = "0";
+        }
+      });
 
-    // // ✅ Update totals
-    // function updateTotals() {
-    //   let totalItems = 0, totalQty = 0, totalPrice = 0;
-
-    //   [...orderRows.querySelectorAll(".row, .flex")].forEach(row => {
-    //     const check = row.querySelector(".grain-check");
-    //     const qtyInput = row.querySelector(".grain-qty");
-    //     const errorEl = row.querySelector(".error");
-    //     const totalEl = row.querySelector(".text-gray-700 span");
-
-    //     errorEl.textContent = "";
-    //     let qty = parseFloat(qtyInput.value) || 0;
-
-    //     if (qty > 0) check.checked = true;
-
-    //     if (check.checked) {
-    //       if (qty <= 0) {
-    //         errorEl.textContent = "Please enter quantity";
-    //         totalEl.textContent = "0";
-    //         return;
-    //       }
-
-    //       const priceMatch = row.innerHTML.match(/₹(\d+(\.\d+)?)/);
-    //       const price = priceMatch ? parseFloat(priceMatch[1]) : 0;
-    //       const rowTotal = price * qty;
-
-    //       totalEl.textContent = rowTotal.toFixed(2);
-
-    //       totalItems++;
-    //       totalQty += qty;
-    //       totalPrice += rowTotal;
-    //     } else {
-    //       totalEl.textContent = "0";
-    //     }
-    //   });
-
-    //   totalItemsEl.textContent = totalItems;
-    //   totalQtyEl.textContent = totalQty;
-    //   totalPriceEl.textContent = totalPrice.toFixed(2);
-    // }
+      totalItemsEl.textContent = totalItems;
+      totalQtyEl.textContent = totalQty;
+      millingTotalEl.textContent = Math.round(millingTotal);
+      totalPriceEl.textContent = Math.round(totalPrice);
+    }
 
     // ✅ Token generator (same logic preserved)
     async function generateTokenNumber() {
       const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
 
-      const { data: activeOrders, error } = await supabase
+      const { data: activeOrders } = await supabase
         .from("orders")
         .select("token_number, order_statuses!inner(status_name)")
         .not("order_statuses.status_name", "in", `(${inactiveStatuses.map(s => `'${s}'`).join(",")})`);
-
-      if (error) {
-        console.error("❌ Error fetching active orders:", error);
-        return "QA1";
-      }
 
       const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
 
@@ -302,80 +232,77 @@ function updateTotals() {
       throw new Error("All tokens in use");
     }
 
-    // ✅ Submit order (unchanged logic, only toast for UX)
+    // ✅ Submit order
     window.submitOrder = async function() {
-  let grainDetails = [];
-  let hasError = false;
+      let grainDetails = [];
+      let hasError = false;
 
-  [...orderRows.querySelectorAll(".p-3")].forEach(row => {
-    const check = row.querySelector(".grain-check");
-    const qtyInput = row.querySelector(".grain-qty");
-    const errorEl = row.querySelector(".error");
-    const totalEl = row.querySelector(".row-total");
-    const priceEl = row.querySelector(".price");
+      [...orderRows.querySelectorAll(".p-3")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        const errorEl = row.querySelector(".error");
+        const totalEl = row.querySelector(".row-total");
+        const priceEl = row.querySelector(".price");
+        const millingEl = row.querySelector(".milling");
 
-    if (!check.checked) return;
+        if (!check.checked) return;
 
-    // const name = row.querySelector("strong").textContent;
-    const name = row.querySelector(".flex-1").textContent.trim();
+        const name = row.querySelector(".grain-name").textContent.trim();
+        const price = parseFloat(priceEl.dataset.price || 0);
+        const milling = parseFloat(millingEl.dataset.milling || 0);
+        const qty = parseFloat(qtyInput.value || 0);
 
-    const price = parseFloat(priceEl.dataset.price || 0);
-    const qty = parseFloat(qtyInput.value || 0);
+        if (qty <= 0) {
+          errorEl.textContent = "Please enter quantity";
+          hasError = true;
+        } else {
+          const rowTotal = (price + milling) * qty;
+          totalEl.textContent = rowTotal.toFixed(2);
+          grainDetails.push({ grain: name, quantity: qty, price, milling, total: rowTotal });
+        }
+      });
 
-    if (qty <= 0) {
-      errorEl.textContent = "Please enter quantity";
-      hasError = true;
-    } else {
-      const rowTotal = price * qty;
-      totalEl.textContent = rowTotal.toFixed(2);
-      grainDetails.push({ grain: name, quantity: qty, price, total: rowTotal });
-    }
-  });
+      if (hasError || grainDetails.length === 0) {
+        showToast("Fix errors before submitting", "error");
+        return;
+      }
 
-  if (hasError || grainDetails.length === 0) {
-    showToast("Fix errors before submitting", "error");
-    return;
-  }
+      const total_price = Math.round(parseFloat(totalPriceEl.textContent));
+      const token_number = await generateTokenNumber();
 
-  // const total_price = parseFloat(totalPriceEl.textContent);
-  const total_price = Math.round(parseFloat(totalPriceEl.textContent));
+      let orderType = localStorage.getItem("orderType") || null;
+      let serveAt = localStorage.getItem("serveAt") || null;
 
-  const token_number = await generateTokenNumber();
+      async function getStatusId(statusName) {
+        const { data } = await supabase
+          .from("order_statuses")
+          .select("id")
+          .eq("status_name", statusName)
+          .maybeSingle();
+        return data?.id || null;
+      }
 
-  let orderType = localStorage.getItem("orderType") || null;
-  let serveAt = localStorage.getItem("serveAt") || null;
+      const statusId = await getStatusId("NEW");
 
-  async function getStatusId(statusName) {
-    const { data, error } = await supabase
-      .from("order_statuses")
-      .select("id")
-      .eq("status_name", statusName)
-      .maybeSingle();
-    return data?.id || null;
-  }
+      const { error } = await supabase.from("orders").insert([{
+        customer_id: user.id,
+        grain_details: grainDetails,
+        total_price,
+        token_number,
+        order_type: orderType,
+        serve_at: serveAt,
+        status_id: statusId
+      }]);
 
-  const statusId = await getStatusId("NEW");
-
-  const { error } = await supabase.from("orders").insert([{
-    customer_id: user.id,
-    grain_details: grainDetails,
-    total_price,
-    token_number,
-    order_type: orderType,
-    serve_at: serveAt,
-    status_id: statusId
-  }]);
-
-  if (error) {
-    showToast("❌ Failed to place order", "error");
-  } else {
-    showToast("✅ Order placed! Token: " + token_number);
-    setTimeout(() => {
-      window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
-    }, 2000);
-  }
-};
-
+      if (error) {
+        showToast("❌ Failed to place order", "error");
+      } else {
+        showToast("✅ Order placed! Token: " + token_number);
+        setTimeout(() => {
+          window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
+        }, 2000);
+      }
+    };
 
     loadUser();
     loadGrains();
