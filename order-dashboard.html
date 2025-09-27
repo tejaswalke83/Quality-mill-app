@@ -110,6 +110,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
   function getNextStatus(order) {
     const flow = statusFlows[order.order_type] || [];
+    console.log("Flow for", order.order_type, ":", flow);
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
     const nextId = flow[idx + 1];
