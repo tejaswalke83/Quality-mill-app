@@ -1,7 +1,7 @@
 const CACHE_NAME = 'app-shell-v2';
 const PRECACHE_URLS = [
   '/',
-  '/user-registration.html',
+  // '/user-registration.html',
   '/styles.css',
   '/common.js',
   '/manifest.json',
