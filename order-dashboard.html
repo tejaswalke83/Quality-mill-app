@@ -117,33 +117,60 @@
   }
 
   async function updateOrderStatus(orderId, newStatusId) {
+  try {
     console.log("Updating order:", orderId, "to status:", newStatusId);
-    const { data, error } = await supabase
+
+    // perform update and return updated row(s) for debug
+    const { data, error, status, statusText } = await supabase
       .from('orders')
       .update({ status_id: newStatusId })
       .eq('id', orderId)
-      .select();
+      .select(); // ask Supabase to return the updated row(s)
 
     if (error) {
-      console.error("Error updating order status:", error);
-      alert("Failed to update status: " + error.message);
+      console.error("Error updating order status (supabase error):", error);
+      alert("Failed to update status: " + (error.message || JSON.stringify(error)));
       return;
     }
 
-    console.log("Update successful:", data);
+    console.log("Update response:", { status, statusText, data });
 
+    // Rebuild statuses and flows in case something changed there
+    // (these helper functions must exist in your script)
+    try {
+      await initializeFlows();   // re-fetch order_statuses and rebuild flows
+      await loadFilterButtons(); // re-render filter buttons (uses statuses)
+    } catch (e) {
+      console.warn("Warning: failed to reinitialize flows or filters:", e);
+    }
+
+    // Close the modal and refresh the list from DB
     closeModal();
+
+    // loadOrders will re-fetch all orders with their joined order_statuses
     await loadOrders();
 
-    // ✅ Highlight updated card
-    const updatedCard = document.querySelector(`.order-card[data-id="${orderId}"]`);
-    if (updatedCard) {
-      updatedCard.scrollIntoView({ behavior: "smooth", block: "center" });
-      updatedCard.classList.add("ring-2", "ring-green-500");
-      setTimeout(() => updatedCard.classList.remove("ring-2", "ring-green-500"), 2000);
-    }
+    // small delay to let DOM repaint then highlight the updated card
+    setTimeout(() => {
+      const updatedCard = document.querySelector(`.order-card[data-id="${orderId}"]`);
+      if (updatedCard) {
+        updatedCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        updatedCard.classList.add("ring-2", "ring-green-500");
+        setTimeout(() => updatedCard.classList.remove("ring-2", "ring-green-500"), 2000);
+      } else {
+        console.warn("Updated card element not found after reload - forcing full reload.");
+        // fallback - reload page so the UI definitely shows the updated status
+        // comment this out if you prefer not to force a reload
+        // location.reload();
+      }
+    }, 200);
+  } catch (err) {
+    console.error("Unexpected error in updateOrderStatus:", err);
+    alert("Unexpected error. See console for details.");
   }
-  window.updateOrderStatus = updateOrderStatus;
+}
+window.updateOrderStatus = updateOrderStatus;
+
 
   // --- Filters ---
   async function loadFilterButtons() {
