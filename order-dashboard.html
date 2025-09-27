@@ -123,15 +123,17 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     .from('orders')
     .update({ status_id: newStatusId })
     .eq('id', orderId)
-    .select(); // <-- return updated row
+    .select(); // force return updated rows
 
   if (error) {
     console.error("Update error:", error);
-    alert("Failed to update status: " + error.message);
+    alert("Failed: " + error.message);
+  } else if (data.length === 0) {
+    console.warn("Update returned no rows. Likely RLS blocked it.");
   } else {
     console.log("Updated row:", data);
     closeModal();
-    await loadOrders(); // <-- wait for refresh
+    await loadOrders();
   }
 }
 
