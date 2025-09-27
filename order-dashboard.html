@@ -51,7 +51,7 @@
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabaseKey = 'YOUR_SUPABASE_KEY';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
@@ -109,7 +109,6 @@
 
   function getNextStatus(order) {
     const flow = statusFlows[order.order_type] || [];
-    console.log("Flow for", order.order_type, ":", flow);
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
     const nextId = flow[idx + 1];
@@ -117,60 +116,13 @@
   }
 
   async function updateOrderStatus(orderId, newStatusId) {
-  try {
-    console.log("Updating order:", orderId, "to status:", newStatusId);
-
-    // perform update and return updated row(s) for debug
-    const { data, error, status, statusText } = await supabase
-      .from('orders')
-      .update({ status_id: newStatusId })
-      .eq('id', orderId)
-      .select(); // ask Supabase to return the updated row(s)
-
-    if (error) {
-      console.error("Error updating order status (supabase error):", error);
-      alert("Failed to update status: " + (error.message || JSON.stringify(error)));
-      return;
+    const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
+    if (!error) {
+      closeModal();
+      loadOrders();
     }
-
-    console.log("Update response:", { status, statusText, data });
-
-    // Rebuild statuses and flows in case something changed there
-    // (these helper functions must exist in your script)
-    try {
-      await initializeFlows();   // re-fetch order_statuses and rebuild flows
-      await loadFilterButtons(); // re-render filter buttons (uses statuses)
-    } catch (e) {
-      console.warn("Warning: failed to reinitialize flows or filters:", e);
-    }
-
-    // Close the modal and refresh the list from DB
-    closeModal();
-
-    // loadOrders will re-fetch all orders with their joined order_statuses
-    await loadOrders();
-
-    // small delay to let DOM repaint then highlight the updated card
-    setTimeout(() => {
-      const updatedCard = document.querySelector(`.order-card[data-id="${orderId}"]`);
-      if (updatedCard) {
-        updatedCard.scrollIntoView({ behavior: "smooth", block: "center" });
-        updatedCard.classList.add("ring-2", "ring-green-500");
-        setTimeout(() => updatedCard.classList.remove("ring-2", "ring-green-500"), 2000);
-      } else {
-        console.warn("Updated card element not found after reload - forcing full reload.");
-        // fallback - reload page so the UI definitely shows the updated status
-        // comment this out if you prefer not to force a reload
-        // location.reload();
-      }
-    }, 200);
-  } catch (err) {
-    console.error("Unexpected error in updateOrderStatus:", err);
-    alert("Unexpected error. See console for details.");
   }
-}
-window.updateOrderStatus = updateOrderStatus;
-
+  window.updateOrderStatus = updateOrderStatus;
 
   // --- Filters ---
   async function loadFilterButtons() {
@@ -238,7 +190,6 @@ window.updateOrderStatus = updateOrderStatus;
 
       const div = document.createElement('div');
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
-      div.setAttribute("data-id", order.id); // ✅ add unique id
       div.innerHTML = `
         <div class="flex justify-between items-start mb-2">
           <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
