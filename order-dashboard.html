@@ -122,14 +122,32 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     return statusesCache.find(s => s.id === nextId);
   }
 
-  async function updateOrderStatus(orderId, newStatusId) {
-    const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
-    if (!error) {
-      closeModal();
-      loadOrders();
-    }
+ async function updateOrderStatus(orderId, newStatusId) {
+  console.log("🔄 Updating order:", orderId, "➡️ New status:", newStatusId);
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ status_id: newStatusId })
+    .eq('id', orderId)
+    .select();
+
+  if (error) {
+    console.error("❌ Error updating order status:", error);
+    alert("Failed to update status: " + error.message);
+    return;
   }
-  window.updateOrderStatus = updateOrderStatus;
+
+  if (data && data.length > 0) {
+    console.log("✅ Update successful:", data[0]);
+  } else {
+    console.warn("⚠️ No rows updated — check if orderId is correct:", orderId);
+  }
+
+  closeModal();
+  loadOrders();
+}
+window.updateOrderStatus = updateOrderStatus;
+
 
   // --- Filters ---
   async function loadFilterButtons() {
