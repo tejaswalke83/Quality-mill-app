@@ -114,38 +114,91 @@
       }
     });
 
-    // ✅ Keep your existing generateTokenNumber() logic here
-    async function generateTokenNumber() {
-      console.log("generateTokenNumber() called");
+async function generateTokenNumber() {
+  console.log("🔎 generateTokenNumber() called");
 
-      const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+  const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
 
-      const { data: activeOrders, error } = await supabase
-        .from("orders")
-        .select(`token_number, order_statuses ( status_name )`);
+  const { data: activeOrders, error } = await supabase
+    .from("orders")
+    .select(`id, token_number, order_statuses ( status_name )`);
 
-      if (error) throw error;
+  if (error) {
+    console.error("❌ Supabase error:", error);
+    throw error;
+  }
 
-      const activeTokens = new Set(
-        (activeOrders || [])
-          .filter(o => !inactiveStatuses.includes(o.order_statuses?.status_name))
-          .map(o => o.token_number)
-      );
+  console.log("📦 Raw orders from DB:", activeOrders);
 
-      let maxTokenNum = 0;
-      activeTokens.forEach(token => {
-        const num = parseInt(token?.slice(2), 10);
-        if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
-      });
+  const activeTokens = new Set(
+    (activeOrders || [])
+      .filter(o => {
+        const status = o.order_statuses?.status_name;
+        console.log(`➡️ Order ${o.id} | Token: ${o.token_number} | Status: ${status}`);
+        return !inactiveStatuses.includes(status);
+      })
+      .map(o => o.token_number)
+  );
 
-      for (let attempt = 1; attempt <= 999; attempt++) {
-        let nextNum = maxTokenNum + attempt;
-        if (nextNum > 999) nextNum -= 999;
-        const token = `QA${nextNum}`;
-        if (!activeTokens.has(token)) return token;
-      }
-      throw new Error("All token numbers are in use.");
+  console.log("✅ Active tokens:", Array.from(activeTokens));
+
+  let maxTokenNum = 0;
+  activeTokens.forEach(token => {
+    const num = parseInt(token?.slice(2), 10);
+    console.log(`🔢 Parsed token: ${token} → ${num}`);
+    if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+  });
+
+  console.log("📈 Max token number found:", maxTokenNum);
+
+  for (let attempt = 1; attempt <= 999; attempt++) {
+    let nextNum = maxTokenNum + attempt;
+    if (nextNum > 999) nextNum -= 999;
+    const token = `QA${nextNum}`;
+    if (!activeTokens.has(token)) {
+      console.log("🎯 Generated token:", token);
+      return token;
     }
+  }
+  throw new Error("All token numbers are in use.");
+}
+
+
+
+
+
+    // ✅ Keep your existing generateTokenNumber() logic here
+    // async function generateTokenNumber() {
+    //   console.log("generateTokenNumber() called");
+
+    //   const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+
+    //   const { data: activeOrders, error } = await supabase
+    //     .from("orders")
+    //     .select(`token_number, order_statuses ( status_name )`);
+
+    //   if (error) throw error;
+
+    //   const activeTokens = new Set(
+    //     (activeOrders || [])
+    //       .filter(o => !inactiveStatuses.includes(o.order_statuses?.status_name))
+    //       .map(o => o.token_number)
+    //   );
+
+    //   let maxTokenNum = 0;
+    //   activeTokens.forEach(token => {
+    //     const num = parseInt(token?.slice(2), 10);
+    //     if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+    //   });
+
+    //   for (let attempt = 1; attempt <= 999; attempt++) {
+    //     let nextNum = maxTokenNum + attempt;
+    //     if (nextNum > 999) nextNum -= 999;
+    //     const token = `QA${nextNum}`;
+    //     if (!activeTokens.has(token)) return token;
+    //   }
+    //   throw new Error("All token numbers are in use.");
+    // }
 
     async function fetchData() {
       const { data, error } = await supabase
