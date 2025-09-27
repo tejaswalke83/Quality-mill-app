@@ -81,7 +81,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
   }
 
   // --- Supabase fetch ---
-  async function fetchAllOrders() {
+ async function fetchAllOrders() {
   const { data, error } = await supabase
     .from('orders')
     .select(`
@@ -92,9 +92,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
       token_number,
       created_at,
       order_type,
-      status_id,  -- make sure we fetch this fresh
-      customers(name, phone_number),
-      order_statuses(status_name, sort_order, id)
+      grain_type,
+      quantity_kg,
+      status_id,
+      serve_at,
+      status_backup,
+      customers (
+        name,
+        phone_number
+      ),
+      order_statuses (
+        id,
+        status_name,
+        sort_order
+      )
     `)
     .order('created_at', { ascending: false });
 
@@ -104,6 +115,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
   }
   return data;
 }
+
 
 
   async function fetchStatuses() {
