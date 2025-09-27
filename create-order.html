@@ -345,7 +345,32 @@ window.addRow = function () {
       }
     }
 
-    fetchData();
-  </script>
+async function fetchDeliveryChargeIfNeeded() {
+  const service = localStorage.getItem("orderType") || localStorage.getItem("orderService") || "";
+  // Only for Home by Mill
+  if (!service.toLowerCase().includes("home buy mill")) {
+    deliveryCharge = 0;
+    document.getElementById("delivery-row").style.display = "none";
+    document.getElementById("delivery-cost").textContent = "₹0.00";
+    return;
+  }
+
+  // Try to get a global active price for home_buy_mill (adjust the delivery_type if yours differs)
+  const { data, error } = await supabase
+    .from("delivery_pricing")
+    .select("price")
+    .eq("delivery_type", "home_buy_mill")
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  deliveryCharge = data ? Number(data.price) : 0;
+  document.getElementById("delivery-row").style.display = "flex";
+  document.getElementById("delivery-cost").textContent = `₹${deliveryCharge.toFixed(2)}`;
+}
+
+
+fetchData();
+</script>
 </body>
 </html>
