@@ -1,12 +1,13 @@
 const CACHE_NAME = 'app-shell-v2';
 const PRECACHE_URLS = [
   '/',
-  // '/user-registration.html',
+  '/index.html',
   '/styles.css',
   '/common.js',
   '/manifest.json',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
+  '/offline.html'
 ];
 
 // Install: pre-cache
