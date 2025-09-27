@@ -51,9 +51,8 @@
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
   let statusFlows = {};
@@ -117,32 +116,33 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     return statusesCache.find(s => s.id === nextId);
   }
 
-  // async function updateOrderStatus(orderId, newStatusId) {
-  //   const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
-  //   if (!error) {
-  //     closeModal();
-  //     loadOrders();
-  //   }
-  // }
-
   async function updateOrderStatus(orderId, newStatusId) {
-  console.log("Updating order:", orderId, "to status:", newStatusId);
-  const { data, error } = await supabase
-    .from('orders')
-    .update({ status_id: newStatusId })
-    .eq('id', orderId)
-    .select();   // 👈 return updated row for debugging
+    console.log("Updating order:", orderId, "to status:", newStatusId);
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status_id: newStatusId })
+      .eq('id', orderId)
+      .select();
 
-  if (error) {
-    console.error("Error updating order status:", error);
-    alert("Failed to update status: " + error.message);
-    return;
+    if (error) {
+      console.error("Error updating order status:", error);
+      alert("Failed to update status: " + error.message);
+      return;
+    }
+
+    console.log("Update successful:", data);
+
+    closeModal();
+    await loadOrders();
+
+    // ✅ Highlight updated card
+    const updatedCard = document.querySelector(`.order-card[data-id="${orderId}"]`);
+    if (updatedCard) {
+      updatedCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      updatedCard.classList.add("ring-2", "ring-green-500");
+      setTimeout(() => updatedCard.classList.remove("ring-2", "ring-green-500"), 2000);
+    }
   }
-
-  console.log("Update successful:", data);
-  closeModal();
-  loadOrders();
-}
   window.updateOrderStatus = updateOrderStatus;
 
   // --- Filters ---
@@ -211,6 +211,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
       const div = document.createElement('div');
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
+      div.setAttribute("data-id", order.id); // ✅ add unique id
       div.innerHTML = `
         <div class="flex justify-between items-start mb-2">
           <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
