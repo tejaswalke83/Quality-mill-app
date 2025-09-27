@@ -6,8 +6,7 @@ const PRECACHE_URLS = [
   '/common.js',
   '/manifest.json',
   '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/offline.html'
+  '/icons/icon-512.png'
 ];
 
 // Install: pre-cache
