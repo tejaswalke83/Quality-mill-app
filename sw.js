@@ -1,24 +1,24 @@
-/* sw.js - place at site root (/) */
-const CACHE_NAME = 'app-shell-v1';
+const CACHE_NAME = 'app-shell-v2';
 const PRECACHE_URLS = [
-  '/',                // adjust if your root index is different
-  '/index.html',
+  '/',
+  '/user-registration.html',
   '/styles.css',
   '/common.js',
   '/manifest.json',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
+  '/offline.html'
 ];
 
-// Install: pre-cache app shell
+// Install: pre-cache
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // activate worker immediately after install (optional)
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   );
 });
 
-// Activate: cleanup old caches
+// Activate: cleanup
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -28,35 +28,34 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Fetch: Cache-first, then network (for same-origin GET requests)
+// Fetch handler
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+
+  // Only cache GET
   if (req.method !== 'GET') return;
 
+  // Strategy: Network-first for HTML (always try fresh content)
+  if (req.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+        return res;
+      }).catch(() => caches.match(req).then(cached => cached || caches.match('/offline.html')))
+    );
+    return;
+  }
+
+  // Strategy: Cache-first for everything else (CSS/JS/images)
   event.respondWith(
-    caches.match(req).then((cached) => {
+    caches.match(req).then(cached => {
       if (cached) return cached;
-      return fetch(req).then((response) => {
-        // optionally cache runtime GET responses for same-origin
-        if (req.url.startsWith(self.location.origin)) {
-          caches.open(CACHE_NAME).then((cache) => {
-            // put a clone (so response can be used by browser)
-            try { cache.put(req, response.clone()); } catch (err) { /* ignore */ }
-          });
-        }
-        return response;
-      }).catch(() => {
-        // fallback to cached root / offline page if you add one
-        return caches.match('/offline.html');
-      });
+      return fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+        return res;
+      }).catch(() => caches.match('/offline.html'));
     })
   );
-});
-
-// Listen for messages (skip waiting)
-self.addEventListener('message', (evt) => {
-  if (!evt.data) return;
-  if (evt.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });
