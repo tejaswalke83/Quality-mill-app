@@ -11,12 +11,6 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
   </style>
-
- <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#007bff">
-<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
-<script defer src="/common.js"></script>
-
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
   <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard</h1>
@@ -56,7 +50,7 @@
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
+  const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -81,42 +75,17 @@ const supabase = createClient(supabaseUrl, supabaseKey);
   }
 
   // --- Supabase fetch ---
- async function fetchAllOrders() {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      customer_id,
-      grain_details,
-      total_price,
-      token_number,
-      created_at,
-      order_type,
-      grain_type,
-      quantity_kg,
-      status_id,
-      serve_at,
-      status_backup,
-      customers (
-        name,
-        phone_number
-      ),
-      order_statuses (
-        id,
-        status_name,
-        sort_order
-      )
-    `)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error("❌ Error fetching orders:", error);
-    return [];
+  async function fetchAllOrders() {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        customers(name, phone_number),
+        order_statuses(status_name, sort_order, id)
+      `)
+      .order('created_at', { ascending: false });
+    return error ? [] : data;
   }
-  return data;
-}
-
-
 
   async function fetchStatuses() {
     const { data } = await supabase.from('order_statuses').select('*').order('sort_order', { ascending: true });
@@ -147,32 +116,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     return statusesCache.find(s => s.id === nextId);
   }
 
- async function updateOrderStatus(orderId, newStatusId) {
-  console.log("🔄 Updating order:", orderId, "➡️ New status:", newStatusId);
-
-  const { data, error } = await supabase
-    .from('orders')
-    .update({ status_id: newStatusId })
-    .eq('id', orderId)
-    .select();
-
-  if (error) {
-    console.error("❌ Error updating order status:", error);
-    alert("Failed to update status: " + error.message);
-    return;
+  async function updateOrderStatus(orderId, newStatusId) {
+    const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
+    if (!error) {
+      closeModal();
+      loadOrders();
+    }
   }
-
-  if (data && data.length > 0) {
-    console.log("✅ Update successful:", data[0]);
-  } else {
-    console.warn("⚠️ No rows updated — check if orderId is correct:", orderId);
-  }
-
-  closeModal();
-  loadOrders();
-}
-window.updateOrderStatus = updateOrderStatus;
-
+  window.updateOrderStatus = updateOrderStatus;
 
   // --- Filters ---
   async function loadFilterButtons() {
