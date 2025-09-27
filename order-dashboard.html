@@ -83,12 +83,26 @@
         order_statuses(status_name, sort_order, id)
       `)
       .order('created_at', { ascending: false });
-    return error ? [] : data;
+
+    if (error) {
+      console.error("fetchAllOrders error:", error);
+      return [];
+    }
+    return data || [];
   }
 
   async function fetchStatuses() {
-    const { data } = await supabase.from('order_statuses').select('*').order('sort_order', { ascending: true });
-    statusesCache = data || [];
+    const { data, error } = await supabase
+      .from('order_statuses')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error("fetchStatuses error:", error);
+      statusesCache = [];
+    } else {
+      statusesCache = data || [];
+    }
     return statusesCache;
   }
 
@@ -112,7 +126,7 @@
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
     const nextId = flow[idx + 1];
-    return statusesCache.find(s => s.id === nextId);
+    return statusesCache.find(s => s.id === nextId) || null;
   }
 
   async function updateOrderStatus(orderId, newStatusId) {
@@ -122,31 +136,39 @@
       .from('orders')
       .update({ status_id: newStatusId })
       .eq('id', orderId)
-      .select(); // force return updated rows
+      .select(); // return updated rows
 
     if (error) {
       console.error("Update error:", error);
       alert("Failed: " + error.message);
-    } else if (data.length === 0) {
-      console.warn("Update returned no rows. Likely RLS blocked it.");
-    } else {
-      console.log("Updated row:", data);
-      closeModal();
-      await loadOrders();
+      return;
     }
+
+    if (!data || data.length === 0) {
+      console.warn("Update returned no rows. Likely RLS blocked it.");
+      return;
+    }
+
+    console.log("Updated row:", data);
+    // ensure statusesCache is present (status table rarely changes, but safe to refresh)
+    await fetchStatuses();
+    closeModal();
+    await loadOrders();
   }
   window.updateOrderStatus = updateOrderStatus;
 
   // --- Filters ---
   async function loadFilterButtons() {
-    const statuses = await fetchStatuses();
+    await fetchStatuses(); // ensure statusesCache is ready
     const filterGroup = document.querySelector('.filter-group');
+
+    // Use status id as data-value (more reliable). Display label remains status_name.
     filterGroup.innerHTML = `<label class="font-medium">Filter by:</label>
       <button class="filter-btn active px-3 py-1 border rounded" data-value="all">All</button>`;
 
-    statuses.forEach(s => {
+    statusesCache.forEach(s => {
       filterGroup.innerHTML += `
-        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.status_name}">
+        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.id}">
           ${s.status_name}
         </button>`;
     });
@@ -164,26 +186,31 @@
   async function loadOrders() {
     const allOrders = await fetchAllOrders();
 
+    // debug: show that we have statuses and orders
+    console.debug("statusesCache:", statusesCache ? statusesCache.length : 0, "ordersFetched:", allOrders.length);
+
     const activeFilterEl = document.querySelector('.filter-btn.active');
     const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
-    const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+    const searchTerm = (document.getElementById('searchBox').value || '').toLowerCase();
 
     let filtered = allOrders;
+
+    // filter by status id (activeFilter is 'all' or status id)
     if (activeFilter !== 'all') {
-      filtered = filtered.filter(o => {
-        const statusObj = statusesCache.find(s => s.id === o.status_id);
-        return statusObj?.status_name === activeFilter;
-      });
+      filtered = filtered.filter(o => String(o.status_id) === String(activeFilter));
     }
+
+    // search (status name resolved from statusesCache)
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(o => {
         const statusObj = statusesCache.find(s => s.id === o.status_id);
+        const statusName = statusObj?.status_name?.toLowerCase() || '';
         return (
           (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
-          (o.customers?.phone_number || '').includes(searchTerm) ||
-          (o.token_number?.toLowerCase() || '').includes(searchTerm) ||
-          (o.total_price?.toString() || '').includes(searchTerm) ||
-          (statusObj?.status_name?.toLowerCase() || '').includes(searchTerm) ||
+          (String(o.customers?.phone_number || '')).includes(searchTerm) ||
+          (String(o.token_number || '').toLowerCase()).includes(searchTerm) ||
+          (String(o.total_price || '')).includes(searchTerm) ||
+          statusName.includes(searchTerm) ||
           (Array.isArray(o.grain_details) && o.grain_details.some(g =>
             (g.grain?.toLowerCase() || '').includes(searchTerm)))
         );
@@ -198,12 +225,16 @@
       return;
     }
 
+    // debug: log first matched order mapping
+    console.debug("filtered orders count:", filtered.length, "first sample:", filtered[0]);
+
     filtered.forEach(order => {
       const grainsHTML = Array.isArray(order.grain_details)
         ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
           order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
           '</ul>' : '';
 
+      // Resolve status using statusesCache (never use order.order_statuses directly)
       const statusObj = statusesCache.find(s => s.id === order.status_id);
       const statusLabel = statusObj ? statusObj.status_name : "Unknown";
       const statusClass = getStatusClass(statusLabel);
@@ -241,6 +272,8 @@
         '</ul>' : '';
 
     const next = getNextStatus(order);
+
+    // Resolve status using statusesCache (do not rely on order.order_statuses)
     const statusObj = statusesCache.find(s => s.id === order.status_id);
     const statusLabel = statusObj ? statusObj.status_name : "Unknown";
     const statusClass = getStatusClass(statusLabel);
@@ -308,7 +341,7 @@
   // --- Init ---
   await initializeFlows();
   await loadFilterButtons();
-  loadOrders();
+  await loadOrders();
 </script>
 </body>
 </html>
