@@ -2,37 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Configuration Management</title>
+  <title>Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-6">
-  <div class="max-w-5xl mx-auto bg-white shadow rounded-lg p-6">
-    <h1 class="text-2xl font-bold mb-4">Configuration Management</h1>
+<body class="h-screen flex bg-gray-100">
 
-    <!-- Add Config Button -->
-    <button onclick="openForm()" 
-      class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-      + Add Configuration
-    </button>
+  <!-- Sidebar -->
+  <aside class="w-64 bg-white shadow-md">
+    <div class="p-4 text-xl font-bold border-b">Admin Panel</div>
+    <nav class="mt-4">
+      <ul>
+        <li><button onclick="showSection('dashboard')" class="w-full text-left px-4 py-2 hover:bg-gray-200">Dashboard</button></li>
+        <li><button onclick="showSection('config')" class="w-full text-left px-4 py-2 hover:bg-gray-200">Configurations</button></li>
+        <li><button onclick="showSection('users')" class="w-full text-left px-4 py-2 hover:bg-gray-200">Users</button></li>
+        <li><button onclick="showSection('societies')" class="w-full text-left px-4 py-2 hover:bg-gray-200">Societies</button></li>
+        <li><button onclick="showSection('orders')" class="w-full text-left px-4 py-2 hover:bg-gray-200">Orders</button></li>
+        <li><button onclick="showSection('grains')" class="w-full text-left px-4 py-2 hover:bg-gray-200">Grains</button></li>
+      </ul>
+    </nav>
+  </aside>
 
-    <!-- Config Table -->
-    <table class="w-full border-collapse border border-gray-300">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="border p-2">ID</th>
-          <th class="border p-2">Key</th>
-          <th class="border p-2">Value</th>
-          <th class="border p-2">Description</th>
-          <th class="border p-2">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="configTable" class="text-center">
-        <!-- Dynamic Rows -->
-      </tbody>
-    </table>
-  </div>
+  <!-- Main Content -->
+  <main class="flex-1 p-6 overflow-y-auto">
 
-  <!-- Add/Edit Modal -->
+    <!-- Dashboard Section -->
+    <section id="section-dashboard" class="hidden">
+      <h1 class="text-2xl font-bold mb-6">Dashboard Overview</h1>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-gray-600">Total Users</h2>
+          <p id="card-users" class="text-3xl font-bold mt-2">120</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-gray-600">Total Societies</h2>
+          <p id="card-societies" class="text-3xl font-bold mt-2">15</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-gray-600">Total Orders</h2>
+          <p id="card-orders" class="text-3xl font-bold mt-2">350</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-gray-600">Total Grains</h2>
+          <p id="card-grains" class="text-3xl font-bold mt-2">8</p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-gray-600">Active Configs</h2>
+          <p id="card-configs" class="text-3xl font-bold mt-2">3</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Configurations Section -->
+    <section id="section-config" class="hidden">
+      <h1 class="text-2xl font-bold mb-4">Configuration Management</h1>
+      <button onclick="openForm()" 
+        class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        + Add Configuration
+      </button>
+      <table class="w-full border-collapse border border-gray-300">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border p-2">ID</th>
+            <th class="border p-2">Key</th>
+            <th class="border p-2">Value</th>
+            <th class="border p-2">Description</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="configTable" class="text-center">
+          <!-- Rows added dynamically -->
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Users Section -->
+    <section id="section-users" class="hidden">
+      <h1 class="text-2xl font-bold mb-4">User Management</h1>
+      <p class="text-gray-600">Coming soon...</p>
+    </section>
+
+    <!-- Societies Section -->
+    <section id="section-societies" class="hidden">
+      <h1 class="text-2xl font-bold mb-4">Society Management</h1>
+      <p class="text-gray-600">Coming soon...</p>
+    </section>
+
+    <!-- Orders Section -->
+    <section id="section-orders" class="hidden">
+      <h1 class="text-2xl font-bold mb-4">Order Management</h1>
+      <p class="text-gray-600">Coming soon...</p>
+    </section>
+
+    <!-- Grains Section -->
+    <section id="section-grains" class="hidden">
+      <h1 class="text-2xl font-bold mb-4">Grain Price Management</h1>
+      <p class="text-gray-600">Coming soon...</p>
+    </section>
+  </main>
+
+  <!-- Add/Edit Modal for Config -->
   <div id="configFormModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-white p-6 rounded-lg w-96">
       <h2 id="formTitle" class="text-xl font-semibold mb-4">Add Config</h2>
@@ -55,6 +128,16 @@
   </div>
 
   <script>
+    // Navigation logic
+    function showSection(name) {
+      document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
+      document.getElementById("section-" + name).classList.remove("hidden");
+    }
+
+    // Default landing page = Dashboard
+    showSection('dashboard');
+
+    // Config data
     let configs = [
       { id: 1, key: "home_pickup_delivery", value: "true", desc: "Enable/disable home pickup delivery" }
     ];
@@ -76,6 +159,9 @@
             </td>
           </tr>`;
       });
+
+      // Update Dashboard card count
+      document.getElementById("card-configs").innerText = configs.length;
     }
 
     function openForm() {
