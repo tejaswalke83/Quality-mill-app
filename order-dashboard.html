@@ -52,8 +52,8 @@
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
+  const supabaseKey = 'YOUR_SUPABASE_KEY';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
@@ -254,6 +254,11 @@
     }
 
     filtered.forEach(order => {
+      const grainsHTML = Array.isArray(order.grain_details)
+        ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+          order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+          '</ul>' : '';
+
       const statusObj = statusesCache.find(s => s.id === order.status_id);
       const statusLabel = statusObj ? statusObj.status_name : "Unknown";
       const statusClass = getStatusClass(statusLabel);
@@ -278,6 +283,7 @@
         <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
         <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
         <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+        ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
 
         <div class="mt-2 flex justify-between items-center">
           <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
@@ -295,6 +301,11 @@
 
     currentOpenOrder = order;
 
+    const grainsHTML = Array.isArray(order.grain_details)
+      ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+        order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+        '</ul>' : '';
+
     const statusObj = statusesCache.find(s => s.id === order.status_id);
     const statusLabel = statusObj ? statusObj.status_name : "Unknown";
     const statusClass = getStatusClass(statusLabel);
@@ -311,6 +322,7 @@
       <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
       <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
       <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+      ${grainsHTML}
       <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
 
       <div class="mt-3">
