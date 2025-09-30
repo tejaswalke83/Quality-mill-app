@@ -11,7 +11,6 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
   </style>
-  <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
   <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard</h1>
@@ -42,7 +41,7 @@
 
   <!-- Fullscreen Popup -->
   <div id="orderModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+    <div class="bg-white rounded-lg shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 relative">
       <button onclick="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">✖</button>
       <div id="modalContent"></div>
     </div>
@@ -59,8 +58,9 @@
   let statusFlows = {};
   let currentOpenOrder = null;
   let searchTimeout;
+  let ordersCache = []; // cache orders for filtering
 
-  // --- Subtle colors ---
+  // --- Helpers ---
   function getStatusClass(status) {
     const map = {
       "NEW": "bg-yellow-100 text-yellow-800",
@@ -74,8 +74,21 @@
     return map[status] || "bg-gray-100 text-gray-700";
   }
 
+  function convertUTCToIST(utcString) {
+    if (!utcString) return '';
+    const date = new Date(utcString);
+    return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  }
+  window.convertUTCToIST = convertUTCToIST;
+
+  function normalize(str) {
+    return (str || '').toString().toLowerCase();
+  }
+
   // --- Supabase fetch ---
   async function fetchAllOrders() {
+    if (ordersCache.length > 0) return ordersCache; // reuse cache
+
     const { data, error } = await supabase
       .from('orders')
       .select(`
@@ -85,25 +98,13 @@
       `)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error("fetchAllOrders error:", error);
-      return [];
-    }
-    return data || [];
+    if (!error && data) ordersCache = data;
+    return ordersCache;
   }
 
   async function fetchStatuses() {
-    const { data, error } = await supabase
-      .from('order_statuses')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      console.error("fetchStatuses error:", error);
-      statusesCache = [];
-    } else {
-      statusesCache = data || [];
-    }
+    const { data } = await supabase.from('order_statuses').select('*').order('sort_order', { ascending: true });
+    statusesCache = data || [];
     return statusesCache;
   }
 
@@ -127,49 +128,32 @@
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
     const nextId = flow[idx + 1];
-    return statusesCache.find(s => s.id === nextId) || null;
+    return statusesCache.find(s => s.id === nextId);
   }
 
   async function updateOrderStatus(orderId, newStatusId) {
-    console.log("Updating order:", orderId, "→", newStatusId);
+    const { error } = await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
+    if (!error) {
+      // Optimistic UI update
+      const order = ordersCache.find(o => o.id === orderId);
+      if (order) order.status_id = newStatusId;
 
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ status_id: newStatusId })
-      .eq('id', orderId)
-      .select(); // return updated rows
-
-    if (error) {
-      console.error("Update error:", error);
-      alert("Failed: " + error.message);
-      return;
+      closeModal();
+      loadOrders(); // redraw from cache
     }
-
-    if (!data || data.length === 0) {
-      console.warn("Update returned no rows. Likely RLS blocked it.");
-      return;
-    }
-
-    console.log("Updated row:", data);
-    // ensure statusesCache is present (status table rarely changes, but safe to refresh)
-    await fetchStatuses();
-    closeModal();
-    await loadOrders();
   }
   window.updateOrderStatus = updateOrderStatus;
 
   // --- Filters ---
   async function loadFilterButtons() {
-    await fetchStatuses(); // ensure statusesCache is ready
+    const statuses = await fetchStatuses();
     const filterGroup = document.querySelector('.filter-group');
-
-    // Use status id as data-value (more reliable). Display label remains status_name.
     filterGroup.innerHTML = `<label class="font-medium">Filter by:</label>
       <button class="filter-btn active px-3 py-1 border rounded" data-value="all">All</button>`;
 
-    statusesCache.forEach(s => {
+    statuses.forEach(s => {
       filterGroup.innerHTML += `
-        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.id}">
+        <button class="filter-btn px-3 py-1 border rounded" data-value="${s.status_name}">
           ${s.status_name}
         </button>`;
     });
@@ -185,40 +169,31 @@
 
   // --- Orders ---
   async function loadOrders() {
-    const allOrders = await fetchAllOrders();
+    const container = document.getElementById('ordersList');
+    container.innerHTML = '<p class="text-gray-500">Loading...</p>';
 
-    // debug: show that we have statuses and orders
-    console.debug("statusesCache:", statusesCache ? statusesCache.length : 0, "ordersFetched:", allOrders.length);
+    const allOrders = await fetchAllOrders();
 
     const activeFilterEl = document.querySelector('.filter-btn.active');
     const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
-    const searchTerm = (document.getElementById('searchBox').value || '').toLowerCase();
+    const searchTerm = document.getElementById('searchBox').value.toLowerCase();
 
     let filtered = allOrders;
-
-    // filter by status id (activeFilter is 'all' or status id)
     if (activeFilter !== 'all') {
-      filtered = filtered.filter(o => String(o.status_id) === String(activeFilter));
+      filtered = filtered.filter(o => o.order_statuses?.status_name === activeFilter);
     }
-
-    // search (status name resolved from statusesCache)
     if (searchTerm.trim() !== '') {
-      filtered = filtered.filter(o => {
-        const statusObj = statusesCache.find(s => s.id === o.status_id);
-        const statusName = statusObj?.status_name?.toLowerCase() || '';
-        return (
-          (o.customers?.name?.toLowerCase() || '').includes(searchTerm) ||
-          (String(o.customers?.phone_number || '')).includes(searchTerm) ||
-          (String(o.token_number || '').toLowerCase()).includes(searchTerm) ||
-          (String(o.total_price || '')).includes(searchTerm) ||
-          statusName.includes(searchTerm) ||
-          (Array.isArray(o.grain_details) && o.grain_details.some(g =>
-            (g.grain?.toLowerCase() || '').includes(searchTerm)))
-        );
-      });
+      filtered = filtered.filter(o =>
+        normalize(o.customers?.name).includes(searchTerm) ||
+        normalize(o.customers?.phone_number).includes(searchTerm) ||
+        normalize(o.token_number).includes(searchTerm) ||
+        normalize(o.total_price).includes(searchTerm) ||
+        normalize(o.order_statuses?.status_name).includes(searchTerm) ||
+        (Array.isArray(o.grain_details) && o.grain_details.some(g =>
+          normalize(g.grain).includes(searchTerm)))
+      );
     }
 
-    const container = document.getElementById('ordersList');
     container.innerHTML = '';
 
     if (filtered.length === 0) {
@@ -226,18 +201,13 @@
       return;
     }
 
-    // debug: log first matched order mapping
-    console.debug("filtered orders count:", filtered.length, "first sample:", filtered[0]);
-
     filtered.forEach(order => {
       const grainsHTML = Array.isArray(order.grain_details)
         ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
           order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
           '</ul>' : '';
 
-      // Resolve status using statusesCache (never use order.order_statuses directly)
-      const statusObj = statusesCache.find(s => s.id === order.status_id);
-      const statusLabel = statusObj ? statusObj.status_name : "Unknown";
+      const statusLabel = order.order_statuses?.status_name || "Unknown";
       const statusClass = getStatusClass(statusLabel);
 
       const div = document.createElement('div');
@@ -251,7 +221,7 @@
           </div>
         </div>
         <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-        <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+        <p><strong>Created:</strong> ${convertUTCToIST(order.created_at)}</p>
         ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
         <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
       `;
@@ -273,20 +243,16 @@
         '</ul>' : '';
 
     const next = getNextStatus(order);
-
-    // Resolve status using statusesCache (do not rely on order.order_statuses)
-    const statusObj = statusesCache.find(s => s.id === order.status_id);
-    const statusLabel = statusObj ? statusObj.status_name : "Unknown";
-    const statusClass = getStatusClass(statusLabel);
+    const statusClass = getStatusClass(order.order_statuses?.status_name);
 
     content.innerHTML = `
       <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
       <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
       <p><strong>Token:</strong> ${order.token_number || ''}</p>
       <p><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
-      <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+      <p><strong>Created:</strong> ${convertUTCToIST(order.created_at)}</p>
       ${grainsHTML}
-      <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
+      <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${order.order_statuses?.status_name}</span></p>
       ${next 
         ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
             class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
@@ -342,7 +308,7 @@
   // --- Init ---
   await initializeFlows();
   await loadFilterButtons();
-  await loadOrders();
+  loadOrders();
 </script>
 </body>
 </html>
