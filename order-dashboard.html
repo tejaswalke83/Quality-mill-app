@@ -239,9 +239,7 @@
       const statusLabel = statusObj ? statusObj.status_name : "Unknown";
       const statusClass = getStatusClass(statusLabel);
 
-      const paymentFlag = order.payment_status
-        ? `<span class="ml-2 text-green-600 font-medium">✔ Paid (${order.payment_status})</span>`
-        : `<span class="ml-2 text-red-600 font-medium">✖ Not Paid</span>`;
+      const paymentText = order.payment_status ? order.payment_status : "Not Paid";
 
       const div = document.createElement('div');
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
@@ -256,8 +254,11 @@
         <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
         <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
         ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
-        <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
-        <p class="mt-2"><strong>Payment:</strong> ${paymentFlag}</p>
+
+        <div class="mt-2 flex justify-between items-center">
+          <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
+          <span class="text-xs">${paymentText}</span>
+        </div>
       `;
       div.addEventListener('click', () => openModal(order));
       container.appendChild(div);
