@@ -1,32 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- <title>Admin Panel</title>
-  <link rel="stylesheet" href="styles.css" />
-  <!-- <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#007bff">
-<link rel="icon" href="/icons/icon-192.png" sizes="192x192"> -->
-<script defer src="/common.js"></script>
-
+  <meta charset="UTF-8">
+  <title>Configuration Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Admin Setup</h1>
-  <form id="setupForm">
-    <h2>Add Society</h2>
-    <input type="text" id="newSociety" placeholder="Society Name" required />
-    <button type="button" onclick="addSociety()">Add Society</button>
-    <ul id="societyList"></ul>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-5xl mx-auto bg-white shadow rounded-lg p-6">
+    <h1 class="text-2xl font-bold mb-4">Configuration Management</h1>
 
-    <h2>Set Milling Prices (₹/kg)</h2>
-    <label>Wheat:</label><input type="number" id="wheatPrice" /><br />
-    <label>Jowar:</label><input type="number" id="jowarPrice" /><br />
-    <label>Bajra:</label><input type="number" id="bajraPrice" /><br />
-    <label>Dal:</label><input type="number" id="dalPrice" /><br />
-    <button type="submit">Save Setup</button>
-  </form>
+    <!-- Add Config Button -->
+    <button onclick="openForm()" 
+      class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+      + Add Configuration
+    </button>
 
-  <script src="script.js"></script>
+    <!-- Config Table -->
+    <table class="w-full border-collapse border border-gray-300">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="border p-2">ID</th>
+          <th class="border p-2">Key</th>
+          <th class="border p-2">Value</th>
+          <th class="border p-2">Description</th>
+          <th class="border p-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="configTable" class="text-center">
+        <!-- Dynamic Rows -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div id="configFormModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg w-96">
+      <h2 id="formTitle" class="text-xl font-semibold mb-4">Add Config</h2>
+      <input type="hidden" id="configId">
+
+      <label class="block mb-2 text-sm font-medium">Key</label>
+      <input id="configKey" type="text" class="w-full border rounded p-2 mb-4">
+
+      <label class="block mb-2 text-sm font-medium">Value</label>
+      <input id="configValue" type="text" class="w-full border rounded p-2 mb-4">
+
+      <label class="block mb-2 text-sm font-medium">Description</label>
+      <textarea id="configDesc" class="w-full border rounded p-2 mb-4"></textarea>
+
+      <div class="flex justify-end gap-2">
+        <button onclick="closeForm()" class="px-4 py-2 border rounded">Cancel</button>
+        <button onclick="saveConfig()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let configs = [
+      { id: 1, key: "home_pickup_delivery", value: "true", desc: "Enable/disable home pickup delivery" }
+    ];
+    let editId = null;
+
+    function renderTable() {
+      const tbody = document.getElementById("configTable");
+      tbody.innerHTML = "";
+      configs.forEach(conf => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="border p-2">${conf.id}</td>
+            <td class="border p-2">${conf.key}</td>
+            <td class="border p-2">${conf.value}</td>
+            <td class="border p-2">${conf.desc}</td>
+            <td class="border p-2">
+              <button onclick="editConfig(${conf.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
+              <button onclick="deleteConfig(${conf.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    function openForm() {
+      document.getElementById("configFormModal").classList.remove("hidden");
+      document.getElementById("formTitle").innerText = "Add Config";
+      document.getElementById("configId").value = "";
+      document.getElementById("configKey").value = "";
+      document.getElementById("configValue").value = "";
+      document.getElementById("configDesc").value = "";
+      editId = null;
+    }
+
+    function closeForm() {
+      document.getElementById("configFormModal").classList.add("hidden");
+    }
+
+    function saveConfig() {
+      const key = document.getElementById("configKey").value.trim();
+      const value = document.getElementById("configValue").value.trim();
+      const desc = document.getElementById("configDesc").value.trim();
+
+      if (editId) {
+        const conf = configs.find(c => c.id === editId);
+        conf.key = key;
+        conf.value = value;
+        conf.desc = desc;
+      } else {
+        const newId = configs.length ? Math.max(...configs.map(c => c.id)) + 1 : 1;
+        configs.push({ id: newId, key, value, desc });
+      }
+      closeForm();
+      renderTable();
+    }
+
+    function editConfig(id) {
+      const conf = configs.find(c => c.id === id);
+      editId = id;
+      document.getElementById("formTitle").innerText = "Edit Config";
+      document.getElementById("configId").value = conf.id;
+      document.getElementById("configKey").value = conf.key;
+      document.getElementById("configValue").value = conf.value;
+      document.getElementById("configDesc").value = conf.desc;
+      document.getElementById("configFormModal").classList.remove("hidden");
+    }
+
+    function deleteConfig(id) {
+      configs = configs.filter(c => c.id !== id);
+      renderTable();
+    }
+
+    renderTable();
+  </script>
 </body>
 </html>
