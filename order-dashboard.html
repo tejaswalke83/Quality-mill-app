@@ -153,10 +153,15 @@
         return;
       }
 
-      const { error } = await supabase
-        .from('orders')
-        .update({ status_id: newStatusId, payment_status: selected })
-        .eq('id', orderId);
+     // ✅ Update delivered_at when marking as DELIVERED
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        status_id: newStatusId, 
+        payment_status: selected,
+        delivered_at: new Date().toISOString()   // ⭐ Added line
+      })
+      .eq('id', orderId);
 
       if (error) {
         console.error("Update failed:", error);
