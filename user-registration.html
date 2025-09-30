@@ -267,30 +267,7 @@ if ("serviceWorker" in navigator) {
     };
 
     // ✅ Verify staff login
-    // window.verifyStaffPassword = async function() {
-    //   const passwordInput = document.getElementById('staff-password').value;
-    //   const staffUser = window.currentStaffUser;
-    //   document.getElementById('password-error').innerText = "";
-
-    //   if (!passwordInput) {
-    //     document.getElementById('password-error').innerText = "Password cannot be empty.";
-    //     return;
-    //   }
-
-    //   if (passwordInput === staffUser.password) {
-    //     document.getElementById('status').innerText = "Login successful! Redirecting...";
-    //     setTimeout(() => {
-    //       window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-    //     }, 1000);
-    //   } else {
-    //     document.getElementById('password-error').innerText = "Incorrect password.";
-    //   }
-    // };
-
-    <!-- ... all your existing code above is unchanged ... -->
-
-  // ✅ Verify staff login
-  window.verifyStaffPassword = async function() {
+    window.verifyStaffPassword = async function() {
     const passwordInput = document.getElementById('staff-password').value;
     const staffUser = window.currentStaffUser;
     document.getElementById('password-error').innerText = "";
@@ -318,10 +295,6 @@ if ("serviceWorker" in navigator) {
       document.getElementById('password-error').innerText = "Incorrect password.";
     }
   };
-</script>
-
-<!-- ... all your existing code below is unchanged ... -->
-
 
     // ✅ Societies typeahead
     async function loadSocieties() {
