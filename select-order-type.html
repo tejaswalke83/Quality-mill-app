@@ -13,11 +13,7 @@
     body { font-family: "Inter", system-ui, sans-serif; }
     .tick { position: absolute; top: 8px; right: 8px; font-size: 20px; }
   </style>
-  <!-- <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#007bff">
-<link rel="icon" href="/icons/icon-192.png" sizes="192x192">-->
-<script defer src="/common.js"></script> 
-
+  <script defer src="/common.js"></script> 
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col items-center p-6">
 
@@ -41,7 +37,7 @@
       <input type="radio" name="location" value="ShopService" id="radioShop" class="text-indigo-600"/>
       At Shop
     </label>
-    <label class="flex items-center gap-2 cursor-pointer">
+    <label class="flex items-center gap-2 cursor-pointer" id="atHomeOption">
       <input type="radio" name="location" value="HomeService" id="radioHome" class="text-indigo-600"/>
       At Home
     </label>
@@ -68,7 +64,7 @@
   </div>
 
   <!-- Home Services -->
-  <div class="w-full max-w-2xl mt-8">
+  <div class="w-full max-w-2xl mt-8" id="homeServicesSection">
     <h4 class="text-lg font-semibold text-gray-700 mb-3">At Home Services</h4>
     <div class="space-y-4" id="homeServices">
       <div onclick="selectOrderType('home-milling')" id="card-home-milling" data-serveat="HomeService"
@@ -87,15 +83,55 @@
     </div>
   </div>
 
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  const SUPABASE_URL = 'https://odczzymxgjsjhbufffxm.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+    
+  const { createClient } = supabase;
+  const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
   const modal = document.getElementById('locationModal');
   const btnAtHome = document.getElementById('btnAtHome');
   const btnAtShop = document.getElementById('btnAtShop');
   const radioShop = document.getElementById('radioShop');
   const radioHome = document.getElementById('radioHome');
+  const atHomeOption = document.getElementById('atHomeOption');
+  const homeServicesSection = document.getElementById('homeServicesSection');
+
+  async function checkHomePickupConfig() {
+    try {
+      const { data, error } = await supabaseClient
+        .from('Configuration')
+        .select('config_value')
+        .eq('config_key', 'home_pickup_delivery')
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching config:", error);
+        return;
+      }
+
+      const isEnabled = data && data.config_value === "true";
+
+      if (isEnabled) {
+        atHomeOption.style.display = "flex";
+        homeServicesSection.style.display = "block";
+      } else {
+        atHomeOption.style.display = "none";
+        homeServicesSection.style.display = "none";
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    }
+  }
 
   function disableCards(serveAtToDisable) {
-    const cards = document.querySelectorAll('.option-card, .relative');
+    const cards = document.querySelectorAll('.relative');
     cards.forEach(card => {
       if (card.dataset.serveat === serveAtToDisable) {
         card.classList.add('opacity-50', 'cursor-not-allowed');
@@ -169,6 +205,8 @@
   }
 
   window.onload = () => {
+    checkHomePickupConfig(); // 🔹 Check config on load
+
     const serveAt = localStorage.getItem('serveAt');
     if (serveAt === 'HomeService' || serveAt === 'ShopService') {
       modal.style.display = 'none';
