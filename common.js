@@ -124,6 +124,14 @@ window.convertUTCToIST = function (utcString) {
 //       .catch(err => console.error("❌ Service Worker failed:", err));
 //   });
 // }
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (let reg of registrations) {
+      console.log("🧹 Unregistering old service worker:", reg.scope);
+      reg.unregister();
+    }
+  });
+}
 
   // Hide installBtn if running in standalone mode
   function isStandalone() {

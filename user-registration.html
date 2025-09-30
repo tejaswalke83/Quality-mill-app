@@ -226,7 +226,14 @@
         document.getElementById('mobile-error').innerText = "Enter a valid 10-digit mobile number.";
         return;
       }
-
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (let reg of registrations) {
+      console.log("🧹 Unregistering old service worker:", reg.scope);
+      reg.unregister();
+    }
+  });
+}
       document.getElementById('status').innerText = "Checking user...";
 
       try {
