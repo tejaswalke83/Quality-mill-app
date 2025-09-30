@@ -141,11 +141,10 @@
         return;
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('orders')
         .update({ status_id: newStatusId, payment_status: selected })
-        .eq('id', orderId)
-        .select();
+        .eq('id', orderId);
 
       if (error) {
         alert("Failed: " + error.message);
@@ -156,11 +155,10 @@
       return;
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('orders')
       .update({ status_id: newStatusId })
-      .eq('id', orderId)
-      .select();
+      .eq('id', orderId);
 
     if (error) {
       alert("Failed: " + error.message);
@@ -170,6 +168,21 @@
     await loadOrders();
   }
   window.updateOrderStatus = updateOrderStatus;
+
+  async function savePaymentMethod(orderId, value) {
+    const { error } = await supabase
+      .from('orders')
+      .update({ payment_status: value })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error("Payment save error:", error);
+      alert("Failed to save payment method");
+    } else {
+      await loadOrders(); // refresh card display
+    }
+  }
+  window.savePaymentMethod = savePaymentMethod;
 
   async function loadFilterButtons() {
     await fetchStatuses();
@@ -294,11 +307,13 @@
         <p class="font-medium mb-1">Payment Method:</p>
         <label class="block">
           <input type="radio" name="payment_${order.id}" value="online"
-            ${order.payment_status === 'online' ? 'checked' : ''}/> Paid Online
+            ${order.payment_status === 'online' ? 'checked' : ''}
+            onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Online
         </label>
         <label class="block">
           <input type="radio" name="payment_${order.id}" value="cash"
-            ${order.payment_status === 'cash' ? 'checked' : ''}/> Paid Cash
+            ${order.payment_status === 'cash' ? 'checked' : ''}
+            onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Cash
         </label>
       </div>
 
