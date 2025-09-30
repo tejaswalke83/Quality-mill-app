@@ -60,7 +60,6 @@
   let currentOpenOrder = null;
   let searchTimeout;
 
-  // --- Subtle colors ---
   function getStatusClass(status) {
     const map = {
       "NEW": "bg-yellow-100 text-yellow-800",
@@ -74,7 +73,6 @@
     return map[status] || "bg-gray-100 text-gray-700";
   }
 
-  // --- Supabase fetch ---
   async function fetchAllOrders() {
     const { data, error } = await supabase
       .from('orders')
@@ -131,39 +129,52 @@
   }
 
   async function updateOrderStatus(orderId, newStatusId) {
-    console.log("Updating order:", orderId, "→", newStatusId);
+    const nextStatus = statusesCache.find(s => s.id === newStatusId);
+
+    if (nextStatus?.status_name === "DELIVERED") {
+      const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
+      let selected = null;
+      radios.forEach(r => { if (r.checked) selected = r.value; });
+
+      if (!selected) {
+        alert("Please select a payment method before marking as Delivered.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ status_id: newStatusId, payment_status: selected })
+        .eq('id', orderId)
+        .select();
+
+      if (error) {
+        alert("Failed: " + error.message);
+        return;
+      }
+      closeModal();
+      await loadOrders();
+      return;
+    }
 
     const { data, error } = await supabase
       .from('orders')
       .update({ status_id: newStatusId })
       .eq('id', orderId)
-      .select(); // return updated rows
+      .select();
 
     if (error) {
-      console.error("Update error:", error);
       alert("Failed: " + error.message);
       return;
     }
-
-    if (!data || data.length === 0) {
-      console.warn("Update returned no rows. Likely RLS blocked it.");
-      return;
-    }
-
-    console.log("Updated row:", data);
-    // ensure statusesCache is present (status table rarely changes, but safe to refresh)
-    await fetchStatuses();
     closeModal();
     await loadOrders();
   }
   window.updateOrderStatus = updateOrderStatus;
 
-  // --- Filters ---
   async function loadFilterButtons() {
-    await fetchStatuses(); // ensure statusesCache is ready
+    await fetchStatuses();
     const filterGroup = document.querySelector('.filter-group');
 
-    // Use status id as data-value (more reliable). Display label remains status_name.
     filterGroup.innerHTML = `<label class="font-medium">Filter by:</label>
       <button class="filter-btn active px-3 py-1 border rounded" data-value="all">All</button>`;
 
@@ -183,25 +194,17 @@
     });
   }
 
-  // --- Orders ---
   async function loadOrders() {
     const allOrders = await fetchAllOrders();
-
-    // debug: show that we have statuses and orders
-    console.debug("statusesCache:", statusesCache ? statusesCache.length : 0, "ordersFetched:", allOrders.length);
-
     const activeFilterEl = document.querySelector('.filter-btn.active');
     const activeFilter = activeFilterEl ? activeFilterEl.dataset.value : 'all';
     const searchTerm = (document.getElementById('searchBox').value || '').toLowerCase();
 
     let filtered = allOrders;
-
-    // filter by status id (activeFilter is 'all' or status id)
     if (activeFilter !== 'all') {
       filtered = filtered.filter(o => String(o.status_id) === String(activeFilter));
     }
 
-    // search (status name resolved from statusesCache)
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(o => {
         const statusObj = statusesCache.find(s => s.id === o.status_id);
@@ -226,19 +229,19 @@
       return;
     }
 
-    // debug: log first matched order mapping
-    console.debug("filtered orders count:", filtered.length, "first sample:", filtered[0]);
-
     filtered.forEach(order => {
       const grainsHTML = Array.isArray(order.grain_details)
         ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
           order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
           '</ul>' : '';
 
-      // Resolve status using statusesCache (never use order.order_statuses directly)
       const statusObj = statusesCache.find(s => s.id === order.status_id);
       const statusLabel = statusObj ? statusObj.status_name : "Unknown";
       const statusClass = getStatusClass(statusLabel);
+
+      const paymentFlag = order.payment_status
+        ? `<span class="ml-2 text-green-600 font-medium">✔ Paid (${order.payment_status})</span>`
+        : `<span class="ml-2 text-red-600 font-medium">✖ Not Paid</span>`;
 
       const div = document.createElement('div');
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
@@ -254,13 +257,13 @@
         <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
         ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
         <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
+        <p class="mt-2"><strong>Payment:</strong> ${paymentFlag}</p>
       `;
       div.addEventListener('click', () => openModal(order));
       container.appendChild(div);
     });
   }
 
-  // --- Modal ---
   function openModal(order) {
     const modal = document.getElementById("orderModal");
     const content = document.getElementById("modalContent");
@@ -273,8 +276,6 @@
         '</ul>' : '';
 
     const next = getNextStatus(order);
-
-    // Resolve status using statusesCache (do not rely on order.order_statuses)
     const statusObj = statusesCache.find(s => s.id === order.status_id);
     const statusLabel = statusObj ? statusObj.status_name : "Unknown";
     const statusClass = getStatusClass(statusLabel);
@@ -287,6 +288,19 @@
       <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
       ${grainsHTML}
       <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
+
+      <div class="mt-3">
+        <p class="font-medium mb-1">Payment Method:</p>
+        <label class="block">
+          <input type="radio" name="payment_${order.id}" value="online"
+            ${order.payment_status === 'online' ? 'checked' : ''}/> Paid Online
+        </label>
+        <label class="block">
+          <input type="radio" name="payment_${order.id}" value="cash"
+            ${order.payment_status === 'cash' ? 'checked' : ''}/> Paid Cash
+        </label>
+      </div>
+
       ${next 
         ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
             class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
@@ -303,7 +317,6 @@
   }
   window.closeModal = closeModal;
 
-  // --- Search ---
   function debouncedSearch() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => loadOrders(), 300);
@@ -339,7 +352,6 @@
   }
   window.resetSearch = resetSearch;
 
-  // --- Init ---
   await initializeFlows();
   await loadFilterButtons();
   await loadOrders();
