@@ -30,27 +30,27 @@
       <h1 class="text-2xl font-bold mb-6">Dashboard Overview</h1>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('users')">
           <h2 class="text-gray-600">Total Users</h2>
           <p id="card-users" class="text-3xl font-bold mt-2">120</p>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('societies')">
           <h2 class="text-gray-600">Total Societies</h2>
           <p id="card-societies" class="text-3xl font-bold mt-2">15</p>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('orders')">
           <h2 class="text-gray-600">Total Orders</h2>
           <p id="card-orders" class="text-3xl font-bold mt-2">350</p>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('grains')">
           <h2 class="text-gray-600">Total Grains</h2>
           <p id="card-grains" class="text-3xl font-bold mt-2">8</p>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('config')">
           <h2 class="text-gray-600">Active Configs</h2>
           <p id="card-configs" class="text-3xl font-bold mt-2">3</p>
         </div>
@@ -74,9 +74,29 @@
             <th class="border p-2">Actions</th>
           </tr>
         </thead>
-        <tbody id="configTable" class="text-center">
-          <!-- Rows added dynamically -->
-        </tbody>
+        <tbody id="configTable" class="text-center"></tbody>
+      </table>
+    </section>
+
+    <!-- Orders Section -->
+    <section id="section-orders" class="hidden">
+      <h1 class="text-2xl font-bold mb-4">Order Management</h1>
+      <table class="w-full border-collapse border border-gray-300">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border p-2">ID</th>
+            <th class="border p-2">Customer ID</th>
+            <th class="border p-2">Grain</th>
+            <th class="border p-2">Quantity (kg)</th>
+            <th class="border p-2">Price</th>
+            <th class="border p-2">Order Type</th>
+            <th class="border p-2">Payment</th>
+            <th class="border p-2">Status</th>
+            <th class="border p-2">Created</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTable" class="text-center"></tbody>
       </table>
     </section>
 
@@ -89,12 +109,6 @@
     <!-- Societies Section -->
     <section id="section-societies" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Society Management</h1>
-      <p class="text-gray-600">Coming soon...</p>
-    </section>
-
-    <!-- Orders Section -->
-    <section id="section-orders" class="hidden">
-      <h1 class="text-2xl font-bold mb-4">Order Management</h1>
       <p class="text-gray-600">Coming soon...</p>
     </section>
 
@@ -127,17 +141,22 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // Navigation logic
+    const SUPABASE_URL = 'YOUR_URL';
+    const SUPABASE_KEY = 'YOUR_KEY';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     function showSection(name) {
       document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
       document.getElementById("section-" + name).classList.remove("hidden");
+      if (name === "orders") fetchOrders();
     }
 
-    // Default landing page = Dashboard
+    // Default landing page
     showSection('dashboard');
 
-    // Config data
+    // --- Config Section Logic ---
     let configs = [
       { id: 1, key: "home_pickup_delivery", value: "true", desc: "Enable/disable home pickup delivery" }
     ];
@@ -159,24 +178,19 @@
             </td>
           </tr>`;
       });
-
-      // Update Dashboard card count
       document.getElementById("card-configs").innerText = configs.length;
     }
 
     function openForm() {
       document.getElementById("configFormModal").classList.remove("hidden");
       document.getElementById("formTitle").innerText = "Add Config";
-      document.getElementById("configId").value = "";
       document.getElementById("configKey").value = "";
       document.getElementById("configValue").value = "";
       document.getElementById("configDesc").value = "";
       editId = null;
     }
 
-    function closeForm() {
-      document.getElementById("configFormModal").classList.add("hidden");
-    }
+    function closeForm() { document.getElementById("configFormModal").classList.add("hidden"); }
 
     function saveConfig() {
       const key = document.getElementById("configKey").value.trim();
@@ -185,22 +199,18 @@
 
       if (editId) {
         const conf = configs.find(c => c.id === editId);
-        conf.key = key;
-        conf.value = value;
-        conf.desc = desc;
+        conf.key = key; conf.value = value; conf.desc = desc;
       } else {
         const newId = configs.length ? Math.max(...configs.map(c => c.id)) + 1 : 1;
         configs.push({ id: newId, key, value, desc });
       }
-      closeForm();
-      renderTable();
+      closeForm(); renderTable();
     }
 
     function editConfig(id) {
       const conf = configs.find(c => c.id === id);
       editId = id;
       document.getElementById("formTitle").innerText = "Edit Config";
-      document.getElementById("configId").value = conf.id;
       document.getElementById("configKey").value = conf.key;
       document.getElementById("configValue").value = conf.value;
       document.getElementById("configDesc").value = conf.desc;
@@ -213,6 +223,42 @@
     }
 
     renderTable();
+
+    // --- Orders Section Logic ---
+    async function fetchOrders() {
+      const { data, error } = await supabase.from('orders').select('*').limit(20).order('created_at', { ascending: false });
+      if (error) { console.error("Error fetching orders:", error); return; }
+      renderOrders(data);
+    }
+
+    function renderOrders(orders) {
+      const tbody = document.getElementById("ordersTable");
+      tbody.innerHTML = "";
+      orders.forEach(o => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="border p-2">${o.id}</td>
+            <td class="border p-2">${o.customer_id || '-'}</td>
+            <td class="border p-2">${o.grain_type || '-'}</td>
+            <td class="border p-2">${o.quantity_kg || '-'}</td>
+            <td class="border p-2">${o.total_price || '-'}</td>
+            <td class="border p-2">${o.order_type || '-'}</td>
+            <td class="border p-2">${o.payment_status || '-'}</td>
+            <td class="border p-2">${o.status_backup || '-'}</td>
+            <td class="border p-2">${o.created_at ? new Date(o.created_at).toLocaleString() : '-'}</td>
+            <td class="border p-2">
+              <button onclick="deleteOrder('${o.id}')" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
+            </td>
+          </tr>`;
+      });
+      document.getElementById("card-orders").innerText = orders.length;
+    }
+
+    async function deleteOrder(id) {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) { console.error("Error deleting order:", error); return; }
+      fetchOrders();
+    }
   </script>
 </body>
 </html>
