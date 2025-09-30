@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
+    .order-icon { width: 16px; height: 16px; }
   </style>
   <script defer src="/common.js"></script>
 </head>
@@ -52,7 +53,7 @@
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabaseKey = 'YOUR_SUPABASE_KEY';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
@@ -71,6 +72,16 @@
       "OUT FOR DELIVERY": "bg-pink-100 text-pink-800"
     };
     return map[status] || "bg-gray-100 text-gray-700";
+  }
+
+  function getOrderTypeIcon(type) {
+    const icons = {
+      "shop-milling": `<svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>`,
+      "shop-buy-mill": `<svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>`,
+      "home-milling": `<svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>`,
+      "home-buy-mill": `<svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18v13H3z"/><path d="M16 3h5v4h-5z"/></svg>`
+    };
+    return icons[type] || `<svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>`;
   }
 
   async function fetchAllOrders() {
@@ -243,11 +254,6 @@
     }
 
     filtered.forEach(order => {
-      const grainsHTML = Array.isArray(order.grain_details)
-        ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
-          order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
-          '</ul>' : '';
-
       const statusObj = statusesCache.find(s => s.id === order.status_id);
       const statusLabel = statusObj ? statusObj.status_name : "Unknown";
       const statusClass = getStatusClass(statusLabel);
@@ -263,15 +269,15 @@
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
       div.innerHTML = `
         <div class="flex justify-between items-start mb-2">
-          <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
+          <span>${getOrderTypeIcon(order.order_type)}</span>
           <div class="text-right text-sm text-gray-600">
             <strong>Token:</strong> ${order.token_number || ''}<br>
             <strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}
           </div>
         </div>
+        <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
         <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
         <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-        ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
 
         <div class="mt-2 flex justify-between items-center">
           <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
@@ -289,23 +295,22 @@
 
     currentOpenOrder = order;
 
-    const grainsHTML = Array.isArray(order.grain_details)
-      ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
-        order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
-        '</ul>' : '';
-
-    const next = getNextStatus(order);
     const statusObj = statusesCache.find(s => s.id === order.status_id);
     const statusLabel = statusObj ? statusObj.status_name : "Unknown";
     const statusClass = getStatusClass(statusLabel);
+    const next = getNextStatus(order);
 
     content.innerHTML = `
+      <div class="flex justify-between items-start mb-2">
+        <span>${getOrderTypeIcon(order.order_type)}</span>
+        <div class="text-right text-sm text-gray-600">
+          <strong>Token:</strong> ${order.token_number || ''}<br>
+          <strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}
+        </div>
+      </div>
       <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
       <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-      <p><strong>Token:</strong> ${order.token_number || ''}</p>
-      <p><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
       <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-      ${grainsHTML}
       <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
 
       <div class="mt-3">
