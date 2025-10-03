@@ -64,7 +64,7 @@
     const { data, error } = await supabase
       .from('Configuration')
       .select('config_value')
-      .eq('config_key', 'milling_time_per_kg')
+      .eq('config_key', 'time_for_milling_1kg')
       .maybeSingle();
 
     if (!error && data) {
