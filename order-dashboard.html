@@ -53,7 +53,7 @@
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
   const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
+  const supabaseKey = 'YOUR_SUPABASE_KEY';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let statusesCache = [];
@@ -153,50 +153,26 @@
         return;
       }
 
-     // ✅ Update delivered_at when marking as DELIVERED
-    const { error } = await supabase
-      .from('orders')
-      .update({ 
+      await supabase.from('orders').update({ 
         status_id: newStatusId, 
         payment_status: selected,
-        delivered_at: new Date().toISOString()   // ⭐ Added line
-      })
-      .eq('id', orderId);
+        delivered_at: new Date().toISOString()
+      }).eq('id', orderId);
 
-      if (error) {
-        console.error("Update failed:", error);
-        return;
-      }
       closeModal();
       await loadOrders();
       return;
     }
 
-    const { error } = await supabase
-      .from('orders')
-      .update({ status_id: newStatusId })
-      .eq('id', orderId);
-
-    if (error) {
-      console.error("Update failed:", error);
-      return;
-    }
+    await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
     closeModal();
     await loadOrders();
   }
   window.updateOrderStatus = updateOrderStatus;
 
   async function savePaymentMethod(orderId, value) {
-    const { error } = await supabase
-      .from('orders')
-      .update({ payment_status: value })
-      .eq('id', orderId);
-
-    if (error) {
-      console.error("Payment save error:", error);
-    } else {
-      await loadOrders();
-    }
+    await supabase.from('orders').update({ payment_status: value }).eq('id', orderId);
+    await loadOrders();
   }
   window.savePaymentMethod = savePaymentMethod;
 
@@ -277,28 +253,20 @@
 
       const div = document.createElement('div');
       div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
-    //  <!-- Inside loadOrders() - order card layout -->
-div.innerHTML = `
-  <div class="flex justify-between items-center mb-2">
-    <div class="flex items-center gap-2">
-      ${getOrderTypeIcon(order.order_type)}
-      <span class="text-sm font-medium text-gray-700">₹${(order.total_price || 0).toFixed(2)}</span>
-    </div>
-    <div class="text-sm text-gray-600">
-      <strong>Token:</strong> ${order.token_number || ''}
-    </div>
-  </div>
-  <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
-  <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-  <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-  ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
-
-  <div class="mt-2 flex justify-between items-center">
-    <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
-    <span class="text-xs ${paymentClass}">${paymentText}</span>
-  </div>
-`;
-
+      div.innerHTML = `
+        <div class="flex justify-between items-center mb-2">
+          <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
+          <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
+        </div>
+        <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
+        <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+        <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+        ${grainsHTML}
+        <div class="mt-2 flex justify-between items-center">
+          <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
+          <span class="text-xs ${paymentClass}">${paymentText}</span>
+        </div>
+      `;
       div.addEventListener('click', () => openModal(order));
       container.appendChild(div);
     });
@@ -320,85 +288,40 @@ div.innerHTML = `
     const statusClass = getStatusClass(statusLabel);
     const next = getNextStatus(order);
 
+    content.innerHTML = `
+      <div class="flex justify-between items-center mb-2">
+        <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
+        <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
+      </div>
+      <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
+      <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+      <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+      <p><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
+      ${grainsHTML}
+      <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
 
-
-    // Inside openModal() - popup layout 
-content.innerHTML = `
-  <div class="flex justify-between items-center mb-2">
-    <div class="flex items-center gap-2">
-      ${getOrderTypeIcon(order.order_type)}
-      <span class="text-sm font-medium text-gray-700">₹${(order.total_price || 0).toFixed(2)}</span>
-    </div>
-    <div class="text-sm text-gray-600">
-      <strong>Token:</strong> ${order.token_number || ''}
-    </div>
-  </div>
-  <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
-  <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-  <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-  ${grainsHTML}
-  <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
-
-  ${next 
-    ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-        class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-        Move to ${next.status_name}
-      </button>
-      
-      <!-- Payment method only shows with button -->
-      <div class="mt-4">
-        <p class="font-medium mb-2">Payment Method:</p>
-        <label class="flex items-center gap-2 py-2">
-          <input type="radio" name="payment_${order.id}" value="online"
-            ${order.payment_status === 'online' ? 'checked' : ''}
-            onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Online
-        </label>
-        <label class="flex items-center gap-2 py-2">
-          <input type="radio" name="payment_${order.id}" value="cash"
-            ${order.payment_status === 'cash' ? 'checked' : ''}
-            onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Cash
-        </label>
-        <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-      </div>`
-    : ''}
-`;
-
-    // content.innerHTML = `
-    //   <div class="flex justify-between items-start mb-2">
-    //     <span>${getOrderTypeIcon(order.order_type)}</span>
-    //     <div class="text-right text-sm text-gray-600">
-    //       <strong>Token:</strong> ${order.token_number || ''}<br>
-    //       <strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}
-    //     </div>
-    //   </div>
-    //   <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
-    //   <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-    //   <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-    //   ${grainsHTML}
-    //   <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
-
-    //   <div class="mt-3">
-    //     <p class="font-medium mb-1">Payment Method:</p>
-    //     <label class="block">
-    //       <input type="radio" name="payment_${order.id}" value="online"
-    //         ${order.payment_status === 'online' ? 'checked' : ''}
-    //         onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Online
-    //     </label>
-    //     <label class="block">
-    //       <input type="radio" name="payment_${order.id}" value="cash"
-    //         ${order.payment_status === 'cash' ? 'checked' : ''}
-    //         onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Cash
-    //     </label>
-    //     <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-    //   </div>
-
-    //   ${next 
-    //     ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-    //         class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-    //         Move to ${next.status_name}
-    //       </button>` 
-    //     : ''}
-    // `;
+      ${next 
+        ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+            class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+            Move to ${next.status_name}
+          </button>
+          ${next.status_name === "DELIVERED" ? `
+          <div class="mt-4">
+            <p class="font-medium mb-2">Payment Method:</p>
+            <label class="flex items-center gap-2 py-2">
+              <input type="radio" name="payment_${order.id}" value="online"
+                ${order.payment_status === 'online' ? 'checked' : ''}
+                onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Online
+            </label>
+            <label class="flex items-center gap-2 py-2">
+              <input type="radio" name="payment_${order.id}" value="cash"
+                ${order.payment_status === 'cash' ? 'checked' : ''}
+                onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Cash
+            </label>
+            <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
+          </div>` : ''}`
+        : ''}
+    `;
     modal.classList.remove("hidden");
   }
 
@@ -438,7 +361,8 @@ content.innerHTML = `
 
   function resetSearch() {
     document.getElementById('searchBox').value = '';
-    handleSearchInput();
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active','bg-blue-500','text-white'));
+    document.querySelector('.filter-btn[data-value="all"]').classList.add('active','bg-blue-500','text-white');
     loadOrders();
   }
   window.resetSearch = resetSearch;
