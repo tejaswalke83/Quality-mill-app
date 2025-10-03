@@ -57,23 +57,25 @@
   const urlParams = new URLSearchParams(window.location.search);
   const phone = urlParams.get('phone');
   let user = null;
-  let millingTimePerKg = 5; // ✅ default fallback
+  let millingTimePerKg = 5; // default fallback
 
-  // ✅ Fetch config from Configuration table
-  async function fetchConfig() {
-    const { data, error } = await supabase
-      .from('Configuration')
-      .select('config_value')
-      .eq('config_key', 'time_for_milling_1kg')
-      .maybeSingle();
+async function fetchConfig() {
+  const { data, error } = await supabase
+    .from('Configuration')
+    .select('config_value')
+    .eq('config_key', 'Time_for_Milling_1kg') // ✅ correct key
+    .maybeSingle();
 
-    if (!error && data) {
-      millingTimePerKg = Number(data.config_value) || 5;
-      console.log("✅ Milling time per kg (from config):", millingTimePerKg);
-    } else {
-      console.warn("⚠️ Using default milling time per kg:", millingTimePerKg);
-    }
+  console.log("Config fetch result:", { data, error });
+
+  if (!error && data) {
+    millingTimePerKg = Number(data.config_value) || 5;
+    console.log("✅ Milling time per kg (from config):", millingTimePerKg);
+  } else {
+    console.warn("⚠️ Using default milling time per kg:", millingTimePerKg);
   }
+}
+
 
   // ✅ Status color mapping
   function getStatusClass(status) {
