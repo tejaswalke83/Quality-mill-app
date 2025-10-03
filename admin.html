@@ -1,7 +1,4 @@
-
-    
-
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -185,9 +182,10 @@
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-     const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
+    const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
-  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
 
     let configs = [];
     let societies = [];
@@ -208,15 +206,11 @@
 
     // ---------------- Config Section ----------------
     async function fetchConfigs() {
-  const { data, error } = await supabaseClient
-    .from('Configuration')   // ✅ Correct table name
-    .select('*')
-    .order('id');
-
-  if (error) { console.error("Error fetching configs:", error); return; }
-  configs = data;
-  renderConfigTable();
-}
+      const { data, error } = await supabaseClient.from('Configuration').select('*').order('id');
+      if (error) { console.error("Error fetching configs:", error); return; }
+      configs = data;
+      renderConfigTable();
+    }
 
     function renderConfigTable() {
       const tbody = document.getElementById("configTable");
@@ -249,20 +243,18 @@
     function closeForm() { document.getElementById("configFormModal").classList.add("hidden"); }
 
     async function saveConfig() {
-  const key = document.getElementById("configKey").value.trim();
-  const value = document.getElementById("configValue").value.trim();
-  const desc = document.getElementById("configDesc").value.trim();
+      const key = document.getElementById("configKey").value.trim();
+      const value = document.getElementById("configValue").value.trim();
+      const desc = document.getElementById("configDesc").value.trim();
 
-  if (editId) {
-    await supabaseClient
-      .from('Configuration')   // ✅
-      .update({ config_key: key, config_value: value, description: desc })
-      .eq('id', editId);
-  } else {
-    await supabaseClient
-      .from('Configuration')   // ✅
-      .insert([{ config_key: key, config_value: value, description: desc }]);
-  }
+      if (editId) {
+        await supabaseClient.from('Configuration').update({ config_key: key, config_value: value, description: desc }).eq('id', editId);
+      } else {
+        await supabaseClient.from('Configuration').insert([{ config_key: key, config_value: value, description: desc }]);
+      }
+      closeForm();
+      fetchConfigs();
+    }
 
     function editConfig(id) {
       const conf = configs.find(c => c.id === id);
@@ -275,7 +267,7 @@
     }
 
     async function deleteConfig(id) {
-      await supabaseClient.from('Configurations').delete().eq('id', id);
+      await supabaseClient.from('Configuration').delete().eq('id', id);
       fetchConfigs();
     }
 
@@ -328,8 +320,8 @@
       } else {
         await supabaseClient.from('societies').insert([{ name, address, contact_number: contact }]);
       }
-     closeForm();
-  fetchConfigs();
+      closeSocietyForm();
+      fetchSocieties();
     }
 
     function editSociety(id) {
@@ -342,10 +334,10 @@
       document.getElementById("societyFormModal").classList.remove("hidden");
     }
 
-    async function deleteConfig(id) {
-  await supabaseClient.from('Configuration').delete().eq('id', id); // ✅
-  fetchConfigs();
-}
+    async function deleteSociety(id) {
+      await supabaseClient.from('societies').delete().eq('id', id);
+      fetchSocieties();
+    }
 
     // ---------------- Orders Section ----------------
     async function fetchOrders() {
