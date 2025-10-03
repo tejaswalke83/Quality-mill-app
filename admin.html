@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+
+    
+
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -32,27 +35,27 @@
         
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('users')">
           <h2 class="text-gray-600">Total Users</h2>
-          <p id="card-users" class="text-3xl font-bold mt-2">120</p>
+          <p id="card-users" class="text-3xl font-bold mt-2">0</p>
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('societies')">
           <h2 class="text-gray-600">Total Societies</h2>
-          <p id="card-societies" class="text-3xl font-bold mt-2">15</p>
+          <p id="card-societies" class="text-3xl font-bold mt-2">0</p>
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('orders')">
           <h2 class="text-gray-600">Total Orders</h2>
-          <p id="card-orders" class="text-3xl font-bold mt-2">350</p>
+          <p id="card-orders" class="text-3xl font-bold mt-2">0</p>
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('grains')">
           <h2 class="text-gray-600">Total Grains</h2>
-          <p id="card-grains" class="text-3xl font-bold mt-2">8</p>
+          <p id="card-grains" class="text-3xl font-bold mt-2">0</p>
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('config')">
           <h2 class="text-gray-600">Active Configs</h2>
-          <p id="card-configs" class="text-3xl font-bold mt-2">3</p>
+          <p id="card-configs" class="text-3xl font-bold mt-2">0</p>
         </div>
       </div>
     </section>
@@ -109,7 +112,23 @@
     <!-- Societies Section -->
     <section id="section-societies" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Society Management</h1>
-      <p class="text-gray-600">Coming soon...</p>
+      <button onclick="openSocietyForm()" 
+        class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        + Add Society
+      </button>
+      <table class="w-full border-collapse border border-gray-300">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border p-2">ID</th>
+            <th class="border p-2">Name</th>
+            <th class="border p-2">Address</th>
+            <th class="border p-2">Contact</th>
+            <th class="border p-2">Active</th>
+            <th class="border p-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="societyTable" class="text-center"></tbody>
+      </table>
     </section>
 
     <!-- Grains Section -->
@@ -141,38 +160,70 @@
     </div>
   </div>
 
+  <!-- Add/Edit Modal for Society -->
+  <div id="societyFormModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg w-96">
+      <h2 id="societyFormTitle" class="text-xl font-semibold mb-4">Add Society</h2>
+      <input type="hidden" id="societyId">
+
+      <label class="block mb-2 text-sm font-medium">Name</label>
+      <input id="societyName" type="text" class="w-full border rounded p-2 mb-4">
+
+      <label class="block mb-2 text-sm font-medium">Address</label>
+      <input id="societyAddress" type="text" class="w-full border rounded p-2 mb-4">
+
+      <label class="block mb-2 text-sm font-medium">Contact</label>
+      <input id="societyContact" type="text" class="w-full border rounded p-2 mb-4">
+
+      <div class="flex justify-end gap-2">
+        <button onclick="closeSocietyForm()" class="px-4 py-2 border rounded">Cancel</button>
+        <button onclick="saveSociety()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
      const supabaseUrl = 'https://odczzymxgjsjhbufffxm.supabase.co';
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI';
   const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
- 
+    let configs = [];
+    let societies = [];
+    let editId = null;
+    let editSocietyId = null;
+
     function showSection(name) {
       document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
       document.getElementById("section-" + name).classList.remove("hidden");
+
       if (name === "orders") fetchOrders();
+      if (name === "config") fetchConfigs();
+      if (name === "societies") fetchSocieties();
     }
 
     // Default landing page
     showSection('dashboard');
 
-    // --- Config Section Logic ---
-    let configs = [
-      { id: 1, key: "home_pickup_delivery", value: "true", desc: "Enable/disable home pickup delivery" }
-    ];
-    let editId = null;
+    // ---------------- Config Section ----------------
+    async function fetchConfigs() {
+      const { data, error } = await supabaseClient.from('app_configurations').select('*').order('id');
+      if (error) { console.error("Error fetching configs:", error); return; }
+      configs = data;
+      renderConfigTable();
+    }
 
-    function renderTable() {
+    function renderConfigTable() {
       const tbody = document.getElementById("configTable");
       tbody.innerHTML = "";
       configs.forEach(conf => {
         tbody.innerHTML += `
           <tr>
             <td class="border p-2">${conf.id}</td>
-            <td class="border p-2">${conf.key}</td>
-            <td class="border p-2">${conf.value}</td>
-            <td class="border p-2">${conf.desc}</td>
+            <td class="border p-2">${conf.config_key}</td>
+            <td class="border p-2">${conf.config_value}</td>
+            <td class="border p-2">${conf.description || '-'}</td>
             <td class="border p-2">
               <button onclick="editConfig(${conf.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
               <button onclick="deleteConfig(${conf.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
@@ -193,39 +244,104 @@
 
     function closeForm() { document.getElementById("configFormModal").classList.add("hidden"); }
 
-    function saveConfig() {
+    async function saveConfig() {
       const key = document.getElementById("configKey").value.trim();
       const value = document.getElementById("configValue").value.trim();
       const desc = document.getElementById("configDesc").value.trim();
 
       if (editId) {
-        const conf = configs.find(c => c.id === editId);
-        conf.key = key; conf.value = value; conf.desc = desc;
+        await supabaseClient.from('app_configurations').update({ config_key: key, config_value: value, description: desc }).eq('id', editId);
       } else {
-        const newId = configs.length ? Math.max(...configs.map(c => c.id)) + 1 : 1;
-        configs.push({ id: newId, key, value, desc });
+        await supabaseClient.from('app_configurations').insert([{ config_key: key, config_value: value, description: desc }]);
       }
-      closeForm(); renderTable();
+      closeForm();
+      fetchConfigs();
     }
 
     function editConfig(id) {
       const conf = configs.find(c => c.id === id);
       editId = id;
       document.getElementById("formTitle").innerText = "Edit Config";
-      document.getElementById("configKey").value = conf.key;
-      document.getElementById("configValue").value = conf.value;
-      document.getElementById("configDesc").value = conf.desc;
+      document.getElementById("configKey").value = conf.config_key;
+      document.getElementById("configValue").value = conf.config_value;
+      document.getElementById("configDesc").value = conf.description || "";
       document.getElementById("configFormModal").classList.remove("hidden");
     }
 
-    function deleteConfig(id) {
-      configs = configs.filter(c => c.id !== id);
-      renderTable();
+    async function deleteConfig(id) {
+      await supabaseClient.from('app_configurations').delete().eq('id', id);
+      fetchConfigs();
     }
 
-    renderTable();
+    // ---------------- Societies Section ----------------
+    async function fetchSocieties() {
+      const { data, error } = await supabaseClient.from('societies').select('*').order('created_at', { ascending: false });
+      if (error) { console.error("Error fetching societies:", error); return; }
+      societies = data;
+      renderSocietyTable();
+    }
 
-    // --- Orders Section Logic ---
+    function renderSocietyTable() {
+      const tbody = document.getElementById("societyTable");
+      tbody.innerHTML = "";
+      societies.forEach(s => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="border p-2">${s.id}</td>
+            <td class="border p-2">${s.name}</td>
+            <td class="border p-2">${s.address || '-'}</td>
+            <td class="border p-2">${s.contact_number || '-'}</td>
+            <td class="border p-2 text-center">${s.is_active ? "✅" : "❌"}</td>
+            <td class="border p-2">
+              <button onclick="editSociety('${s.id}')" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
+              <button onclick="deleteSociety('${s.id}')" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
+            </td>
+          </tr>`;
+      });
+      document.getElementById("card-societies").innerText = societies.length;
+    }
+
+    function openSocietyForm() {
+      document.getElementById("societyFormModal").classList.remove("hidden");
+      document.getElementById("societyFormTitle").innerText = "Add Society";
+      document.getElementById("societyName").value = "";
+      document.getElementById("societyAddress").value = "";
+      document.getElementById("societyContact").value = "";
+      editSocietyId = null;
+    }
+
+    function closeSocietyForm() { document.getElementById("societyFormModal").classList.add("hidden"); }
+
+    async function saveSociety() {
+      const name = document.getElementById("societyName").value.trim();
+      const address = document.getElementById("societyAddress").value.trim();
+      const contact = document.getElementById("societyContact").value.trim();
+
+      if (editSocietyId) {
+        await supabaseClient.from('societies').update({ name, address, contact_number: contact }).eq('id', editSocietyId);
+      } else {
+        await supabaseClient.from('societies').insert([{ name, address, contact_number: contact }]);
+      }
+      closeSocietyForm();
+      fetchSocieties();
+    }
+
+    function editSociety(id) {
+      const s = societies.find(x => x.id === id);
+      editSocietyId = id;
+      document.getElementById("societyFormTitle").innerText = "Edit Society";
+      document.getElementById("societyName").value = s.name;
+      document.getElementById("societyAddress").value = s.address || "";
+      document.getElementById("societyContact").value = s.contact_number || "";
+      document.getElementById("societyFormModal").classList.remove("hidden");
+    }
+
+    async function deleteSociety(id) {
+      await supabaseClient.from('societies').delete().eq('id', id);
+      fetchSocieties();
+    }
+
+    // ---------------- Orders Section ----------------
     async function fetchOrders() {
       const { data, error } = await supabaseClient.from('orders').select('*').limit(20).order('created_at', { ascending: false });
       if (error) { console.error("Error fetching orders:", error); return; }
@@ -256,8 +372,7 @@
     }
 
     async function deleteOrder(id) {
-      const { error } = await supabaseClient.from('orders').delete().eq('id', id);
-      if (error) { console.error("Error deleting order:", error); return; }
+      await supabaseClient.from('orders').delete().eq('id', id);
       fetchOrders();
     }
   </script>
