@@ -143,11 +143,29 @@ async function fetchConfig() {
       return;
     }
 
-    const myOrders = (allOrders || [])
-      .filter(o => o.customer_id === user.id &&
-        ['NEW','PICKED UP','RECEIVED AT MILL','IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED']
-        .includes(o.order_statuses?.status_name))
-      .reverse();
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+const myOrders = (allOrders || [])
+  .filter(o => {
+    if (o.customer_id !== user.id) return false;
+
+    const status = o.order_statuses?.status_name;
+
+    // 🚫 never show archived
+    if (status === 'ARCHIVED') return false;
+
+    // ✅ show delivered only if created_at is today
+    if (status === 'DELIVERED') {
+      const orderDate = new Date(o.created_at).toISOString().split('T')[0];
+      return orderDate === today;
+    }
+
+    // ✅ show other active statuses
+    return ['NEW','PICKED UP','RECEIVED AT MILL','IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY']
+      .includes(status);
+  })
+  .reverse();
+
 
     if (!myOrders.length) {
       container.innerHTML = '<p class="text-gray-500 text-center">No active orders found.</p>';
