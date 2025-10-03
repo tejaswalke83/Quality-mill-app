@@ -221,11 +221,14 @@
     setTimeout(() => { toast.classList.add("hidden"); }, 3000);
   }
 
-  // ✅ Ensure config + customer are loaded before orders
+ // ✅ Ensure config + customer are loaded before orders
+(async () => {
   await fetchConfig();
   await fetchCustomer();
   if (user) loadOrders();
   window.loadOrders = loadOrders;
+})();
+
 </script>
 </body>
 </html>
