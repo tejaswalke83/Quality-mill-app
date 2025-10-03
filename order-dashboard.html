@@ -273,57 +273,61 @@
   }
 
   function openModal(order) {
-    const modal = document.getElementById("orderModal");
-    const content = document.getElementById("modalContent");
+  const modal = document.getElementById("orderModal");
+  const content = document.getElementById("modalContent");
 
-    currentOpenOrder = order;
+  currentOpenOrder = order;
 
-    const grainsHTML = Array.isArray(order.grain_details)
-      ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
-        order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
-        '</ul>' : '';
+  const grainsHTML = Array.isArray(order.grain_details)
+    ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+      order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+      '</ul>' : '';
 
-    const statusObj = statusesCache.find(s => s.id === order.status_id);
-    const statusLabel = statusObj ? statusObj.status_name : "Unknown";
-    const statusClass = getStatusClass(statusLabel);
-    const next = getNextStatus(order);
+  const statusObj = statusesCache.find(s => s.id === order.status_id);
+  const statusLabel = statusObj ? statusObj.status_name : "Unknown";
+  const statusClass = getStatusClass(statusLabel);
+  const next = getNextStatus(order);
 
-    content.innerHTML = `
-      <div class="flex justify-between items-center mb-2">
-        <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
-        <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
-      </div>
-      <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
-      <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-      <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-      <p><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
-      ${grainsHTML}
-      <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
+  content.innerHTML = `
+    <div class="flex justify-between items-center mb-2">
+      <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
+      <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
+    </div>
+    <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
+    <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+    <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+    <p class="mt-2 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
+    ${grainsHTML}
+    <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
 
-      ${next 
-        ? `<button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-            class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-            Move to ${next.status_name}
-          </button>
-          ${next.status_name === "DELIVERED" ? `
-          <div class="mt-4">
-            <p class="font-medium mb-2">Payment Method:</p>
-            <label class="flex items-center gap-2 py-2">
-              <input type="radio" name="payment_${order.id}" value="online"
-                ${order.payment_status === 'online' ? 'checked' : ''}
-                onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Online
-            </label>
-            <label class="flex items-center gap-2 py-2">
-              <input type="radio" name="payment_${order.id}" value="cash"
-                ${order.payment_status === 'cash' ? 'checked' : ''}
-                onchange="savePaymentMethod('${order.id}', this.value)"/> Paid Cash
-            </label>
-            <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-          </div>` : ''}`
-        : ''}
-    `;
-    modal.classList.remove("hidden");
-  }
+    ${next 
+      ? `
+        ${next.status_name === "DELIVERED" ? `
+        <div class="mt-4">
+          <p class="font-medium mb-2">Payment Method:</p>
+          <label class="flex items-center gap-2 py-2">
+            <input type="radio" name="payment_${order.id}" value="online"
+              ${order.payment_status === 'online' ? 'checked' : ''}
+              onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Online
+          </label>
+          <label class="flex items-center gap-2 py-2">
+            <input type="radio" name="payment_${order.id}" value="cash"
+              ${order.payment_status === 'cash' ? 'checked' : ''}
+              onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Cash
+          </label>
+          <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
+        </div>` : ''}
+
+        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+          class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+          Move to ${next.status_name}
+        </button>
+      `
+      : ''}
+  `;
+  modal.classList.remove("hidden");
+}
+
 
   function closeModal() { 
     document.getElementById("orderModal").classList.add("hidden"); 
