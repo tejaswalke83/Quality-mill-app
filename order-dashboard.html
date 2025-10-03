@@ -252,21 +252,27 @@
       }
 
       const div = document.createElement('div');
-      div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
-      div.innerHTML = `
-        <div class="flex justify-between items-center mb-2">
-          <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
-          <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
-        </div>
-        <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
-        <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
-        <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
-        ${grainsHTML}
-        <div class="mt-2 flex justify-between items-center">
-          <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
-          <span class="text-xs ${paymentClass}">${paymentText}</span>
-        </div>
-      `;
+div.className = 'order-card bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-blue-400';
+div.innerHTML = `
+  <div class="flex justify-between items-center mb-2">
+    <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
+    <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
+  </div>
+  <h3 class="font-semibold text-lg">${order.customers?.name || 'N/A'}</h3>
+  <p><strong>Phone:</strong> ${order.customers?.phone_number || 'N/A'}</p>
+  <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+
+  <!-- Added spacing + bigger Total row like popup -->
+  <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
+
+  ${grainsHTML ? `<div class="mt-2"><strong>Grains:</strong>${grainsHTML}</div>` : ''}
+
+  <div class="mt-2 flex justify-between items-center">
+    <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
+    <span class="text-xs ${paymentClass}">${paymentText}</span>
+  </div>
+`;
+
       div.addEventListener('click', () => openModal(order));
       container.appendChild(div);
     });
