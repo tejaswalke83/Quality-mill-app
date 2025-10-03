@@ -164,16 +164,27 @@ async function fetchConfig() {
       );
 
       let totalKgBefore = 0;
-      validOrdersBefore.forEach(o => {
-        try {
-          (o.grain_details || []).forEach(g => {
-            totalKgBefore += Number(g.quantity || 0);
-          });
-        } catch (e) { console.warn("Bad grain_details format", o.grain_details); }
-      });
 
-      // ✅ Use config value (minutes per kg) for ETA
-      const timeInMinutes = Math.ceil(totalKgBefore * millingTimePerKg);
+// sum valid orders before
+validOrdersBefore.forEach(o => {
+  try {
+    (o.grain_details || []).forEach(g => {
+      totalKgBefore += Number(g.quantity || 0);
+    });
+  } catch (e) { console.warn("Bad grain_details format", o.grain_details); }
+});
+
+// ✅ also add this order’s own grains
+let totalKgIncludingSelf = totalKgBefore;
+try {
+  (order.grain_details || []).forEach(g => {
+    totalKgIncludingSelf += Number(g.quantity || 0);
+  });
+} catch (e) { console.warn("Bad grain_details format", order.grain_details); }
+
+// ✅ use config (minutes per kg)
+const timeInMinutes = Math.ceil(totalKgIncludingSelf * millingTimePerKg);
+
       const hours = Math.floor(timeInMinutes / 60);
       const minutes = timeInMinutes % 60;
 
