@@ -263,6 +263,7 @@
       .from('Configuration')   // ✅
       .insert([{ config_key: key, config_value: value, description: desc }]);
   }
+}
 
     function editConfig(id) {
       const conf = configs.find(c => c.id === id);
