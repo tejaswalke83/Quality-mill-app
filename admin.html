@@ -188,193 +188,132 @@
 const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const phone = urlParams.get('phone');
+  let user = null;
+  let millingTimePerKg = 5; // default fallback (minutes per kg)
 
-    let configs = [];
-    let societies = [];
-    let editId = null;
-    let editSocietyId = null;
+  // ✅ Fetch milling time config from Configuration table
+  async function fetchConfig() {
+    const { data, error } = await supabase
+      .from('Configuration')
+      .select('config_value')
+      .eq('config_key', 'milling_time_per_kg')
+      .maybeSingle();
 
-    function showSection(name) {
-      document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
-      document.getElementById("section-" + name).classList.remove("hidden");
+    if (!error && data) {
+      millingTimePerKg = Number(data.config_value) || 5;
+      console.log("Milling time per kg (from config):", millingTimePerKg);
+    } else {
+      console.warn("⚠️ Using default milling time per kg:", millingTimePerKg);
+    }
+  }
 
-      if (name === "orders") fetchOrders();
-      if (name === "config") fetchConfigs();
-      if (name === "societies") fetchSocieties();
+  async function loadOrders() {
+    const container = document.getElementById('orders-container');
+    container.innerHTML = '';
+
+    const { data: allOrders, error } = await supabase
+      .from('orders')
+      .select(`
+        id,
+        customer_id,
+        grain_details,
+        total_price,
+        token_number,
+        created_at,
+        order_type,
+        serve_at,
+        status_id,
+        order_statuses:order_statuses!orders_status_id_fkey (
+          id,
+          status_name
+        )
+      `)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error(error);
+      container.innerHTML = '<p class="text-red-500">Failed to load orders.</p>';
+      return;
     }
 
-    // Default landing page
-    showSection('dashboard');
+    const myOrders = (allOrders || [])
+      .filter(o => o.customer_id === user.id &&
+        ['NEW','PICKED UP','RECEIVED AT MILL','IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY','DELIVERED']
+        .includes(o.order_statuses?.status_name))
+      .reverse();
 
-    // ---------------- Config Section ----------------
-    async function fetchConfigs() {
-      const { data, error } = await supabaseClient.from('Configuration').select('*').order('id');
-      if (error) { console.error("Error fetching configs:", error); return; }
-      configs = data;
-      renderConfigTable();
+    if (!myOrders.length) {
+      container.innerHTML = '<p class="text-gray-500 text-center">No active orders found.</p>';
+      return;
     }
 
-    function renderConfigTable() {
-      const tbody = document.getElementById("configTable");
-      tbody.innerHTML = "";
-      configs.forEach(conf => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="border p-2">${conf.id}</td>
-            <td class="border p-2">${conf.config_key}</td>
-            <td class="border p-2">${conf.config_value}</td>
-            <td class="border p-2">${conf.description || '-'}</td>
-            <td class="border p-2">
-              <button onclick="editConfig(${conf.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
-              <button onclick="deleteConfig(${conf.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
-            </td>
-          </tr>`;
+    myOrders.forEach(order => {
+      const indexInQueue = allOrders.findIndex(o => o.id === order.id);
+
+      // ✅ Exclude irrelevant statuses
+      const validOrdersBefore = allOrders.slice(0, indexInQueue).filter(o => 
+        !['DELIVERED','MILLING COMPLETED','OUT FOR DELIVERY','ARCHIVED']
+        .includes(o.order_statuses?.status_name)
+      );
+
+      let totalKgBefore = 0;
+      validOrdersBefore.forEach(o => {
+        try {
+          (o.grain_details || []).forEach(g => {
+            totalKgBefore += Number(g.quantity || 0);
+          });
+        } catch (e) { console.warn("Bad grain_details format", o.grain_details); }
       });
-      document.getElementById("card-configs").innerText = configs.length;
-    }
 
-    function openForm() {
-      document.getElementById("configFormModal").classList.remove("hidden");
-      document.getElementById("formTitle").innerText = "Add Config";
-      document.getElementById("configKey").value = "";
-      document.getElementById("configValue").value = "";
-      document.getElementById("configDesc").value = "";
-      editId = null;
-    }
+      // ✅ Use millingTimePerKg from config table
+      const timeInMinutes = Math.ceil(totalKgBefore * millingTimePerKg);
+      const hours = Math.floor(timeInMinutes / 60);
+      const minutes = timeInMinutes % 60;
 
-    function closeForm() { document.getElementById("configFormModal").classList.add("hidden"); }
-
-    async function saveConfig() {
-      const key = document.getElementById("configKey").value.trim();
-      const value = document.getElementById("configValue").value.trim();
-      const desc = document.getElementById("configDesc").value.trim();
-
-      if (editId) {
-        await supabaseClient.from('Configuration').update({ config_key: key, config_value: value, description: desc }).eq('id', editId);
+      let estimatedTime;
+      if (hours > 4 || (hours === 4 && minutes > 0)) {
+        estimatedTime = "4+ hrs";
       } else {
-        await supabaseClient.from('Configuration').insert([{ config_key: key, config_value: value, description: desc }]);
+        estimatedTime = hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
       }
-      closeForm();
-      fetchConfigs();
-    }
 
-    function editConfig(id) {
-      const conf = configs.find(c => c.id === id);
-      editId = id;
-      document.getElementById("formTitle").innerText = "Edit Config";
-      document.getElementById("configKey").value = conf.config_key;
-      document.getElementById("configValue").value = conf.config_value;
-      document.getElementById("configDesc").value = conf.description || "";
-      document.getElementById("configFormModal").classList.remove("hidden");
-    }
+      const grainsHTML = (order.grain_details || [])
+        .map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
 
-    async function deleteConfig(id) {
-      await supabaseClient.from('Configuration').delete().eq('id', id);
-      fetchConfigs();
-    }
+      const date = window.convertUTCToIST(order.created_at);
+      const statusLabel = order.order_statuses?.status_name || 'PENDING';
+      const statusClass = getStatusClass(statusLabel);
 
-    // ---------------- Societies Section ----------------
-    async function fetchSocieties() {
-      const { data, error } = await supabaseClient.from('societies').select('*').order('created_at', { ascending: false });
-      if (error) { console.error("Error fetching societies:", error); return; }
-      societies = data;
-      renderSocietyTable();
-    }
+      const card = document.createElement('div');
+      card.className = 'bg-white shadow rounded-lg p-4';
+      card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <div>
+            <p class="font-semibold text-gray-800">Token: ${order.token_number || 'N/A'}</p>
+            <p class="text-sm text-gray-600">Date: ${date}</p>
+          </div>
+          <span class="px-2 py-1 text-xs rounded font-medium ${statusClass}">
+            ${statusLabel}
+          </span>
+        </div>
+        <ul class="list-disc ml-5 text-sm text-gray-700 mb-2">${grainsHTML}</ul>
+        <p class="text-sm"><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
+        <p class="text-sm text-gray-600">Orders before you: ${validOrdersBefore.length}</p>
+        <p class="text-sm text-gray-600">Estimated Time: ${estimatedTime}</p>
+      `;
 
-    function renderSocietyTable() {
-      const tbody = document.getElementById("societyTable");
-      tbody.innerHTML = "";
-      societies.forEach(s => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="border p-2">${s.id}</td>
-            <td class="border p-2">${s.name}</td>
-            <td class="border p-2">${s.address || '-'}</td>
-            <td class="border p-2">${s.contact_number || '-'}</td>
-            <td class="border p-2 text-center">${s.is_active ? "✅" : "❌"}</td>
-            <td class="border p-2">
-              <button onclick="editSociety('${s.id}')" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
-              <button onclick="deleteSociety('${s.id}')" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
-            </td>
-          </tr>`;
-      });
-      document.getElementById("card-societies").innerText = societies.length;
-    }
+      container.appendChild(card);
+    });
+  }
 
-    function openSocietyForm() {
-      document.getElementById("societyFormModal").classList.remove("hidden");
-      document.getElementById("societyFormTitle").innerText = "Add Society";
-      document.getElementById("societyName").value = "";
-      document.getElementById("societyAddress").value = "";
-      document.getElementById("societyContact").value = "";
-      editSocietyId = null;
-    }
+  // ✅ First fetch config, then customer, then load orders
+  await fetchConfig();
+  await fetchCustomer();
+  if (user) loadOrders();
+  window.loadOrders = loadOrders;
+</script>
 
-    function closeSocietyForm() { document.getElementById("societyFormModal").classList.add("hidden"); }
-
-    async function saveSociety() {
-      const name = document.getElementById("societyName").value.trim();
-      const address = document.getElementById("societyAddress").value.trim();
-      const contact = document.getElementById("societyContact").value.trim();
-
-      if (editSocietyId) {
-        await supabaseClient.from('societies').update({ name, address, contact_number: contact }).eq('id', editSocietyId);
-      } else {
-        await supabaseClient.from('societies').insert([{ name, address, contact_number: contact }]);
-      }
-      closeSocietyForm();
-      fetchSocieties();
-    }
-
-    function editSociety(id) {
-      const s = societies.find(x => x.id === id);
-      editSocietyId = id;
-      document.getElementById("societyFormTitle").innerText = "Edit Society";
-      document.getElementById("societyName").value = s.name;
-      document.getElementById("societyAddress").value = s.address || "";
-      document.getElementById("societyContact").value = s.contact_number || "";
-      document.getElementById("societyFormModal").classList.remove("hidden");
-    }
-
-    async function deleteSociety(id) {
-      await supabaseClient.from('societies').delete().eq('id', id);
-      fetchSocieties();
-    }
-
-    // ---------------- Orders Section ----------------
-    async function fetchOrders() {
-      const { data, error } = await supabaseClient.from('orders').select('*').limit(20).order('created_at', { ascending: false });
-      if (error) { console.error("Error fetching orders:", error); return; }
-      renderOrders(data);
-    }
-
-    function renderOrders(orders) {
-      const tbody = document.getElementById("ordersTable");
-      tbody.innerHTML = "";
-      orders.forEach(o => {
-        tbody.innerHTML += `
-          <tr>
-            <td class="border p-2">${o.id}</td>
-            <td class="border p-2">${o.customer_id || '-'}</td>
-            <td class="border p-2">${o.grain_type || '-'}</td>
-            <td class="border p-2">${o.quantity_kg || '-'}</td>
-            <td class="border p-2">${o.total_price || '-'}</td>
-            <td class="border p-2">${o.order_type || '-'}</td>
-            <td class="border p-2">${o.payment_status || '-'}</td>
-            <td class="border p-2">${o.status_backup || '-'}</td>
-            <td class="border p-2">${o.created_at ? new Date(o.created_at).toLocaleString() : '-'}</td>
-            <td class="border p-2">
-              <button onclick="deleteOrder('${o.id}')" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
-            </td>
-          </tr>`;
-      });
-      document.getElementById("card-orders").innerText = orders.length;
-    }
-
-    async function deleteOrder(id) {
-      await supabaseClient.from('orders').delete().eq('id', id);
-      fetchOrders();
-    }
-  </script>
 </body>
 </html>
