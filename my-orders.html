@@ -57,6 +57,23 @@
   const urlParams = new URLSearchParams(window.location.search);
   const phone = urlParams.get('phone');
   let user = null;
+  let millingTimePerKg = 5; // ✅ default fallback
+
+  // ✅ Fetch config from Configuration table
+  async function fetchConfig() {
+    const { data, error } = await supabase
+      .from('Configuration')
+      .select('config_value')
+      .eq('config_key', 'milling_time_per_kg')
+      .maybeSingle();
+
+    if (!error && data) {
+      millingTimePerKg = Number(data.config_value) || 5;
+      console.log("✅ Milling time per kg (from config):", millingTimePerKg);
+    } else {
+      console.warn("⚠️ Using default milling time per kg:", millingTimePerKg);
+    }
+  }
 
   // ✅ Status color mapping
   function getStatusClass(status) {
@@ -153,7 +170,8 @@
         } catch (e) { console.warn("Bad grain_details format", o.grain_details); }
       });
 
-      const timeInMinutes = Math.ceil((totalKgBefore / 5) * 10);
+      // ✅ Use config value (minutes per kg) for ETA
+      const timeInMinutes = Math.ceil(totalKgBefore * millingTimePerKg);
       const hours = Math.floor(timeInMinutes / 60);
       const minutes = timeInMinutes % 60;
 
@@ -203,6 +221,8 @@
     setTimeout(() => { toast.classList.add("hidden"); }, 3000);
   }
 
+  // ✅ Ensure config + customer are loaded before orders
+  await fetchConfig();
   await fetchCustomer();
   if (user) loadOrders();
   window.loadOrders = loadOrders;
