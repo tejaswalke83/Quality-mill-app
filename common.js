@@ -1,12 +1,16 @@
 /* =========================
    common.js
-   - Add to /common.js and include on every HTML page:
-     <script defer src="/common.js"></script>
-   - Purpose: install button + SW registration + small toast + update flow
+   - Include on every HTML page:
+       <script defer src="/common.js"></script>
+   - Purpose:
+       ✅ PWA Install button
+       ✅ Toast notifications
+       ✅ Update flow (when new version deployed)
+       ✅ Register firebase-messaging-sw.js (for push + PWA)
    ========================= */
 
 (function () {
-  // --- Create Install Button (auto-inserted into pages) ---
+  // --- Create Install Button ---
   const installBtn = document.createElement('button');
   installBtn.id = 'pwa-install-btn';
   installBtn.innerHTML = '📲 Install App';
@@ -28,30 +32,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(installBtn);
   });
-window.convertUTCToIST = function (utcString) {
-  if (!utcString) return "";
 
-  const utcDate = new Date(utcString);
-
-  // Convert to IST (+5:30 offset)
-  const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
-
-  // Format nicely
-  return istDate.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true
-  });
-};
-
-
-
-
-  // --- Toast container (reused) ---
+  // --- Toast helper ---
   function showToast(text, timeout = 3000) {
     let toast = document.getElementById('pwa-toast');
     if (!toast) {
@@ -78,10 +60,25 @@ window.convertUTCToIST = function (utcString) {
     toast._timeout = setTimeout(() => (toast.style.display = 'none'), timeout);
   }
 
-  // --- beforeinstallprompt handling (show install button when installable) ---
+  // --- Helper to convert UTC to IST (used elsewhere) ---
+  window.convertUTCToIST = function (utcString) {
+    if (!utcString) return "";
+    const utcDate = new Date(utcString);
+    const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
+    return istDate.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+  };
+
+  // --- Install button flow ---
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent automatic prompt
     e.preventDefault();
     deferredPrompt = e;
     installBtn.style.display = 'block';
@@ -102,57 +99,61 @@ window.convertUTCToIST = function (utcString) {
       installBtn.style.display = 'none';
     } catch (err) {
       console.error('Install prompt error', err);
-      installBtn.disabled = false;
     } finally {
       installBtn.disabled = false;
     }
   });
 
-  // Hide button if app already installed
+  // Hide installBtn if already installed
   window.addEventListener('appinstalled', () => {
     installBtn.style.display = 'none';
     showToast('App installed');
   });
 
-  // common.js
-
-// if ("serviceWorker" in navigator) {
-//   window.addEventListener("load", () => {
-//     navigator.serviceWorker
-//       .register("/sw.js")
-//       .then(reg => console.log("✅ Service Worker registered:", reg.scope))
-//       .catch(err => console.error("❌ Service Worker failed:", err));
-//   });
-// }
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    for (let reg of registrations) {
-      console.log("🧹 Unregistering old service worker:", reg.scope);
-      reg.unregister();
-    }
-  });
-}
-
-  // Hide installBtn if running in standalone mode
+  // --- Hide if in standalone mode ---
   function isStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
   if (isStandalone()) installBtn.style.display = 'none';
 
-  // --- Service Worker registration + update flow ---
-  if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/firebase-messaging-sw.js')
-    .then(reg => console.log('[PWA] Firebase SW registered ✅', reg.scope))
-    .catch(err => console.error('[PWA] Firebase SW register failed ❌', err));
-}
+  // --- Register only Firebase Messaging SW ---
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .register("/firebase-messaging-sw.js")
+      .then((reg) => {
+        console.log("[PWA] Firebase SW registered ✅", reg.scope);
 
+        // If new version waiting, show update toast
+        if (reg.waiting) showUpdateButton();
 
-  // Add an update button when there's a new service worker waiting
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              showUpdateButton();
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.error("[PWA] Firebase SW register failed ❌", err);
+      });
+
+    // Reload when SW activates
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!window.__pwa_reloading) {
+        window.__pwa_reloading = true;
+        window.location.reload();
+      }
+    });
+  }
+
+  // --- Update button (when new deploy is detected) ---
   function showUpdateButton() {
     if (document.getElementById('pwa-update-btn')) return;
     const btn = document.createElement('button');
     btn.id = 'pwa-update-btn';
-    btn.innerText = 'Update available — Tap to reload';
+    btn.innerText = '🔄 New update available — Tap to refresh';
     Object.assign(btn.style, {
       position: 'fixed',
       left: '50%',
@@ -173,19 +174,18 @@ if ("serviceWorker" in navigator) {
     btn.addEventListener('click', async () => {
       const reg = await navigator.serviceWorker.getRegistration();
       if (!reg || !reg.waiting) return;
-      // Tell SW to skip waiting
       reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       btn.style.display = 'none';
+      showToast("Refreshing to new version…");
+      setTimeout(() => window.location.reload(), 1000);
     });
   }
 
-  // Expose small helper to show toast (optional)
+  // Expose toast globally
   window.pwaShowToast = showToast;
 
-  // Clean-up / initial hide when DOM ready if standalone
+  // Hide install button if standalone on load
   document.addEventListener('DOMContentLoaded', () => {
-    if (isStandalone()) {
-      installBtn.style.display = 'none';
-    }
+    if (isStandalone()) installBtn.style.display = 'none';
   });
 })();
