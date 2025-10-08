@@ -141,36 +141,11 @@ if ("serviceWorker" in navigator) {
 
   // --- Service Worker registration + update flow ---
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
-      console.log('[PWA] SW registered', reg);
+  navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    .then(reg => console.log('[PWA] Firebase SW registered ✅', reg.scope))
+    .catch(err => console.error('[PWA] Firebase SW register failed ❌', err));
+}
 
-      // If there is an updated SW waiting, show update UI
-      if (reg.waiting) {
-        showUpdateButton();
-      }
-
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New content available
-            showUpdateButton();
-          }
-        });
-      });
-    }).catch((err) => {
-      console.error('[PWA] SW register failed', err);
-    });
-
-    // Listen for controllerchange (when skipWaiting() fired in SW)
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // reload to get the new SW-controlled content (only once)
-      if (!window.__pwa_reloading) {
-        window.__pwa_reloading = true;
-        window.location.reload();
-      }
-    });
-  }
 
   // Add an update button when there's a new service worker waiting
   function showUpdateButton() {

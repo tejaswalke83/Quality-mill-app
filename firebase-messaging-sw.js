@@ -13,26 +13,8 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(function(payload) {
   console.log('📩 Received background message: ', payload);
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
+  self.registration.showNotification(payload.notification.title, {
     body: payload.notification.body,
     icon: '/images/icon-192.png'
-  };
-// Fix cache issues: Supabase calls are never cached
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (url.hostname.includes('supabase.co')) return;
-  
-  event.respondWith(
-    caches.open('static-cache').then(cache => {
-      return cache.match(event.request).then(response => {
-        return response || fetch(event.request).then(networkResponse => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        });
-      });
-    })
-  );
-});
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  });
 });
