@@ -210,10 +210,15 @@
 
   <!-- Supabase and JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Load environment config -->
+<script src="config.js"></script>
   <script>
-    const SUPABASE_URL = 'https://msoykugvymbybdjkilab.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3lrdWd2eW1ieWJkamtpbGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ2NjIsImV4cCI6MjA3NTQ4MDY2Mn0.Ifc7-NJ0mIc9Uw0NdMbTKBTXZ5eh3PKrVCJ1cJGTZyQ';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+     // ✅ Read Supabase credentials from config.js (populated by Netlify)
+  const SUPABASE_URL = window._env_.SUPABASE_URL;
+  const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
+  
+  // ✅ Create Supabase client
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let societiesCache = [];
 
