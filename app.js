@@ -29,7 +29,7 @@ async function requestPermission() {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       const token = await messaging.getToken({
-        vapidKey: 'AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY'
+        vapidKey: 'BJlixsNsTwpDpLenlmNUh1ySVNLM9woE2i5SkDPxlLHUy_iZM4HEN1gRv2NGNQ20AUrqqss1WIz4QCjhpE-uXKc'
       });
       console.log('✅ User FCM Token:', token);
 
