@@ -10,6 +10,8 @@
 <meta name="theme-color" content="#007bff">
 <link rel="icon" href="/icons/icon-192.png" sizes="192x192">-->
 <script defer src="/common.js"></script> 
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0d6efd">
 
 </head>
 <body>
@@ -59,5 +61,27 @@
   </form>
 
   <script src="script.js"></script>
+
+  <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
+    authDomain: "qualityattamills.firebaseapp.com",
+    projectId: "qualityattamills",
+    storageBucket: "qualityattamills.firebasestorage.app",
+    messagingSenderId: "737428044643",
+    appId: "1:737428044643:web:a0f9ecfae3794e11e57156"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+<script src="app.js"></script>
+
 </body>
 </html>
