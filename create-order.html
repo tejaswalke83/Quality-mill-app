@@ -78,13 +78,19 @@
   <div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow"></div>
 
   <script src="script.js"></script>
+  <script src="config.js"></script>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    const supabase = createClient(
-      'https://odczzymxgjsjhbufffxm.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kY3p6eW14Z2pzamhidWZmZnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzMjY2NDIsImV4cCI6MjA2OTkwMjY0Mn0.T2ZT6U11taDH7vNTUJgI9xvqEZ1YEfBrNx28QV7jJvI'
-    );
+    // ✅ Read Supabase credentials from config.js (populated by Netlify)
+  const SUPABASE_URL = window._env_.SUPABASE_URL;
+  const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
+  
+  const supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
 
     const urlParams = new URLSearchParams(window.location.search);
     const phone = urlParams.get('phone');
