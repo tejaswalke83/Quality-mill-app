@@ -1,8 +1,8 @@
-importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-   apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
+  apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
   authDomain: "qualityattamills.firebaseapp.com",
   projectId: "qualityattamills",
   messagingSenderId: "737428044643",
@@ -11,14 +11,13 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Show notification when a push arrives
 messaging.onBackgroundMessage(function(payload) {
-  self.registration.showNotification(payload.notification.title, {
+  console.log('📩 Received background message: ', payload);
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
     body: payload.notification.body,
     icon: '/images/icon-192.png'
-  });
-});
-
+  };
 // Fix cache issues: Supabase calls are never cached
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
@@ -34,4 +33,6 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+  self.registration.showNotification(notificationTitle, notificationOptions);
 });
