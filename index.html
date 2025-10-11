@@ -1,30 +1,39 @@
-<body>
-  <!-- Splash Logo -->
-  <img src="/images/full logo.png" alt="Quality Mill Logo" class="logo" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quality Mill - Welcome</title>
 
-  <!-- Next Button (hidden initially) -->
-  <button id="nextBtn" class="next-btn" style="display:none;">Next →</button>
+  <!-- Tailwind for consistent look -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0d6efd" />
 
-  <!-- Styles for Next Button -->
+  <!-- Common PWA/Push setup -->
+  <script defer src="/common.js"></script>
+</head>
+
+<body class="flex flex-col justify-center items-center h-screen bg-[#3c5882] text-white">
+
+  <!-- Logo -->
+  <img src="/images/full logo.png" alt="Quality Mill Logo"
+       class="w-64 sm:w-80 mb-8 opacity-0 animate-fade-in" />
+
+  <!-- Button -->
+  <button id="nextBtn"
+    class="hidden bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8 py-3 rounded-full shadow-lg transition-all duration-300">
+    Next →
+  </button>
+
+  <!-- Smooth fade animation -->
   <style>
-    .next-btn {
-      position: absolute;
-      bottom: 40px;
-      background-color: #ffffff;
-      color: #3c5882;
-      border: none;
-      padding: 12px 28px;
-      border-radius: 30px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      transition: all 0.3s ease;
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(30px); }
+      100% { opacity: 1; transform: translateY(0); }
     }
-
-    .next-btn:hover {
-      transform: translateY(-2px);
-      background-color: #f4f4f4;
+    .animate-fade-in {
+      animation: fadeIn 0.8s ease forwards;
     }
   </style>
 
@@ -32,7 +41,7 @@
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js"></script>
 
-  <!-- Firebase + Push Logic -->
+  <!-- Firebase Config + Push Logic -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
@@ -46,44 +55,47 @@
     firebase.initializeApp(firebaseConfig);
     const messaging = firebase.messaging();
 
-    async function requestNotificationPermission() {
+    async function initNotifications() {
+      console.log("🔔 Requesting notification permission...");
       try {
-        console.log("🔔 Requesting notification permission...");
         const permission = await Notification.requestPermission();
 
         if (permission === "granted") {
           console.log("✅ Notification permission granted");
 
+          // Fetch FCM Token
           const fcmToken = await messaging.getToken({
             vapidKey: "YOUR_WEB_PUSH_CERTIFICATE_KEY_PAIR_FROM_FIREBASE"
           });
 
           if (fcmToken) {
-            console.log("📱 FCM Token received:", fcmToken);
+            console.log("📱 Token:", fcmToken);
             localStorage.setItem("fcm_token", fcmToken);
           } else {
-            console.warn("⚠️ No FCM token received yet.");
+            console.warn("⚠️ No FCM token received.");
           }
         } else {
-          console.warn("🚫 Notification permission denied.");
+          console.warn("🚫 Notifications blocked by user.");
         }
-      } catch (error) {
-        console.error("❌ Error during notification setup:", error);
+      } catch (err) {
+        console.error("❌ Error requesting permission:", err);
       } finally {
-        // ✅ Show Next button once process completes
-        document.getElementById("nextBtn").style.display = "block";
+        // ✅ Always show Next button once check completes
+        document.getElementById("nextBtn").classList.remove("hidden");
       }
     }
 
-    document.addEventListener("DOMContentLoaded", requestNotificationPermission);
+    document.addEventListener("DOMContentLoaded", initNotifications);
 
-    // Handle next button click
+    // Handle "Next" button click → go to registration
     document.getElementById("nextBtn").addEventListener("click", () => {
-      const logo = document.querySelector('.logo');
-      logo.classList.add('fade-out');
+      const logo = document.querySelector("img");
+      logo.classList.add("opacity-0", "transition-all", "duration-700");
       setTimeout(() => {
         window.location.href = "user-registration.html";
-      }, 500);
+      }, 400);
     });
   </script>
+
 </body>
+</html>
