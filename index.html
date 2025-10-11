@@ -4,58 +4,100 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quality Mill - Order Form</title>
-  <link rel="stylesheet" href="styles.css" />
 
-  <script defer src="/common.js"></script> 
-  <link rel="manifest" href="/manifest.json">
+  <!-- Styles and Manifest -->
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0d6efd">
+
+  <!-- Common JS (PWA registration etc.) -->
+  <script defer src="/common.js"></script>
+
+  <style>
+    /* Fullscreen splash layout */
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: #ffffff;
+      overflow: hidden;
+    }
+
+    .logo {
+      width: 160px;
+      height: auto;
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeSlide 1s ease forwards;
+    }
+
+    @keyframes fadeSlide {
+      0% {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      50% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Fade-out before redirect */
+    .fade-out {
+      animation: fadeOut 0.5s ease forwards;
+    }
+
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+    }
+
+    /* Admin login link */
+    .footer-link {
+      position: absolute;
+      bottom: 20px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .footer-link a {
+      color: #0d6efd;
+      text-decoration: underline;
+    }
+  </style>
 </head>
 
 <body>
-  <div style="text-align: center; margin-top: 20px;">
-    <a href="login.html" style="font-weight: bold; color: blue; text-decoration: underline;">
-      Admin / Staff Login
-    </a>
-  </div> 
+  <!-- Splash Logo -->
+  <img src="logo.png" alt="Quality Mill Logo" class="logo" />
 
-  <h1>Place Your Order</h1>
-  <form id="orderForm">
-    <label for="society">Society Name:</label>
-    <select id="society" name="society">
-      <option value="">Select...</option>
-    </select><br />
+  <!-- Optional Admin Login -->
+  <div class="footer-link">
+    <a href="login.html">Admin / Staff Login</a>
+  </div>
 
-    <label for="area">Area:</label>
-    <input type="text" id="area" name="area" required /><br />
+  <!-- Redirect Logic -->
+  <script>
+    const redirectDelay = 1000; // 1 second
 
-    <label for="city">City:</label>
-    <input type="text" id="city" name="city" required /><br />
+    setTimeout(() => {
+      document.querySelector('.logo').classList.add('fade-out');
+      setTimeout(() => {
+        window.location.href = "user-registration.html"; // your registration page
+      }, 500); // wait for fade-out animation
+    }, redirectDelay);
+  </script>
 
-    <label for="flat">Flat No.:</label>
-    <input type="text" id="flat" name="flat" required /><br />
-
-    <label for="wing">Wing:</label>
-    <input type="text" id="wing" name="wing" required /><br />
-
-    <label for="grain">Grain:</label>
-    <input type="text" id="grain" name="grain" required /><br />
-
-    <label for="quantity">Quantity (kg):</label>
-    <input type="number" id="quantity" name="quantity" required /><br />
-
-    <label for="milling">Milling Preference:</label>
-    <select id="milling" name="milling">
-      <option value="fine">Fine</option>
-      <option value="medium">Medium</option>
-      <option value="coarse">Coarse</option>
-    </select><br />
-
-    <button type="submit">Submit Order</button>
-  </form>
-
-  <script src="script.js"></script>
-
-  <!-- ✅ Use Firebase compat SDKs (no import issues) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js"></script>
 
@@ -73,7 +115,7 @@
     firebase.initializeApp(firebaseConfig);
   </script>
 
-  <!-- Your app logic -->
+  <!-- App Logic -->
   <script src="app.js"></script>
 </body>
 </html>
