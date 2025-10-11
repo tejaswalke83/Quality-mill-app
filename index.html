@@ -13,67 +13,75 @@
   <!-- Common JS (PWA registration etc.) -->
   <script defer src="/common.js"></script>
 
-  <style>
-    /* Fullscreen splash layout */
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: #ffffff;
-      overflow: hidden;
-    }
+ <style>
+  /* Fullscreen splash layout */
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #3c5882; /* brand color */
+    overflow: hidden;
+    transition: background-color 0.5s ease;
+  }
 
-    .logo {
-      width: 160px;
-      height: auto;
+  .logo {
+    width: 800px;
+    height: auto;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeSlide 1s ease forwards;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+  }
+
+  @keyframes fadeSlide {
+    0% {
       opacity: 0;
       transform: translateY(30px);
-      animation: fadeSlide 1s ease forwards;
     }
+    50% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
-    @keyframes fadeSlide {
-      0% {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      50% {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+  /* Fade-out before redirect */
+  .fade-out {
+    animation: fadeOut 1s ease forwards;
+  }
 
-    /* Fade-out before redirect */
-    .fade-out {
-      animation: fadeOut 0.5s ease forwards;
+  @keyframes fadeOut {
+    to {
+      opacity: 0;
+      transform: translateY(-20px);
     }
+  }
 
-    @keyframes fadeOut {
-      to {
-        opacity: 0;
-        transform: translateY(-30px);
-      }
-    }
+  /* Admin login link */
+  .footer-link {
+    position: absolute;
+    bottom: 20px;
+    font-weight: bold;
+    font-size: 14px;
+  }
 
-    /* Admin login link */
-    .footer-link {
-      position: absolute;
-      bottom: 20px;
-      font-weight: bold;
-      font-size: 14px;
-    }
+  .footer-link a {
+    color: #ffffff;
+    text-decoration: underline;
+    opacity: 0.9;
+  }
 
-    .footer-link a {
-      color: #0d6efd;
-      text-decoration: underline;
-    }
-  </style>
+  .footer-link a:hover {
+    opacity: 1;
+  }
+</style>
+
 </head>
 
 <body>
