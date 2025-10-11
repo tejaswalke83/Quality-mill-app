@@ -6,7 +6,7 @@
        ✅ PWA Install button
        ✅ Toast notifications
        ✅ Update flow (when new version deployed)
-       ✅ Register firebase-messaging-sw.js (for push + PWA)
+       ✅ Register firebase-messaging-sw.js (for push notifications only)
    ========================= */
 
 (function () {
@@ -116,19 +116,14 @@
   }
   if (isStandalone()) installBtn.style.display = 'none';
 
-  // --- Register only Firebase Messaging SW ---
-  // --- Register Firebase Messaging SW (Push only, no PWA caching) ---
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("/firebase-messaging-sw.js")
-    .then((reg) => console.log("[Push] Firebase SW registered ✅", reg.scope))
-    .catch((err) => console.error("[Push] Firebase SW registration failed ❌", err));
-}
+  // --- Register Firebase Messaging SW (Push only, no caching or PWA) ---
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .register("/firebase-messaging-sw.js")
+      .then((reg) => {
+        console.log("[Push] Firebase SW registered ✅", reg.scope);
 
-
-        // If new version waiting, show update toast
-        if (reg.waiting) showUpdateButton();
-
+        // Optional: detect new version of SW for push improvements
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           newWorker.addEventListener("statechange", () => {
@@ -139,10 +134,10 @@ if ("serviceWorker" in navigator) {
         });
       })
       .catch((err) => {
-        console.error("[PWA] Firebase SW register failed ❌", err);
+        console.error("[Push] Firebase SW registration failed ❌", err);
       });
 
-    // Reload when SW activates
+    // Reload page if a new SW takes control (to refresh any new scripts)
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (!window.__pwa_reloading) {
         window.__pwa_reloading = true;
