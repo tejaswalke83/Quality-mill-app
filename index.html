@@ -108,9 +108,10 @@
 
         if (permission === "granted") {
           console.log("✅ Notification permission granted");
-         const fcmToken = await messaging.getToken({
-  vapidKey: "BJIixNsTwpDpLenlmNUh1ySVNLM9woE2i5SkDPxlLHUy_iZM4HEN1gRv2NGNQ20AUrqss1Wlz4QCjhpE-uXKc"
+        const fcmToken = await messaging.getToken({
+  vapidKey: "BJIixNsTwpDpLenlmNUh1ySVNLM9woE2i5SkDPxlLHUy/iZM4HEN1gRv2NGNQ20AUrqss1Wlz4QCjhpE+uXKc=="
 });
+
 
           if (fcmToken) {
             console.log("📱 FCM Token:", fcmToken);
