@@ -117,11 +117,14 @@
   if (isStandalone()) installBtn.style.display = 'none';
 
   // --- Register only Firebase Messaging SW ---
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("/firebase-messaging-sw.js")
-      .then((reg) => {
-        console.log("[PWA] Firebase SW registered ✅", reg.scope);
+  // --- Register Firebase Messaging SW (Push only, no PWA caching) ---
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("/firebase-messaging-sw.js")
+    .then((reg) => console.log("[Push] Firebase SW registered ✅", reg.scope))
+    .catch((err) => console.error("[Push] Firebase SW registration failed ❌", err));
+}
+
 
         // If new version waiting, show update toast
         if (reg.waiting) showUpdateButton();
