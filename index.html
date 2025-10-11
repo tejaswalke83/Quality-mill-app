@@ -1,114 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quality Mill - Order Form</title>
-
-  <!-- Styles and Manifest -->
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#0d6efd">
-
-  <!-- Common JS (PWA registration etc.) -->
-  <script defer src="/common.js"></script>
-
- <style>
-  /* Fullscreen splash layout */
-  body {
-    margin: 0;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: #3c5882; /* brand color */
-    overflow: hidden;
-    transition: background-color 0.5s ease;
-  }
-
-  .logo {
-    width: 400px;
-    height: auto;
-    opacity: 0;
-    transform: translateY(30px);
-    animation: fadeSlide 0.5s ease forwards;
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
-  }
-
-  @keyframes fadeSlide {
-    0% {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    50% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  /* Fade-out before redirect */
-  .fade-out {
-    animation: fadeOut 1s ease forwards;
-  }
-
-  @keyframes fadeOut {
-    to {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-  }
-
-  /* Admin login link */
-  .footer-link {
-    position: absolute;
-    bottom: 20px;
-    font-weight: bold;
-    font-size: 14px;
-  }
-
-  .footer-link a {
-    color: #ffffff;
-    text-decoration: underline;
-    opacity: 0.9;
-  }
-
-  .footer-link a:hover {
-    opacity: 1;
-  }
-</style>
-
-</head>
-
 <body>
   <!-- Splash Logo -->
   <img src="/images/full logo.png" alt="Quality Mill Logo" class="logo" />
 
-  <!-- Optional Admin Login -->
-  <!-- <div class="footer-link">
-    <a href="login.html">Admin / Staff Login</a>
-  </div> -->
+  <!-- Next Button (hidden initially) -->
+  <button id="nextBtn" class="next-btn" style="display:none;">Next →</button>
 
-  <!-- Redirect Logic -->
-  <script>
-    const redirectDelay = 1000; // 1 second
+  <!-- Styles for Next Button -->
+  <style>
+    .next-btn {
+      position: absolute;
+      bottom: 40px;
+      background-color: #ffffff;
+      color: #3c5882;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+    }
 
-    setTimeout(() => {
-      document.querySelector('.logo').classList.add('fade-out');
-      setTimeout(() => {
-        window.location.href = "user-registration.html"; // your registration page
-      }, 500); // wait for fade-out animation
-    }, redirectDelay);
-  </script>
+    .next-btn:hover {
+      transform: translateY(-2px);
+      background-color: #f4f4f4;
+    }
+  </style>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js"></script>
 
+  <!-- Firebase + Push Logic -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
@@ -119,11 +43,47 @@
       appId: "1:737428044643:web:a0f9ecfae3794e11e57156"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
-  </script>
+    const messaging = firebase.messaging();
 
-  <!-- App Logic -->
-  <script src="app.js"></script>
+    async function requestNotificationPermission() {
+      try {
+        console.log("🔔 Requesting notification permission...");
+        const permission = await Notification.requestPermission();
+
+        if (permission === "granted") {
+          console.log("✅ Notification permission granted");
+
+          const fcmToken = await messaging.getToken({
+            vapidKey: "YOUR_WEB_PUSH_CERTIFICATE_KEY_PAIR_FROM_FIREBASE"
+          });
+
+          if (fcmToken) {
+            console.log("📱 FCM Token received:", fcmToken);
+            localStorage.setItem("fcm_token", fcmToken);
+          } else {
+            console.warn("⚠️ No FCM token received yet.");
+          }
+        } else {
+          console.warn("🚫 Notification permission denied.");
+        }
+      } catch (error) {
+        console.error("❌ Error during notification setup:", error);
+      } finally {
+        // ✅ Show Next button once process completes
+        document.getElementById("nextBtn").style.display = "block";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", requestNotificationPermission);
+
+    // Handle next button click
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      const logo = document.querySelector('.logo');
+      logo.classList.add('fade-out');
+      setTimeout(() => {
+        window.location.href = "user-registration.html";
+      }, 500);
+    });
+  </script>
 </body>
-</html>
