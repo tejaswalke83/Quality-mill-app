@@ -146,7 +146,7 @@
     return statusesCache.find(s => s.id === nextId) || null;
   }
 
-  async function updateOrderStatus(orderId, newStatusId) {
+ async function updateOrderStatus(orderId, newStatusId) {
   const nextStatus = statusesCache.find(s => s.id === newStatusId);
 
   if (nextStatus?.status_name === "DELIVERED") {
@@ -162,13 +162,15 @@
 
     console.log("➡️ Updating order as DELIVERED:", { orderId, newStatusId, selected });
 
+    const payload = JSON.parse(JSON.stringify({
+      status_id: newStatusId,
+      payment_status: selected,
+      delivered_at: new Date().toISOString()
+    }));
+
     const { data, error } = await supabase
       .from('orders')
-      .update({
-        status_id: newStatusId,
-        payment_status: selected,
-        delivered_at: new Date().toISOString()
-      })
+      .update(payload)
       .eq('id', orderId)
       .select();
 
@@ -185,9 +187,11 @@
 
   console.log("➡️ Updating order status:", { orderId, newStatusId });
 
+  const payload = JSON.parse(JSON.stringify({ status_id: newStatusId }));
+
   const { data, error } = await supabase
     .from('orders')
-    .update({ status_id: newStatusId })
+    .update(payload)
     .eq('id', orderId)
     .select();
 
@@ -200,6 +204,7 @@
   closeModal();
   await loadOrders();
 }
+
 
   window.updateOrderStatus = updateOrderStatus;
 
