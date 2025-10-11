@@ -147,34 +147,60 @@
   }
 
   async function updateOrderStatus(orderId, newStatusId) {
-    const nextStatus = statusesCache.find(s => s.id === newStatusId);
+  const nextStatus = statusesCache.find(s => s.id === newStatusId);
 
-    if (nextStatus?.status_name === "DELIVERED") {
-      const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
-      let selected = null;
-      radios.forEach(r => { if (r.checked) selected = r.value; });
+  if (nextStatus?.status_name === "DELIVERED") {
+    const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
+    let selected = null;
+    radios.forEach(r => { if (r.checked) selected = r.value; });
 
-      if (!selected) {
-        const err = document.getElementById("paymentError");
-        if (err) err.classList.remove("hidden");
-        return;
-      }
-
-      await supabase.from('orders').update({ 
-        status_id: newStatusId, 
-        payment_status: selected,
-        delivered_at: new Date().toISOString()
-      }).eq('id', orderId);
-
-      closeModal();
-      await loadOrders();
+    if (!selected) {
+      const err = document.getElementById("paymentError");
+      if (err) err.classList.remove("hidden");
       return;
     }
 
-    await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
+    console.log("➡️ Updating order as DELIVERED:", { orderId, newStatusId, selected });
+
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        status_id: newStatusId,
+        payment_status: selected,
+        delivered_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .select();
+
+    if (error) {
+      console.error("❌ Supabase update (DELIVERED) error:", error);
+    } else {
+      console.log("✅ Order updated (DELIVERED):", data);
+    }
+
     closeModal();
     await loadOrders();
+    return;
   }
+
+  console.log("➡️ Updating order status:", { orderId, newStatusId });
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ status_id: newStatusId })
+    .eq('id', orderId)
+    .select();
+
+  if (error) {
+    console.error("❌ Supabase update error:", error);
+  } else {
+    console.log("✅ Order updated:", data);
+  }
+
+  closeModal();
+  await loadOrders();
+}
+
   window.updateOrderStatus = updateOrderStatus;
 
   async function savePaymentMethod(orderId, value) {
