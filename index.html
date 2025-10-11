@@ -109,7 +109,8 @@
         if (permission === "granted") {
           console.log("✅ Notification permission granted");
           const fcmToken = await messaging.getToken({
-            vapidKey: "YOUR_WEB_PUSH_CERTIFICATE_KEY_PAIR_FROM_FIREBASE"
+            vapidKey: "BElRjYvLzMvjQzTmlEMrK9zLccM_qcDYpIzcg4dV8S7gXy0m8l6tZb7u8R..." // your actual key
+
           });
           if (fcmToken) {
             console.log("📱 FCM Token:", fcmToken);
