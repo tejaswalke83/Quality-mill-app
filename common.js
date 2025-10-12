@@ -1,189 +1,101 @@
 /* =========================
    common.js
-   - Include on every HTML page:
-       <script defer src="/common.js"></script>
-   - Purpose:
-       ✅ PWA Install button
-       ✅ Toast notifications
-       ✅ Update flow (when new version deployed)
-       ✅ Register firebase-messaging-sw.js (for push notifications only)
    ========================= */
 
-(function () {
-  // --- Create Install Button ---
-  const installBtn = document.createElement('button');
-  installBtn.id = 'pwa-install-btn';
-  installBtn.innerHTML = '📲 Install App';
-  Object.assign(installBtn.style, {
-    position: 'fixed',
-    right: '20px',
-    bottom: '20px',
-    zIndex: 99999,
-    display: 'none',
-    background: '#007bff',
-    color: '#fff',
-    border: 'none',
-    padding: '10px 14px',
-    borderRadius: '10px',
-    boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-    cursor: 'pointer',
-    fontSize: '15px',
-  });
-  document.addEventListener('DOMContentLoaded', () => {
-    document.body.appendChild(installBtn);
-  });
-
-  // --- Toast helper ---
-  function showToast(text, timeout = 3000) {
-    let toast = document.getElementById('pwa-toast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'pwa-toast';
-      Object.assign(toast.style, {
-        position: 'fixed',
-        right: '20px',
-        bottom: '90px',
-        zIndex: 99999,
-        display: 'none',
-        padding: '10px 14px',
-        borderRadius: '8px',
-        background: 'rgba(0,0,0,0.8)',
-        color: '#fff',
-        boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-        fontSize: '14px',
+(async function () {
+  // Toast helper
+  function showToast(msg, time = 3000) {
+    let el = document.getElementById("toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "toast";
+      Object.assign(el.style, {
+        position: "fixed",
+        bottom: "90px",
+        right: "20px",
+        background: "#000",
+        color: "#fff",
+        padding: "10px 14px",
+        borderRadius: "8px",
+        fontSize: "14px",
+        display: "none",
+        zIndex: 9999,
       });
-      document.body.appendChild(toast);
+      document.body.appendChild(el);
     }
-    toast.textContent = text;
-    toast.style.display = 'block';
-    clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => (toast.style.display = 'none'), timeout);
+    el.textContent = msg;
+    el.style.display = "block";
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => (el.style.display = "none"), time);
   }
 
-  // --- Helper to convert UTC to IST (used elsewhere) ---
-  window.convertUTCToIST = function (utcString) {
-    if (!utcString) return "";
-    const utcDate = new Date(utcString);
-    const istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
-    return istDate.toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true
-    });
+  // Register Service Worker
+  if ("serviceWorker" in navigator) {
+    await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    console.log("✅ Firebase SW registered");
+  }
+
+  // Load Firebase
+  await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js");
+  await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js");
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
+    authDomain: "qualityattamills.firebaseapp.com",
+    projectId: "qualityattamills",
+    messagingSenderId: "737428044643",
+    appId: "1:737428044643:web:a0f9ecfae3794e11e57156",
   };
 
-  // --- Install button flow ---
-  let deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBtn.style.display = 'block';
-  });
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
 
-  installBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    try {
-      installBtn.disabled = true;
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === 'accepted') {
-        showToast('App installed ✅');
-      } else {
-        showToast('Install dismissed');
-      }
-      deferredPrompt = null;
-      installBtn.style.display = 'none';
-    } catch (err) {
-      console.error('Install prompt error', err);
-    } finally {
-      installBtn.disabled = false;
+  // Ask permission + get FCM token
+  try {
+    console.log("🔔 Asking for notification permission...");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      console.warn("🚫 Permission denied");
+      return;
     }
-  });
 
-  // Hide installBtn if already installed
-  window.addEventListener('appinstalled', () => {
-    installBtn.style.display = 'none';
-    showToast('App installed');
-  });
+    const vapidKey = "BPUQ-N20vAeo1X0zjD8bZ5gH5CZjhBA9eSv88xHLGu5sGqV_EWyP4dGnWcEozu4zwnzhB6NR5FShRsl2zHzY1Tg";
+    const token = await messaging.getToken({ vapidKey });
+    console.log("✅ FCM Token:", token);
 
-  // --- Hide if in standalone mode ---
-  function isStandalone() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  }
-  if (isStandalone()) installBtn.style.display = 'none';
-
-  // --- Register Firebase Messaging SW (Push only, no caching or PWA) ---
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("/firebase-messaging-sw.js")
-      .then((reg) => {
-        console.log("[Push] Firebase SW registered ✅", reg.scope);
-
-        // Optional: detect new version of SW for push improvements
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener("statechange", () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              showUpdateButton();
-            }
-          });
-        });
-      })
-      .catch((err) => {
-        console.error("[Push] Firebase SW registration failed ❌", err);
-      });
-
-    // Reload page if a new SW takes control (to refresh any new scripts)
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (!window.__pwa_reloading) {
-        window.__pwa_reloading = true;
-        window.location.reload();
+    // Save token to Supabase orders table
+    const phone = new URLSearchParams(window.location.search).get("phone");
+    if (phone && token) {
+      const res = await fetch(
+        "https://msoykugvymbybdjkilab.supabase.co/rest/v1/orders",
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3lrdWd2eW1ieWJkamtpbGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ2NjIsImV4cCI6MjA3NTQ4MDY2Mn0.Ifc7-NJ0mIc9Uw0NdMbTKBTXZ5eh3PKrVCJ1cJGTZyQ",
+            Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3lrdWd2eW1ieWJkamtpbGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDQ2NjIsImV4cCI6MjA3NTQ4MDY2Mn0.Ifc7-NJ0mIc9Uw0NdMbTKBTXZ5eh3PKrVCJ1cJGTZyQ",
+            Prefer: "resolution=merge-duplicates",
+          },
+          body: JSON.stringify({ fcm_token: token }),
+        }
+      );
+      if (res.ok) {
+        console.log("✅ Token saved to Supabase");
+        showToast("Notifications enabled successfully ✅");
+      } else {
+        console.error("❌ Failed to save token", await res.text());
       }
+    } else {
+      console.warn("⚠️ Missing phone param or token not generated");
+    }
+
+    // Foreground message handler
+    messaging.onMessage((payload) => {
+      console.log("📩 Foreground message:", payload);
+      const { title, body } = payload.notification || {};
+      if (title && body) showToast(`${title}: ${body}`);
     });
+  } catch (err) {
+    console.error("❌ Error initializing Firebase:", err);
   }
-
-  // --- Update button (when new deploy is detected) ---
-  function showUpdateButton() {
-    if (document.getElementById('pwa-update-btn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'pwa-update-btn';
-    btn.innerText = '🔄 New update available — Tap to refresh';
-    Object.assign(btn.style, {
-      position: 'fixed',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      bottom: '20px',
-      zIndex: 99999,
-      padding: '10px 14px',
-      borderRadius: '10px',
-      background: '#ff9800',
-      color: '#fff',
-      border: 'none',
-      cursor: 'pointer',
-      boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
-      fontSize: '14px',
-    });
-    document.body.appendChild(btn);
-
-    btn.addEventListener('click', async () => {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (!reg || !reg.waiting) return;
-      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      btn.style.display = 'none';
-      showToast("Refreshing to new version…");
-      setTimeout(() => window.location.reload(), 1000);
-    });
-  }
-
-  // Expose toast globally
-  window.pwaShowToast = showToast;
-
-  // Hide install button if standalone on load
-  document.addEventListener('DOMContentLoaded', () => {
-    if (isStandalone()) installBtn.style.display = 'none';
-  });
 })();
