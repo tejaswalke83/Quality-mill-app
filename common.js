@@ -59,7 +59,7 @@
       return;
     }
 
-    const vapidKey = "BPUQ-N20vAeo1X0zjD8bZ5gH5CZjhBA9eSv88xHLGu5sGqV_EWyP4dGnWcEozu4zwnzhB6NR5FShRsl2zHzY1Tg";
+    const vapidKey = "BFbgWUQTxuSUD6qva3Dr1k22kFAPFIa74KRmz18pp3yeMHJV7ZMU19L8ftevfUU61s3hZHTiFzzZYP3u89rl84I";
     const token = await messaging.getToken({ vapidKey });
     console.log("✅ FCM Token:", token);
 
