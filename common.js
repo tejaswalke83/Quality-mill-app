@@ -30,27 +30,31 @@
   }
 
   // Register Service Worker
-  if ("serviceWorker" in navigator) {
-    await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    console.log("✅ Firebase SW registered");
-  }
-
-  // Load Firebase SDKs
-  await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js");
-  await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js");
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
-    authDomain: "qualityattamills.firebaseapp.com",
-    projectId: "qualityattamills",
-    messagingSenderId: "737428044643",
-    appId: "1:737428044643:web:a0f9ecfae3794e11e57156",
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
-
+  // Register Service Worker and Initialize Firebase Messaging
+if ("serviceWorker" in navigator) {
   try {
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    console.log("✅ Firebase SW registered:", registration);
+
+    // Wait until service worker is ready before initializing messaging
+    await navigator.serviceWorker.ready;
+    console.log("🔥 Service Worker is active and ready!");
+
+    // Load Firebase SDKs (ensure after SW ready)
+    await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js");
+    await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js");
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
+      authDomain: "qualityattamills.firebaseapp.com",
+      projectId: "qualityattamills",
+      messagingSenderId: "737428044643",
+      appId: "1:737428044643:web:a0f9ecfae3794e11e57156",
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
+
     console.log("🔔 Asking for notification permission...");
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
@@ -59,7 +63,12 @@
     }
 
     const vapidKey = "BJlixsNsTwpDpLenlmNUh1ySVNLM9woE2i5SkDPxlLHUy_iZM4HEN1gRv2NGNQ20AUrqqss1WIz4QCjhpE-uXKc";
-    const token = await messaging.getToken({ vapidKey });
+
+    // ✅ Always pass the active SW registration to getToken()
+    const token = await messaging.getToken({
+      vapidKey,
+      serviceWorkerRegistration: registration,
+    });
 
     if (token) {
       console.log("✅ FCM Token:", token);
@@ -68,15 +77,18 @@
       console.warn("⚠️ No FCM token received");
     }
 
-    // Foreground message handler
+    // Foreground messages
     messaging.onMessage((payload) => {
       console.log("📩 Foreground message:", payload);
       const { title, body } = payload.notification || {};
       if (title && body) showToast(`${title}: ${body}`);
     });
+
   } catch (err) {
-    console.error("❌ Error initializing Firebase:", err);
+    console.error("❌ Error initializing Firebase Messaging:", err);
   }
+}
+
 
   // ✅ Expose helper globally to save token once phone is known
   window.saveFcmTokenToSupabase = async function (phone) {
