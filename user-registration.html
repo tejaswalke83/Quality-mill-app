@@ -254,6 +254,11 @@ if ("serviceWorker" in navigator) {
         const { data: customerData } = await supabase.from('customers').select('*').eq('phone_number', mobile).maybeSingle();
         if (customerData) {
           document.getElementById('status').innerText = "User found. Redirecting...";
+// Save FCM token to Supabase when existing user logs in
+  if (window.saveFcmTokenToSupabase) {
+    await window.saveFcmTokenToSupabase(mobile);
+  }
+
           setTimeout(() => {
             window.location.href = `my-orders.html?phone=${mobile}`;
           }, 1000);
@@ -388,6 +393,11 @@ if ("serviceWorker" in navigator) {
 
         alert("User registered successfully!");
         document.getElementById('status').innerText = "Redirecting...";
+// Save FCM token to Supabase for new user
+if (window.saveFcmTokenToSupabase) {
+  await window.saveFcmTokenToSupabase(phoneNumber);
+}
+
         window.location.href = `select-order-type.html?phone=${phoneNumber}`;
       } catch (err) {
         console.error("Error registering user:", err);
