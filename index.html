@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quality Mill - Welcome</title>
 
-  <!-- Tailwind -->
+  <!-- Tailwind CSS (CDN OK for staging) -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PWA setup -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0d6efd" />
-
-  <!-- Common PWA setup -->
   <script defer src="/common.js"></script>
 
   <style>
@@ -66,7 +66,7 @@
       max-width: 320px;
     }
 
-    /* Center common.js PWA install button better */
+    /* Adjust PWA install button from common.js */
     #pwa-install-btn {
       bottom: 100px !important;
     }
@@ -74,7 +74,7 @@
 </head>
 
 <body>
-  <!-- Centered logo -->
+  <!-- Logo -->
   <img src="/images/full logo.png" alt="Quality Mill Logo" class="logo" />
 
   <!-- Next button -->
@@ -83,53 +83,29 @@
   <!-- Info text -->
   <p class="text-note">Allow notifications to receive instant order updates 📩</p>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging-compat.js"></script>
-
-  <!-- Firebase Push Setup -->
+  <!-- Lightweight onboarding logic -->
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBpQRge5ZLaNx_mM_vwQrwmm1f2LkyhOyY",
-      authDomain: "qualityattamills.firebaseapp.com",
-      projectId: "qualityattamills",
-      storageBucket: "qualityattamills.firebasestorage.app",
-      messagingSenderId: "737428044643",
-      appId: "1:737428044643:web:a0f9ecfae3794e11e57156"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const messaging = firebase.messaging();
-
-    async function initNotifications() {
-      console.log("🔔 Asking for notification permission...");
+    // Ask for notification permission (common.js will handle actual FCM)
+    async function requestNotificationPermission() {
+      console.log("🔔 Requesting notification permission...");
       try {
         const permission = await Notification.requestPermission();
-
         if (permission === "granted") {
           console.log("✅ Notification permission granted");
-        const fcmToken = await messaging.getToken({
-  vapidKey: "BJIixNsTwpDpLenlmNUh1ySVNLM9woE2i5SkDPxlLHUy/iZM4HEN1gRv2NGNQ20AUrqss1Wlz4QCjhpE+uXKc=="
-});
-
-
-          if (fcmToken) {
-            console.log("📱 FCM Token:", fcmToken);
-            localStorage.setItem("fcm_token", fcmToken);
-          }
         } else {
-          console.warn("🚫 Permission denied or dismissed.");
+          console.warn("🚫 Notification permission denied or dismissed.");
         }
       } catch (err) {
-        console.error("❌ Notification error:", err);
+        console.error("❌ Error requesting notification permission:", err);
       } finally {
+        // Reveal the Next button after user interaction
         document.getElementById("nextBtn").classList.remove("hidden");
       }
     }
 
-    document.addEventListener("DOMContentLoaded", initNotifications);
+    document.addEventListener("DOMContentLoaded", requestNotificationPermission);
 
-    // Redirect on Next click
+    // Redirect to registration on "Next"
     document.getElementById("nextBtn").addEventListener("click", () => {
       const logo = document.querySelector(".logo");
       logo.style.transition = "all 0.6s ease";
