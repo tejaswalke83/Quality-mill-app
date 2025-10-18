@@ -233,12 +233,19 @@
   </div>
 
   <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
+  <script src="config.js"></script>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    // ✅ Read Supabase credentials from config.js (populated by Netlify)
   const SUPABASE_URL = window._env_.SUPABASE_URL;
   const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+  
+  const supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
   let configs = [], societies = [], grains = [];
   let editId = null, editSocietyId = null, editGrainId = null;
 
