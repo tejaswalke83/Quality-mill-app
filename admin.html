@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -26,30 +26,25 @@
   <main class="flex-1 p-6 overflow-y-auto">
 
     <!-- Dashboard Section -->
-    <section id="section-dashboard" class="hidden">
+    <section id="section-dashboard">
       <h1 class="text-2xl font-bold mb-6">Dashboard Overview</h1>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('users')">
           <h2 class="text-gray-600">Total Users</h2>
           <p id="card-users" class="text-3xl font-bold mt-2">0</p>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('societies')">
           <h2 class="text-gray-600">Total Societies</h2>
           <p id="card-societies" class="text-3xl font-bold mt-2">0</p>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('orders')">
           <h2 class="text-gray-600">Total Orders</h2>
           <p id="card-orders" class="text-3xl font-bold mt-2">0</p>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('grains')">
           <h2 class="text-gray-600">Total Grains</h2>
           <p id="card-grains" class="text-3xl font-bold mt-2">0</p>
         </div>
-
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('config')">
           <h2 class="text-gray-600">Active Configs</h2>
           <p id="card-configs" class="text-3xl font-bold mt-2">0</p>
@@ -57,99 +52,66 @@
       </div>
     </section>
 
-    <!-- Configurations Section -->
+    <!-- Configurations -->
     <section id="section-config" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Configuration Management</h1>
-      <button onclick="openForm()" 
-        class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-        + Add Configuration
-      </button>
+      <button onclick="openForm()" class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Add Configuration</button>
       <table class="w-full border-collapse border border-gray-300">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-2">ID</th>
-            <th class="border p-2">Key</th>
-            <th class="border p-2">Value</th>
-            <th class="border p-2">Description</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
+        <thead class="bg-gray-200"><tr>
+          <th class="border p-2">ID</th><th class="border p-2">Key</th>
+          <th class="border p-2">Value</th><th class="border p-2">Description</th>
+          <th class="border p-2">Actions</th>
+        </tr></thead>
         <tbody id="configTable" class="text-center"></tbody>
       </table>
     </section>
 
-    <!-- Orders Section -->
+    <!-- Orders -->
     <section id="section-orders" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Order Management</h1>
       <table class="w-full border-collapse border border-gray-300">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-2">ID</th>
-            <th class="border p-2">Customer ID</th>
-            <th class="border p-2">Grain</th>
-            <th class="border p-2">Quantity (kg)</th>
-            <th class="border p-2">Price</th>
-            <th class="border p-2">Order Type</th>
-            <th class="border p-2">Payment</th>
-            <th class="border p-2">Status</th>
-            <th class="border p-2">Created</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
+        <thead class="bg-gray-200"><tr>
+          <th class="border p-2">ID</th><th class="border p-2">Customer ID</th>
+          <th class="border p-2">Grain</th><th class="border p-2">Quantity (kg)</th>
+          <th class="border p-2">Price</th><th class="border p-2">Order Type</th>
+          <th class="border p-2">Payment</th><th class="border p-2">Status</th>
+          <th class="border p-2">Created</th><th class="border p-2">Actions</th>
+        </tr></thead>
         <tbody id="ordersTable" class="text-center"></tbody>
       </table>
     </section>
 
-    <!-- Users Section -->
+    <!-- Users -->
     <section id="section-users" class="hidden">
       <h1 class="text-2xl font-bold mb-4">User Management</h1>
       <p class="text-gray-600">Coming soon...</p>
     </section>
 
-    <!-- Societies Section -->
+    <!-- Societies -->
     <section id="section-societies" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Society Management</h1>
-      <button onclick="openSocietyForm()" 
-        class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-        + Add Society
-      </button>
+      <button onclick="openSocietyForm()" class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Add Society</button>
       <table class="w-full border-collapse border border-gray-300">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-2">ID</th>
-            <th class="border p-2">Name</th>
-            <th class="border p-2">Address</th>
-            <th class="border p-2">Contact</th>
-            <th class="border p-2">Active</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
+        <thead class="bg-gray-200"><tr>
+          <th class="border p-2">ID</th><th class="border p-2">Name</th>
+          <th class="border p-2">Address</th><th class="border p-2">Contact</th>
+          <th class="border p-2">Active</th><th class="border p-2">Actions</th>
+        </tr></thead>
         <tbody id="societyTable" class="text-center"></tbody>
       </table>
     </section>
 
-    <!-- Grains Section -->
+    <!-- Grains -->
     <section id="section-grains" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Grain for Sell Management</h1>
-
-      <button onclick="openGrainForm()" 
-        class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-        + Add Grain for Sell
-      </button>
-
+      <button onclick="openGrainForm()" class="mb-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Add Grain for Sell</button>
       <table class="w-full border-collapse border border-gray-300">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-2">ID</th>
-            <th class="border p-2">Product Name</th>
-            <th class="border p-2">Grain</th>
-            <th class="border p-2">Price/kg</th>
-            <th class="border p-2">Milling Price/kg</th>
-            <th class="border p-2">Stock Qty (kg)</th>
-            <th class="border p-2">Active</th>
-            <th class="border p-2">Actions</th>
-          </tr>
-        </thead>
+        <thead class="bg-gray-200"><tr>
+          <th class="border p-2">ID</th><th class="border p-2">Product Name</th>
+          <th class="border p-2">Grain</th><th class="border p-2">Price/kg</th>
+          <th class="border p-2">Milling Price/kg</th><th class="border p-2">Stock Qty (kg)</th>
+          <th class="border p-2">Active</th><th class="border p-2">Actions</th>
+        </tr></thead>
         <tbody id="grainTable" class="text-center"></tbody>
       </table>
     </section>
@@ -159,17 +121,13 @@
   <div id="configFormModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-white p-6 rounded-lg w-96">
       <h2 id="formTitle" class="text-xl font-semibold mb-4">Add Config</h2>
-      <input type="hidden" id="configId">
-
+      <input type="hidden" id="configId" />
       <label class="block mb-2 text-sm font-medium">Key</label>
-      <input id="configKey" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="configKey" type="text" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Value</label>
-      <input id="configValue" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="configValue" type="text" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Description</label>
       <textarea id="configDesc" class="w-full border rounded p-2 mb-4"></textarea>
-
       <div class="flex justify-end gap-2">
         <button onclick="closeForm()" class="px-4 py-2 border rounded">Cancel</button>
         <button onclick="saveConfig()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
@@ -181,17 +139,13 @@
   <div id="societyFormModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-white p-6 rounded-lg w-96">
       <h2 id="societyFormTitle" class="text-xl font-semibold mb-4">Add Society</h2>
-      <input type="hidden" id="societyId">
-
+      <input type="hidden" id="societyId" />
       <label class="block mb-2 text-sm font-medium">Name</label>
-      <input id="societyName" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="societyName" type="text" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Address</label>
-      <input id="societyAddress" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="societyAddress" type="text" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Contact</label>
-      <input id="societyContact" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="societyContact" type="text" class="w-full border rounded p-2 mb-4" />
       <div class="flex justify-end gap-2">
         <button onclick="closeSocietyForm()" class="px-4 py-2 border rounded">Cancel</button>
         <button onclick="saveSociety()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
@@ -203,28 +157,21 @@
   <div id="grainFormModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
     <div class="bg-white p-6 rounded-lg w-96">
       <h2 id="grainFormTitle" class="text-xl font-semibold mb-4">Add Grain for Sell</h2>
-      <input type="hidden" id="grainId">
-
+      <input type="hidden" id="grainId" />
       <label class="block mb-2 text-sm font-medium">Product Name</label>
-      <input id="grainProductName" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="grainProductName" type="text" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Grain Type</label>
-      <input id="grainType" type="text" class="w-full border rounded p-2 mb-4">
-
+      <input id="grainType" type="text" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Price per kg</label>
-      <input id="grainPrice" type="number" step="0.01" class="w-full border rounded p-2 mb-4">
-
+      <input id="grainPrice" type="number" step="0.01" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Milling Price per kg</label>
-      <input id="grainMillingPrice" type="number" step="0.01" class="w-full border rounded p-2 mb-4">
-
+      <input id="grainMillingPrice" type="number" step="0.01" class="w-full border rounded p-2 mb-4" />
       <label class="block mb-2 text-sm font-medium">Stock Quantity (kg)</label>
-      <input id="grainStock" type="number" class="w-full border rounded p-2 mb-4">
-
+      <input id="grainStock" type="number" class="w-full border rounded p-2 mb-4" />
       <label class="flex items-center gap-2 mb-4">
-        <input id="grainActive" type="checkbox" class="w-4 h-4">
+        <input id="grainActive" type="checkbox" class="w-4 h-4" />
         <span class="text-sm font-medium">Active</span>
       </label>
-
       <div class="flex justify-end gap-2">
         <button onclick="closeGrainForm()" class="px-4 py-2 border rounded">Cancel</button>
         <button onclick="saveGrain()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save</button>
@@ -232,192 +179,132 @@
     </div>
   </div>
 
-  <!-- Supabase -->
+  <!-- Environment config -->
   <script src="config.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    // ✅ Read Supabase credentials from config.js (populated by Netlify)
+  <!-- Main Script -->
+  <script>
   const SUPABASE_URL = window._env_.SUPABASE_URL;
   const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
-  
-  const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
   let configs = [], societies = [], grains = [];
   let editId = null, editSocietyId = null, editGrainId = null;
 
-  function showSection(name) {
-    document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
-    document.getElementById("section-" + name).classList.remove("hidden");
-    if (name === "orders") fetchOrders();
-    if (name === "config") fetchConfigs();
-    if (name === "societies") fetchSocieties();
-    if (name === "grains") fetchGrains();
+  function showSection(name){
+    document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));
+    document.getElementById("section-"+name).classList.remove("hidden");
+    if(name==="config")fetchConfigs();
+    if(name==="societies")fetchSocieties();
+    if(name==="orders")fetchOrders();
+    if(name==="grains")fetchGrains();
   }
 
   showSection('dashboard');
 
-  // Config Section
-  async function fetchConfigs() {
-    const { data, error } = await supabase.from('Configuration').select('*').order('id');
-    if (error) return console.error(error);
-    configs = data;
-    const tbody = document.getElementById("configTable");
-    tbody.innerHTML = data.map(conf => `
+  // ---------- CONFIG ----------
+  async function fetchConfigs(){
+    const {data,error}=await supabase.from('Configuration').select('*').order('id');
+    if(error)return console.error(error);
+    configs=data;
+    const t=document.getElementById("configTable");
+    t.innerHTML=data.map(c=>`
       <tr>
-        <td class="border p-2">${conf.id}</td>
-        <td class="border p-2">${conf.config_key}</td>
-        <td class="border p-2">${conf.config_value}</td>
-        <td class="border p-2">${conf.description || '-'}</td>
+        <td class="border p-2">${c.id}</td>
+        <td class="border p-2">${c.config_key}</td>
+        <td class="border p-2">${c.config_value}</td>
+        <td class="border p-2">${c.description||'-'}</td>
         <td class="border p-2">
-          <button onclick="editConfig(${conf.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
-          <button onclick="deleteConfig(${conf.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
-        </td>
-      </tr>`).join('');
-    document.getElementById("card-configs").innerText = configs.length;
+          <button onclick="editConfig(${c.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
+          <button onclick="deleteConfig(${c.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
+        </td></tr>`).join('');
+    document.getElementById("card-configs").innerText=data.length;
   }
 
   function openForm(){document.getElementById("configFormModal").classList.remove("hidden")}
   function closeForm(){document.getElementById("configFormModal").classList.add("hidden")}
   async function saveConfig(){
-    const key=document.getElementById("configKey").value, value=document.getElementById("configValue").value, desc=document.getElementById("configDesc").value;
-    if(editId){await supabase.from('Configuration').update({config_key:key,config_value:value,description:desc}).eq('id',editId)}
-    else{await supabase.from('Configuration').insert([{config_key:key,config_value:value,description:desc}])}
+    const key=configKey.value.trim(),val=configValue.value.trim(),desc=configDesc.value.trim();
+    if(editId)await supabase.from('Configuration').update({config_key:key,config_value:val,description:desc}).eq('id',editId);
+    else await supabase.from('Configuration').insert([{config_key:key,config_value:val,description:desc}]);
     closeForm();fetchConfigs();
   }
-  function editConfig(id){const c=configs.find(x=>x.id===id);editId=id;document.getElementById("configFormModal").classList.remove("hidden");document.getElementById("configKey").value=c.config_key;document.getElementById("configValue").value=c.config_value;document.getElementById("configDesc").value=c.description||""}
+  function editConfig(id){const c=configs.find(x=>x.id===id);editId=id;openForm();configKey.value=c.config_key;configValue.value=c.config_value;configDesc.value=c.description||""}
   async function deleteConfig(id){await supabase.from('Configuration').delete().eq('id',id);fetchConfigs();}
 
-  // Societies
+  // ---------- SOCIETIES ----------
   async function fetchSocieties(){
     const {data,error}=await supabase.from('societies').select('*').order('created_at',{ascending:false});
     if(error)return console.error(error);
     societies=data;
-    const tbody=document.getElementById("societyTable");
-    tbody.innerHTML=data.map(s=>`
+    document.getElementById("societyTable").innerHTML=data.map(s=>`
       <tr>
-        <td class="border p-2">${s.id}</td>
-        <td class="border p-2">${s.name}</td>
-        <td class="border p-2">${s.address||'-'}</td>
-        <td class="border p-2">${s.contact_number||'-'}</td>
+        <td class="border p-2">${s.id}</td><td class="border p-2">${s.name}</td>
+        <td class="border p-2">${s.address||'-'}</td><td class="border p-2">${s.contact_number||'-'}</td>
         <td class="border p-2">${s.is_active?'✅':'❌'}</td>
         <td class="border p-2">
-          <button onclick="editSociety('${s.id}')" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
-          <button onclick="deleteSociety('${s.id}')" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
-        </td>
-      </tr>`).join('');
+          <button onclick="editSociety(${s.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
+          <button onclick="deleteSociety(${s.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
+        </td></tr>`).join('');
     document.getElementById("card-societies").innerText=data.length;
   }
-
   function openSocietyForm(){document.getElementById("societyFormModal").classList.remove("hidden")}
   function closeSocietyForm(){document.getElementById("societyFormModal").classList.add("hidden")}
   async function saveSociety(){
-    const n=document.getElementById("societyName").value,a=document.getElementById("societyAddress").value,c=document.getElementById("societyContact").value;
+    const n=societyName.value.trim(),a=societyAddress.value.trim(),c=societyContact.value.trim();
     if(editSocietyId)await supabase.from('societies').update({name:n,address:a,contact_number:c}).eq('id',editSocietyId);
     else await supabase.from('societies').insert([{name:n,address:a,contact_number:c}]);
     closeSocietyForm();fetchSocieties();
   }
+  function editSociety(id){const s=societies.find(x=>x.id===id);editSocietyId=id;openSocietyForm();societyName.value=s.name;societyAddress.value=s.address||"";societyContact.value=s.contact_number||""}
+  async function deleteSociety(id){await supabase.from('societies').delete().eq('id',id);fetchSocieties();}
 
-  // Orders
+  // ---------- ORDERS ----------
   async function fetchOrders(){
-    const {data,error}=await supabase.from('orders').select('*').limit(20).order('created_at',{ascending:false});
+    const {data,error}=await supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(20);
     if(error)return console.error(error);
-    const tbody=document.getElementById("ordersTable");
-    tbody.innerHTML=data.map(o=>`
-      <tr>
-        <td class="border p-2">${o.id}</td>
-        <td class="border p-2">${o.customer_id||'-'}</td>
-        <td class="border p-2">${o.grain_type||'-'}</td>
-        <td class="border p-2">${o.quantity_kg||'-'}</td>
-        <td class="border p-2">${o.total_price||'-'}</td>
-        <td class="border p-2">${o.order_type||'-'}</td>
-        <td class="border p-2">${o.payment_status||'-'}</td>
-        <td class="border p-2">${o.status_backup||'-'}</td>
-        <td class="border p-2">${o.created_at?new Date(o.created_at).toLocaleString():'-'}</td>
-        <td class="border p-2"><button onclick="deleteOrder('${o.id}')" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button></td>
-      </tr>`).join('');
+    document.getElementById("ordersTable").innerHTML=data.map(o=>`
+      <tr><td class="border p-2">${o.id}</td><td class="border p-2">${o.customer_id||'-'}</td>
+      <td class="border p-2">${o.grain_type||'-'}</td><td class="border p-2">${o.quantity_kg||'-'}</td>
+      <td class="border p-2">${o.total_price||'-'}</td><td class="border p-2">${o.order_type||'-'}</td>
+      <td class="border p-2">${o.payment_status||'-'}</td><td class="border p-2">${o.status_backup||'-'}</td>
+      <td class="border p-2">${o.created_at?new Date(o.created_at).toLocaleString():'-'}</td>
+      <td class="border p-2"><button onclick="deleteOrder(${o.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button></td></tr>`).join('');
     document.getElementById("card-orders").innerText=data.length;
   }
   async function deleteOrder(id){await supabase.from('orders').delete().eq('id',id);fetchOrders();}
 
-  // Grains
+  // ---------- GRAINS ----------
   async function fetchGrains(){
-    const {data,error}=await supabase.from('Grain_for_sell').select('*').order('id',{ascending:true});
+    const {data,error}=await supabase.from('Grain_for_sell').select('*').order('id');
     if(error)return console.error(error);
     grains=data;renderGrainTable();
   }
-
   function renderGrainTable(){
-    const tbody=document.getElementById("grainTable");
-    tbody.innerHTML=grains.map(g=>`
+    document.getElementById("grainTable").innerHTML=grains.map(g=>`
       <tr>
-        <td class="border p-2">${g.id}</td>
-        <td class="border p-2">${g.product_name}</td>
-        <td class="border p-2">${g.grain||'-'}</td>
-        <td class="border p-2">${g.price_per_kg}</td>
-        <td class="border p-2">${g.milling_price_per_kg}</td>
-        <td class="border p-2">${g.stock_qty}</td>
+        <td class="border p-2">${g.id}</td><td class="border p-2">${g.product_name}</td>
+        <td class="border p-2">${g.grain||'-'}</td><td class="border p-2">${g.price_per_kg}</td>
+        <td class="border p-2">${g.milling_price_per_kg}</td><td class="border p-2">${g.stock_qty}</td>
         <td class="border p-2">${g.is_active?'✅':'❌'}</td>
-        <td class="border p-2">
-          <button onclick="editGrain(${g.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
-          <button onclick="deleteGrain(${g.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button>
-        </td>
+        <td class="border p-2"><button onclick="editGrain(${g.id})" class="px-2 py-1 bg-yellow-500 text-white rounded">Edit</button>
+        <button onclick="deleteGrain(${g.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button></td>
       </tr>`).join('');
     document.getElementById("card-grains").innerText=grains.length;
   }
-
-  function openGrainForm(){
-    document.getElementById("grainFormModal").classList.remove("hidden");
-    document.getElementById("grainFormTitle").innerText="Add Grain for Sell";
-    document.getElementById("grainProductName").value="";
-    document.getElementById("grainType").value="";
-    document.getElementById("grainPrice").value="";
-    document.getElementById("grainMillingPrice").value="";
-    document.getElementById("grainStock").value="";
-    document.getElementById("grainActive").checked=true;
-    editGrainId=null;
-  }
-
-  function closeGrainForm(){document.getElementById("grainFormModal").classList.add("hidden")}
-
+  function openGrainForm(){grainFormModal.classList.remove("hidden");grainFormTitle.innerText="Add Grain";grainProductName.value="";grainType.value="";grainPrice.value="";grainMillingPrice.value="";grainStock.value="";grainActive.checked=true;editGrainId=null;}
+  function closeGrainForm(){grainFormModal.classList.add("hidden")}
   async function saveGrain(){
-    const product_name=document.getElementById("grainProductName").value.trim();
-    const grain=document.getElementById("grainType").value.trim();
-    const price_per_kg=parseFloat(document.getElementById("grainPrice").value)||0;
-    const milling_price_per_kg=parseFloat(document.getElementById("grainMillingPrice").value)||0;
-    const stock_qty=parseInt(document.getElementById("grainStock").value)||0;
-    const is_active=document.getElementById("grainActive").checked;
+    const product_name=grainProductName.value.trim(),grain=grainType.value.trim(),price_per_kg=parseFloat(grainPrice.value)||0,milling_price_per_kg=parseFloat(grainMillingPrice.value)||0,stock_qty=parseInt(grainStock.value)||0,is_active=grainActive.checked;
     if(!product_name||!grain){alert("Please fill all required fields");return;}
-    if(editGrainId){
-      await supabase.from('Grain_for_sell').update({product_name,grain,price_per_kg,milling_price_per_kg,stock_qty,is_active}).eq('id',editGrainId);
-    }else{
-      await supabase.from('Grain_for_sell').insert([{product_name,grain,price_per_kg,milling_price_per_kg,stock_qty,is_active}]);
-    }
+    if(editGrainId)await supabase.from('Grain_for_sell').update({product_name,grain,price_per_kg,milling_price_per_kg,stock_qty,is_active}).eq('id',editGrainId);
+    else await supabase.from('Grain_for_sell').insert([{product_name,grain,price_per_kg,milling_price_per_kg,stock_qty,is_active}]);
     closeGrainForm();fetchGrains();
   }
-
-  function editGrain(id){
-    const g=grains.find(x=>x.id===id);
-    editGrainId=id;
-    document.getElementById("grainFormTitle").innerText="Edit Grain for Sell";
-    document.getElementById("grainProductName").value=g.product_name;
-    document.getElementById("grainType").value=g.grain||"";
-    document.getElementById("grainPrice").value=g.price_per_kg;
-    document.getElementById("grainMillingPrice").value=g.milling_price_per_kg;
-    document.getElementById("grainStock").value=g.stock_qty;
-    document.getElementById("grainActive").checked=g.is_active;
-    document.getElementById("grainFormModal").classList.remove("hidden");
-  }
-
-  async function deleteGrain(id){
-    if(!confirm("Are you sure you want to delete this grain?"))return;
-    await supabase.from('Grain_for_sell').delete().eq('id',id);
-    fetchGrains();
-  }
-
+  function editGrain(id){const g=grains.find(x=>x.id===id);editGrainId=id;openGrainForm();grainProductName.value=g.product_name;grainType.value=g.grain||"";grainPrice.value=g.price_per_kg;grainMillingPrice.value=g.milling_price_per_kg;grainStock.value=g.stock_qty;grainActive.checked=g.is_active;}
+  async function deleteGrain(id){if(!confirm("Delete this grain?"))return;await supabase.from('Grain_for_sell').delete().eq('id',id);fetchGrains();}
   </script>
 </body>
 </html>
