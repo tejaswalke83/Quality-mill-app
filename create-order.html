@@ -24,10 +24,16 @@
   <div class="max-w-3xl mx-auto">
     <div class="bg-white shadow-md rounded-xl p-6">
 
-      <!-- Title changed to "New Order" per your request -->
+      <!-- Title -->
       <h2 class="text-2xl font-bold mb-4">New Order</h2>
 
       <div id="user-info" class="mb-4 text-gray-700"></div>
+
+      <!-- ORDER TYPE SUMMARY (restored as requested) -->
+      <div id="selection-summary" class="mb-4 text-sm text-gray-700 hidden">
+        <strong class="text-gray-800">Order Type: </strong>
+        <span id="selection-summary-text" class="text-indigo-600"></span>
+      </div>
 
       <hr class="my-4">
 
@@ -95,6 +101,8 @@
     let grainList = [];
     let user = null;
     let deliveryCharge = 0; // global delivery charge (numeric, rupees)
+    let isSubmitting = false;  // prevent double submit
+
     const orderRows = document.getElementById('order-rows');
     const totalPriceEl = document.getElementById('total-price');
     const subtotalEl = document.getElementById('subtotal');
@@ -102,6 +110,9 @@
     const deliveryRowEl = document.getElementById('delivery-row');
     const deliveryCostEl = document.getElementById('delivery-cost');
     const cancelBtn = document.getElementById('cancel-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const selectionSummaryEl = document.getElementById('selection-summary');
+    const selectionSummaryTextEl = document.getElementById('selection-summary-text');
 
     // ✅ Toast function
     function showToast(message, type = "success") {
@@ -115,19 +126,47 @@
 
     // Cancel should go back to previous page (browser history)
     cancelBtn.addEventListener('click', () => {
-      // preserve business logic: no other state changes, just navigate back
       history.back();
     });
 
     document.addEventListener("DOMContentLoaded", () => {
-      // no "You selected" UI anymore per your request
-      // fetch user & grains then initialize UI
       fetchData();
     });
 
-    async function generateTokenNumber() {
-      console.log("🔎 generateTokenNumber() called");
+    // compute selection summary (one of four human readable strings)
+    function computeSelectionSummary() {
+      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+      const orderType = (localStorage.getItem('orderType') || '').toLowerCase();
 
+      if (orderType.includes('home') && orderType.includes('buy')) {
+        return "Home delivery — Atta Order";
+      }
+      if (orderType.includes('shop') && orderType.includes('buy')) {
+        return "At shop — Atta Order";
+      }
+      if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) {
+        return "Home delivery — Pickup & Drop";
+      }
+      if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) {
+        return "At shop — Pickup & Drop";
+      }
+
+      // Fallback
+      if (serveAt.includes('home') || serveAt.includes('homeservice')) return "Home delivery";
+      return "At shop";
+    }
+
+    function updateSelectionSummaryDisplay() {
+      const txt = computeSelectionSummary();
+      if (txt) {
+        selectionSummaryTextEl.textContent = txt;
+        selectionSummaryEl.style.display = 'block';
+      } else {
+        selectionSummaryEl.style.display = 'none';
+      }
+    }
+
+    async function generateTokenNumber() {
       const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
 
       const { data: activeOrders, error } = await supabase
@@ -135,7 +174,7 @@
         .select(`id, token_number, order_statuses ( status_name )`);
 
       if (error) {
-        console.error("❌ Supabase error:", error);
+        console.error("Supabase error:", error);
         throw error;
       }
 
@@ -185,6 +224,9 @@
         <p><strong>Flat:</strong> ${user.flat_number || ''}, ${user.wing || ''}</p>
         <p><strong>Society:</strong> ${user.society_name || ''}</p>
       `;
+
+      // restore Order Type UI
+      updateSelectionSummaryDisplay();
 
       // Load grain prices and then add a default row
       await loadMillingGrains();
@@ -296,6 +338,12 @@
     };
 
     window.submitOrder = async function () {
+      if (isSubmitting) return; // guard: prevent double submit
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Placing...';
+
       let grainDetails = [];
       let hasError = false;
 
@@ -321,6 +369,9 @@
 
       if (hasError || grainDetails.length === 0) {
         showToast("Please fix errors before submitting.", "error");
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
         return;
       }
 
@@ -354,12 +405,18 @@
         if (orderError) throw orderError;
 
         showToast("✅ Order placed! Token: " + token_number);
+
+        // on success we redirect; no need to re-enable the button
         setTimeout(() => {
           window.location.href = '/my-orders.html?phone=' + phone;
         }, 2000);
       } catch (err) {
         console.error(err);
         showToast("❌ Error placing order", "error");
+        // re-enable so user can retry
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
       }
     }
 
@@ -369,23 +426,20 @@
      *   (try society-specific first, then global, then fallback any active 'normal')
      * - Otherwise (ShopService) -> deliveryCharge = 0
      *
-     * This preserves your DB structure where delivery_type currently contains 'normal'.
+     * NOTE: removed delivery-specific console.log statements per request.
      */
     async function fetchDeliveryChargeForSelection() {
       const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
-      console.log('[delivery] serveAt (from localStorage):', serveAt);
 
       deliveryCharge = 0;
 
       if (!serveAt.includes('home')) {
-        console.log('[delivery] serveAt is not HomeService — deliveryCharge set to 0');
         deliveryRowEl.style.display = 'none';
         deliveryCostEl.textContent = `₹0.00`;
         return;
       }
 
       const deliveryTypeKey = 'normal';
-      console.log('[delivery] fetching price for delivery_type:', deliveryTypeKey);
 
       try {
         const societyId = user?.society_id || user?.society || null;
@@ -393,7 +447,6 @@
 
         // 1) Society-specific exact match
         if (societyId) {
-          console.log(`[delivery] trying society-specific price for society_id=${societyId}`);
           const { data: socData, error: socErr } = await supabase
             .from('delivery_pricing')
             .select('price')
@@ -403,16 +456,13 @@
             .limit(1)
             .maybeSingle();
 
-          console.log('[delivery] society-specific result:', socErr || socData);
           if (!socErr && socData && socData.price != null) {
             foundPrice = Number(socData.price);
-            console.log('[delivery] found society-specific price:', foundPrice);
           }
         }
 
         // 2) Try global (society_id IS NULL)
         if (foundPrice == null) {
-          console.log('[delivery] trying global price (society_id IS NULL)');
           const { data: globData, error: globErr } = await supabase
             .from('delivery_pricing')
             .select('price')
@@ -422,16 +472,13 @@
             .limit(1)
             .maybeSingle();
 
-          console.log('[delivery] global result:', globErr || globData);
           if (!globErr && globData && globData.price != null) {
             foundPrice = Number(globData.price);
-            console.log('[delivery] found global price:', foundPrice);
           }
         }
 
-        // 3) Fallback: any active 'normal' row (pick the first) — avoids missing altogether
+        // 3) Fallback: any active 'normal' row (pick the first)
         if (foundPrice == null) {
-          console.log('[delivery] trying fallback: any active delivery_pricing with delivery_type=normal');
           const { data: anyData, error: anyErr } = await supabase
             .from('delivery_pricing')
             .select('id, price, society_id, delivery_type, is_active')
@@ -439,16 +486,13 @@
             .eq('is_active', true)
             .limit(1);
 
-          console.log('[delivery] fallback result:', anyErr || anyData);
           if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
             foundPrice = Number(anyData[0].price);
-            console.log('[delivery] found fallback price:', foundPrice, 'from society_id=', anyData[0].society_id);
           }
         }
 
         deliveryCharge = foundPrice != null ? foundPrice : 0;
       } catch (err) {
-        console.error('[delivery] error during lookup:', err);
         deliveryCharge = 0;
       }
 
