@@ -6,7 +6,7 @@
   <title>Create Order</title>
 
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com"></script> 
 
   <!-- Google font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -149,10 +149,6 @@
       const orderType = (localStorage.getItem('orderType') || '').toLowerCase(); // e.g. "home-milling", "shop-buy-mill"
 
       // Map to four types:
-      // home delivery pickup and drop -> home-milling (pickup & drop)
-      // at shop pick up and drop -> shop-milling
-      // home delivery atta order -> home-buy-mill
-      // at shop atta order -> shop-buy-mill
       if (orderType.includes('home') && orderType.includes('buy')) {
         return "Home delivery — Atta Order";
       }
@@ -253,7 +249,7 @@
       await fetchDeliveryChargeForSelection();
 
       // initial totals
-      updateTotal();
+      await updateTotal();
     }
 
     async function loadMillingGrains() {
@@ -406,93 +402,85 @@
     }
 
     /**
-     * Determine delivery_pricing.delivery_type value for current selection.
-     * We try to return an expected delivery_type string based on orderType and serveAt.
-     * Known mappings (based on your earlier naming):
-     *  - "home-buy-mill"   => delivery_type "home_buy_mill"
-     *  - "home-milling"    => delivery_type "home_milling" (pickup/drop)
-     *  - "shop-buy-mill"   => delivery_type "shop_buy_mill" (usually no delivery charge)
-     *  - "shop-milling"    => delivery_type "shop_milling" (usually no delivery charge)
+     * Fetch delivery charge for current selection using the rule:
+     * - If serve_at === 'HomeService' -> lookup delivery_pricing.delivery_type = 'normal'
+     *   (try society-specific first, then global)
+     * - Otherwise (ShopService) -> deliveryCharge = 0
      *
-     * If nothing matches, returns null.
-     */
-    function mapOrderToDeliveryTypeKey() {
-      const orderType = (localStorage.getItem('orderType') || '').toLowerCase();
-      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
-
-      if (orderType.includes('home') && orderType.includes('buy')) return 'home_buy_mill';
-      if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) return 'home_milling';
-      if (orderType.includes('shop') && orderType.includes('buy')) return 'shop_buy_mill';
-      if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) return 'shop_milling';
-
-      // fallback: if serveAt indicates home, use home_milling (pickup/drop) as default
-      if (serveAt.includes('home')) return 'home_milling';
-      if (serveAt.includes('shop')) return 'shop_milling';
-      return null;
-    }
-
-    /**
-     * Fetch delivery charge for the current selection (if applicable).
-     * Strategy:
-     *  - Try to find a society-specific active price (matching user.society_id) first
-     *  - If not found, try to find a global active price with society_id IS NULL
-     *  - If none found, deliveryCharge = 0
+     * This preserves your DB structure where delivery_type currently contains 'normal'.
      */
     async function fetchDeliveryChargeForSelection() {
-      // Compute the delivery_type key mapped from orderType/serveAt
-      const deliveryKey = mapOrderToDeliveryTypeKey();
+      // Check serveAt (from previous page)
+      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+      console.log('[delivery] serveAt (from localStorage):', serveAt);
+
+      // Default
       deliveryCharge = 0;
 
-      // If deliveryKey is null or it is a shop-based delivery type, assume no delivery charge (but still try fetch)
-      if (!deliveryKey) {
-        deliveryCharge = 0;
+      // Only fetch for HomeService
+      if (!serveAt.includes('home')) {
+        console.log('[delivery] serveAt is not HomeService — deliveryCharge set to 0');
         deliveryRowEl.style.display = 'none';
         deliveryCostEl.textContent = `₹0.00`;
         return;
       }
 
-      try {
-        // Try society-specific price if we have a society id on the user
-        const societyId = user?.society_id || user?.society || null;
+      // We will lookup delivery_type = 'normal' (your DB uses 'normal')
+      const deliveryTypeKey = 'normal';
+      console.log('[delivery] fetching price for delivery_type:', deliveryTypeKey);
 
+      try {
+        const societyId = user?.society_id || user?.society || null;
+        let foundPrice = null;
+
+        // 1) Try society-specific price
         if (societyId) {
+          console.log(`[delivery] trying society-specific price for society_id=${societyId}`);
           const { data: socData, error: socErr } = await supabase
             .from('delivery_pricing')
             .select('price')
-            .eq('delivery_type', deliveryKey)
+            .eq('delivery_type', deliveryTypeKey)
             .eq('is_active', true)
             .eq('society_id', societyId)
             .limit(1)
             .maybeSingle();
 
           if (!socErr && socData && socData.price != null) {
-            deliveryCharge = Number(socData.price);
+            foundPrice = Number(socData.price);
+            console.log('[delivery] found society-specific price:', foundPrice);
+          } else {
+            console.log('[delivery] no society-specific exact match', socErr || socData);
           }
         }
 
-        // If not found (or no society), try global (society_id IS NULL)
-        if (!deliveryCharge || Number(deliveryCharge) === 0) {
+        // 2) Try global (society_id IS NULL)
+        if (foundPrice == null) {
+          console.log('[delivery] trying global price (society_id IS NULL)');
           const { data: globData, error: globErr } = await supabase
             .from('delivery_pricing')
             .select('price')
-            .eq('delivery_type', deliveryKey)
+            .eq('delivery_type', deliveryTypeKey)
             .eq('is_active', true)
             .is('society_id', null)
             .limit(1)
             .maybeSingle();
 
           if (!globErr && globData && globData.price != null) {
-            deliveryCharge = Number(globData.price);
+            foundPrice = Number(globData.price);
+            console.log('[delivery] found global price:', foundPrice);
+          } else {
+            console.log('[delivery] no global exact match', globErr || globData);
           }
         }
 
-        // if still zero or missing -> leave deliveryCharge = 0
+        // Set deliveryCharge from foundPrice (if any)
+        deliveryCharge = foundPrice != null ? foundPrice : 0;
       } catch (err) {
-        console.error("Error fetching delivery price:", err);
+        console.error('[delivery] error during lookup:', err);
         deliveryCharge = 0;
       }
 
-      // Update UI elements for delivery cost (updateTotal will re-show/hide row)
+      // Update UI now (updateTotal will also re-evaluate)
       if (deliveryCharge && Number(deliveryCharge) > 0) {
         deliveryRowEl.style.display = 'flex';
         deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
