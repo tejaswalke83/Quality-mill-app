@@ -20,16 +20,24 @@
       min-width: 11rem;
       min-height: 11rem;
       flex-shrink: 0; /* keep cards side-by-side without shrinking */
+      border-radius: 1rem;
+      background: white;
+      border: 2px solid #e5e7eb;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+      position: relative;
+      cursor: pointer;
     }
     .top-card .icon {
       width: 2.25rem;
       height: 2.25rem;
     }
-    /* selected visual for top cards */
+    /* selected visual for top cards (minimal) */
     .top-card.selected {
       border-color: #6366f1; /* indigo-500 */
-      box-shadow: 0 0 0 6px rgba(99,102,241,0.08);
-      transform: translateY(-3px);
     }
 
     /* responsive tweak: smaller footprint on very small screens */
@@ -69,7 +77,6 @@
   <hr class="w-full max-w-2xl mb-6"/>
 
   <!-- TOP: Two responsive square cards each containing radio + icon -->
-  <!-- NOTE: changed container to non-wrapping horizontal scroll so cards remain side-by-side even on phones -->
   <div id="topSelection" class="mb-6">
 
      <!-- Home Delivery Card (scooter / delivery icon) -->
@@ -329,6 +336,7 @@
           if (cardSelectHome) cardSelectHome.style.display = 'none';
           if (homeServicesSection) homeServicesSection.style.display = 'none';
 
+          // set Shop as the chosen option when home pickup isn't available
           localStorage.setItem('serveAt', 'ShopService');
           disableCards('HomeService');
           setRadioSelection('ShopService');
@@ -367,28 +375,27 @@
       }, 500);
     }
 
-    // ---- Modified load logic: set HomeService as default on first visit ----
-    // We set default to HomeService only when no serveAt exists. checkHomePickupConfig()
-    // will override this if home pickup is disabled by config (preserves server-side rule).
+    // ---- Initialization: ensure Home Delivery selected by default on first visit ----
     window.addEventListener('load', () => {
-      const serveAt = localStorage.getItem('serveAt');
-      if (!serveAt) {
-        // first visit (no preference) -> default to HomeService
+      // If user hasn't chosen before, set default to HomeService
+      if (!localStorage.getItem('serveAt')) {
         localStorage.setItem('serveAt', 'HomeService');
       }
 
-      // run server-side config check (it will switch to shop if home is disabled)
+      // Run server config check (this may switch to ShopService if home pickup isn't enabled).
+      // After config is checked, apply UI state from localStorage and ensure sections are hidden/shown correctly.
       checkHomePickupConfig().finally(() => {
-        // After config resolves, apply UI state consistent with localStorage
         const finalServeAt = localStorage.getItem('serveAt');
         if (finalServeAt === 'HomeService' || finalServeAt === 'ShopService') {
+          // ensure UI matches chosen serveAt
           disableCards(finalServeAt === 'HomeService' ? 'ShopService' : 'HomeService');
           setRadioSelection(finalServeAt);
         } else {
-          // fallback: default to HomeService (we already set above), keep cards enabled
-          setRadioSelection(null);
+          // fallback to HomeService
+          setRadioSelection('HomeService');
           disableCards('none');
         }
+        // hide any tick icons initially
         document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
         updateTopCardVisuals();
         updateSectionsVisibilityBySelection();
