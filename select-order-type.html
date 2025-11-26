@@ -52,26 +52,9 @@
 
   <!-- TOP: Two responsive square cards each containing radio + icon -->
   <div id="topSelection" class="flex gap-6 justify-center mb-6 flex-wrap">
-    <!-- Shop Card (store / storefront icon) -->
-    <button id="cardSelectShop" aria-pressed="false"
-      class="top-card border-2 rounded-xl bg-white shadow flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
-      <!-- Storefront / shop icon -->
-      <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <!-- Awning -->
-        <path d="M3 7h18v3H3z" fill="currentColor" opacity="0.12"/>
-        <path d="M2 10l1.5-3 3 0 1.5 3 3 0 1.5-3 3 0 1.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        <!-- Building -->
-        <rect x="4" y="10" width="16" height="9" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
-        <!-- Door -->
-        <rect x="11" y="14" width="2" height="5" rx="0.5" fill="currentColor"/>
-      </svg>
-      <div class="text-center">
-        <div class="text-lg font-semibold text-gray-800">At Shop</div>
-        <div class="text-sm text-gray-600 mt-1">Visit our shop</div>
-      </div>
-    </button>
 
-    <!-- Home Delivery Card (scooter / delivery icon) -->
+
+     <!-- Home Delivery Card (scooter / delivery icon) -->
     <button id="cardSelectHome" aria-pressed="false"
       class="top-card border-2 rounded-xl bg-white shadow flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
       <!-- Scooter / delivery icon -->
@@ -91,6 +74,27 @@
         <div class="text-sm text-gray-600 mt-1">We pick up & deliver</div>
       </div>
     </button>
+    
+    <!-- Shop Card (store / storefront icon) -->
+    <button id="cardSelectShop" aria-pressed="false"
+      class="top-card border-2 rounded-xl bg-white shadow flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
+      <!-- Storefront / shop icon -->
+      <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Awning -->
+        <path d="M3 7h18v3H3z" fill="currentColor" opacity="0.12"/>
+        <path d="M2 10l1.5-3 3 0 1.5 3 3 0 1.5-3 3 0 1.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Building -->
+        <rect x="4" y="10" width="16" height="9" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+        <!-- Door -->
+        <rect x="11" y="14" width="2" height="5" rx="0.5" fill="currentColor"/>
+      </svg>
+      <div class="text-center">
+        <div class="text-lg font-semibold text-gray-800">At Shop</div>
+        <div class="text-sm text-gray-600 mt-1">Visit our shop</div>
+      </div>
+    </button>
+
+   
   </div>
 
   <!-- NOTE: old hidden radios & modal were removed from static HTML to clean markup.
@@ -103,14 +107,14 @@
     <div class="space-y-4" id="shopServices">
       <div onclick="selectOrderType('shop-milling')" id="card-shop-milling" data-serveat="ShopService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
-        <strong class="text-indigo-700">Bring Your Grains, Milling Service – At Shop</strong>
+        <strong class="text-indigo-700">Bring Your Grains to shop</strong>
         <p class="text-gray-600">Bring your grains to our shop and get them milled on the spot.</p>
         <span id="tick-shop-milling" class="tick hidden text-green-600">✔️</span>
       </div>
 
       <div onclick="selectOrderType('shop-buy-mill')" id="card-shop-buy-mill" data-serveat="ShopService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
-        <strong class="text-indigo-700">Buy grains from us & Mill – At Shop</strong>
+        <strong class="text-indigo-700">Buy Atta from us at shop</strong>
         <p class="text-gray-600">Select grains from our shop, mill fresh atta, and take it home.</p>
         <span id="tick-shop-buy-mill" class="tick hidden text-green-600">✔️</span>
       </div>
@@ -123,15 +127,15 @@
     <div class="space-y-4" id="homeServices">
       <div onclick="selectOrderType('home-milling')" id="card-home-milling" data-serveat="HomeService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
-        <strong class="text-indigo-700">Pick up and drop your grains, Service – Milling</strong>
+        <strong class="text-indigo-700">Pick up and drop delivery Service </strong>
         <p class="text-gray-600">We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
         <span id="tick-home-milling" class="tick hidden text-green-600">✔️</span>
       </div>
 
       <div onclick="selectOrderType('home-buy-mill')" id="card-home-buy-mill" data-serveat="HomeService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
-        <strong class="text-indigo-700">Order Atta form Home Service – Buy & Mill</strong>
-        <p class="text-gray-600">Home delivery, select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
+        <strong class="text-indigo-700">Order Atta Home delivery Service </strong>
+        <p class="text-gray-600">Atta Home delivery, select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
         <span id="tick-home-buy-mill" class="tick hidden text-green-600">✔️</span>
       </div>
     </div>
