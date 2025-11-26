@@ -1,1 +1,399 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <title>Select Order Type</title> <!-- Tailwind --> <script src="https://cdn.tailwindcss.com"></script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"> <style> body { font-family: "Inter", system-ui, sans-serif; } .tick { position: absolute; top: 8px; right: 8px; font-size: 20px; } /* top cards sizes and visuals */ .top-card { width: 11rem; height: 11rem; min-width: 11rem; min-height: 11rem; flex-shrink: 0; /* keep cards side-by-side without shrinking */ } .top-card .icon { width: 2.25rem; height: 2.25rem; } /* selected visual for top cards */ .top-card.selected { border-color: #6366f1; /* indigo-500 */ box-shadow: 0 0 0 6px rgba(99,102,241,0.08); transform: translateY(-3px); } /* responsive tweak: smaller footprint on very small screens */ @media (max-width: 420px) { .top-card { width: 10rem; height: 10rem; min-width: 10rem; min-height: 10rem; } } /* visually-hidden utility for accessibility (if needed) */ .sr-only { position:absolute; width:1px; height:1px; padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; } /* make service cards slightly larger on touch */ .service-card { min-height: 5.25rem; } /* horizontal container: keep cards in a single row and allow horizontal scrolling on small screens */ #topSelection { display: flex; gap: 1.5rem; justify-content: center; align-items: center; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding-bottom: 0.25rem; } /* hide default scrollbar visually but keep functionality (small unobtrusive) */ #topSelection::-webkit-scrollbar { height: 8px; } #topSelection::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 9999px; } </style> <script defer src="/common.js"></script> </head> <body class="bg-gray-50 min-h-screen flex flex-col items-center p-6"> <h3 class="text-2xl font-bold text-gray-800 mb-4">What would you like to do today?</h3> <hr class="w-full max-w-2xl mb-6"/> <!-- TOP: Two responsive square cards each containing radio + icon --> <!-- NOTE: changed container to non-wrapping horizontal scroll so cards remain side-by-side even on phones --> <div id="topSelection" class="mb-6"> <!-- Home Delivery Card (scooter / delivery icon) --> <button id="cardSelectHome" aria-pressed="false" class="top-card border-2 rounded-xl bg-white shadow inline-flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none"> <!-- Scooter / delivery icon --> <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"> <!-- scooter body --> <path d="M3 17h6l3-6h4l2 3h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/> <!-- handle --> <path d="M12 5h2l1 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/> <!-- seat/box --> <rect x="14" y="7" width="5" height="3" rx="0.5" stroke="currentColor" stroke-width="1.2" fill="none"/> <!-- wheels --> <circle cx="6" cy="18" r="1.6" stroke="currentColor" stroke-width="1.4" fill="none"/> <circle cx="18" cy="18" r="1.6" stroke="currentColor" stroke-width="1.4" fill="none"/> </svg> <div class="text-center"> <div class="text-lg font-semibold text-gray-800">Home Delivery</div> <div class="text-sm text-gray-600 mt-1">We pick up & deliver</div> </div> </button> <!-- Shop Card (store / storefront icon) --> <button id="cardSelectShop" aria-pressed="false" class="top-card border-2 rounded-xl bg-white shadow inline-flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none"> <!-- Storefront / shop icon --> <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"> <!-- Awning --> <path d="M3 7h18v3H3z" fill="currentColor" opacity="0.12"/> <path d="M2 10l1.5-3 3 0 1.5 3 3 0 1.5-3 3 0 1.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/> <!-- Building --> <rect x="4" y="10" width="16" height="9" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/> <!-- Door --> <rect x="11" y="14" width="2" height="5" rx="0.5" fill="currentColor"/> </svg> <div class="text-center"> <div class="text-lg font-semibold text-gray-800">At Shop</div> <div class="text-sm text-gray-600 mt-1">Visit our shop</div> </div> </button> </div> <!-- Shop Section (renamed) --> <div class="w-full max-w-2xl" id="shopServicesSection"> <h4 class="text-lg font-semibold text-gray-700 mb-3">Shop</h4> <div class="space-y-4" id="shopServices"> <div onclick="selectOrderType('shop-buy-mill')" id="card-shop-buy-mill" data-serveat="ShopService" class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition"> <strong class="text-indigo-700">Buy Atta/Grains from us at shop</strong> <p class="text-gray-600">Select grains from our shop, mill fresh atta, and take it home.</p> <span id="tick-shop-buy-mill" class="tick hidden text-green-600">✔️</span> </div> <div onclick="selectOrderType('shop-milling')" id="card-shop-milling" data-serveat="ShopService" class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition"> <strong class="text-indigo-700">Bring Your Grains to shop</strong> <p class="text-gray-600">Bring your grains to our shop and get them milled on the spot.</p> <span id="tick-shop-milling" class="tick hidden text-green-600">✔️</span> </div> </div> </div> <!-- Home Delivery Section (renamed) --> <div class="w-full max-w-2xl mt-8" id="homeServicesSection"> <h4 class="text-lg font-semibold text-gray-700 mb-3">Home Delivery</h4> <div class="space-y-4" id="homeServices"> <div onclick="selectOrderType('home-buy-mill')" id="card-home-buy-mill" data-serveat="HomeService" class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition"> <strong class="text-indigo-700">Order Atta - Home Delivery</strong> <p class="text-gray-600">Atta Home delivery, select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p> <span id="tick-home-buy-mill" class="tick hidden text-green-600">✔️</span> </div> <div onclick="selectOrderType('home-milling')" id="card-home-milling" data-serveat="HomeService" class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition"> <strong class="text-indigo-700">Pick up and drop Delivery</strong> <p class="text-gray-600">We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p> <span id="tick-home-milling" class="tick hidden text-green-600">✔️</span> </div> </div> </div> <!-- Supabase and app script --> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <script src="config.js"></script> <script> // preserve business logic: create the small DOM elements JS expects (radioShop, radioHome, atHomeOption) (function ensureCompatibilityElements() { // radioShop (hidden) if (!document.getElementById('radioShop')) { const rShop = document.createElement('input'); rShop.type = 'radio'; rShop.name = 'location'; rShop.value = 'ShopService'; rShop.id = 'radioShop'; rShop.className = 'sr-only'; document.body.appendChild(rShop); } // radioHome (hidden) if (!document.getElementById('radioHome')) { const rHome = document.createElement('input'); rHome.type = 'radio'; rHome.name = 'location'; rHome.value = 'HomeService'; rHome.id = 'radioHome'; rHome.className = 'sr-only'; document.body.appendChild(rHome); } // atHomeOption container used by some code paths to show/hide the home option; create as hidden container if (!document.getElementById('atHomeOption')) { const opt = document.createElement('div'); opt.id = 'atHomeOption'; opt.style.display = 'flex'; opt.className = 'sr-only'; document.body.appendChild(opt); } })(); // ✅ Read Supabase credentials from config.js (populated by Netlify) const SUPABASE_URL = window._env_ && window._env_.SUPABASE_URL; const SUPABASE_KEY = window._env_ && window._env_.SUPABASE_ANON_KEY; const { createClient } = supabase; const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY); // top card elements const cardSelectShop = document.getElementById('cardSelectShop'); const cardSelectHome = document.getElementById('cardSelectHome'); // hidden/compat radios (created above) const radioShop = document.getElementById('radioShop'); const radioHome = document.getElementById('radioHome'); const atHomeOption = document.getElementById('atHomeOption'); const shopServicesSection = document.getElementById('shopServicesSection'); const homeServicesSection = document.getElementById('homeServicesSection'); // helper: apply selected visuals to top cards function updateTopCardVisuals() { const serveAt = localStorage.getItem('serveAt'); if (serveAt === 'HomeService') { cardSelectHome.classList.add('selected'); cardSelectShop.classList.remove('selected'); cardSelectHome.setAttribute('aria-pressed', 'true'); cardSelectShop.setAttribute('aria-pressed', 'false'); } else if (serveAt === 'ShopService') { cardSelectShop.classList.add('selected'); cardSelectHome.classList.remove('selected'); cardSelectShop.setAttribute('aria-pressed', 'true'); cardSelectHome.setAttribute('aria-pressed', 'false'); } else { cardSelectHome.classList.remove('selected'); cardSelectShop.classList.remove('selected'); cardSelectHome.setAttribute('aria-pressed', 'false'); cardSelectShop.setAttribute('aria-pressed', 'false'); } } // helper: show/hide sections based on selection function updateSectionsVisibilityBySelection() { const serveAt = localStorage.getItem('serveAt') || (radioHome.checked ? 'HomeService' : 'ShopService'); if (serveAt === 'HomeService') { if (shopServicesSection) shopServicesSection.style.display = 'none'; if (homeServicesSection) homeServicesSection.style.display = 'block'; } else { if (homeServicesSection) homeServicesSection.style.display = 'none'; if (shopServicesSection) shopServicesSection.style.display = 'block'; } } // centralize selection logic to preserve business logic function setServeAt(serveAt) { if (serveAt === 'HomeService') { localStorage.setItem('serveAt', 'HomeService'); if (radioHome) radioHome.checked = true; if (radioShop) radioShop.checked = false; updateTopCardVisuals(); disableCards('ShopService'); } else { localStorage.setItem('serveAt', 'ShopService'); if (radioShop) radioShop.checked = true; if (radioHome) radioHome.checked = false; updateTopCardVisuals(); disableCards('HomeService'); } updateSectionsVisibilityBySelection(); } // top card click handlers (select underlying hidden radios and apply same logic) cardSelectShop.addEventListener('click', () => setServeAt('ShopService')); cardSelectHome.addEventListener('click', () => setServeAt('HomeService')); // Also allow keyboard activation for accessibility cardSelectShop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setServeAt('ShopService'); }}); cardSelectHome.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setServeAt('HomeService'); }}); // keep original logic functions and behavior — unchanged except for safe null checks function disableCards(serveAtToDisable) { const cards = document.querySelectorAll('.relative'); cards.forEach(card => { if (serveAtToDisable !== 'none' && card.dataset.serveat === serveAtToDisable) { card.classList.add('opacity-50', 'cursor-not-allowed'); card.onclick = null; } else { card.classList.remove('opacity-50', 'cursor-not-allowed'); card.onclick = () => selectOrderType(card.id.replace('card-', '')); } }); } function setRadioSelection(serveAt) { if (serveAt === 'ShopService') { if (radioShop) radioShop.checked = true; if (radioHome) radioHome.checked = false; } else if (serveAt === 'HomeService') { if (radioShop) radioShop.checked = false; if (radioHome) radioHome.checked = true; } else { if (radioShop) radioShop.checked = true; if (radioHome) radioHome.checked = false; } updateTopCardVisuals(); updateSectionsVisibilityBySelection(); } async function checkHomePickupConfig() { try { const { data, error } = await supabaseClient .from('Configuration') .select('config_value') .eq('config_key', 'home_pickup_delivery') .maybeSingle(); if (error) { console.error("Error fetching config:", error); return; } const isEnabled = data && (data.config_value === "True" || data.config_value === "true"); if (isEnabled) { // Home pickup available — show Home option and leave behavior as normal if (atHomeOption) atHomeOption.style.display = "flex"; if (cardSelectHome) cardSelectHome.style.display = 'flex'; if (homeServicesSection) homeServicesSection.style.display = 'block'; } else { // Home pickup disabled — hide Home option & home services, // default to Shop if (atHomeOption) atHomeOption.style.display = "none"; if (cardSelectHome) cardSelectHome.style.display = 'none'; if (homeServicesSection) homeServicesSection.style.display = 'none'; localStorage.setItem('serveAt', 'ShopService'); disableCards('HomeService'); setRadioSelection('ShopService'); } } catch (err) { console.error("Unexpected error:", err); } } // Existing selectOrderType logic preserved exactly function selectOrderType(type) { const urlParams = new URLSearchParams(window.location.search); const phone = urlParams.get('phone'); localStorage.setItem('orderType', type); const card = document.getElementById(card-${type}); if (card) { localStorage.setItem('serveAt', card.dataset.serveat); } document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden')); document.querySelectorAll('.relative').forEach(card => card.classList.remove('ring-2', 'ring-indigo-500')); const tickId = tick-${type}; const tick = document.getElementById(tickId); if (tick) tick.classList.remove('hidden'); if (card) card.classList.add('ring-2', 'ring-indigo-500'); let nextPage = "create-order.html"; if (type === "shop-buy-mill" || type === "home-buy-mill") { nextPage = "create-buy-grain-order.html"; } setTimeout(() => { window.location.href = ${nextPage}?phone=${phone}; }, 500); } // ---- Modified load logic: set HomeService as default on first visit ---- // We set default to HomeService only when no serveAt exists. checkHomePickupConfig() // will override this if home pickup is disabled by config (preserves server-side rule). window.addEventListener('load', () => { const serveAt = localStorage.getItem('serveAt'); if (!serveAt) { // first visit (no preference) -> default to HomeService localStorage.setItem('serveAt', 'HomeService'); } // run server-side config check (it will switch to shop if home is disabled) checkHomePickupConfig().finally(() => { // After config resolves, apply UI state consistent with localStorage const finalServeAt = localStorage.getItem('serveAt'); if (finalServeAt === 'HomeService' || finalServeAt === 'ShopService') { disableCards(finalServeAt === 'HomeService' ? 'ShopService' : 'HomeService'); setRadioSelection(finalServeAt); } else { // fallback: default to HomeService (we already set above), keep cards enabled setRadioSelection(null); disableCards('none'); } document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden')); updateTopCardVisuals(); updateSectionsVisibilityBySelection(); }); }); </script> </body> </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Select Order Type</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: "Inter", system-ui, sans-serif; }
+    .tick { position: absolute; top: 8px; right: 8px; font-size: 20px; }
+
+    /* top cards sizes and visuals */
+    .top-card {
+      width: 11rem;
+      height: 11rem;
+      min-width: 11rem;
+      min-height: 11rem;
+      flex-shrink: 0; /* keep cards side-by-side without shrinking */
+    }
+    .top-card .icon {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+    /* selected visual for top cards */
+    .top-card.selected {
+      border-color: #6366f1; /* indigo-500 */
+      box-shadow: 0 0 0 6px rgba(99,102,241,0.08);
+      transform: translateY(-3px);
+    }
+
+    /* responsive tweak: smaller footprint on very small screens */
+    @media (max-width: 420px) {
+      .top-card { width: 10rem; height: 10rem; min-width: 10rem; min-height: 10rem; }
+    }
+
+    /* visually-hidden utility for accessibility (if needed) */
+    .sr-only { position:absolute; width:1px; height:1px; padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+    /* make service cards slightly larger on touch */
+    .service-card { min-height: 5.25rem; }
+
+    /* horizontal container: keep cards in a single row and allow horizontal scrolling on small screens */
+    #topSelection {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      align-items: center;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+      padding-bottom: 0.25rem;
+    }
+
+    /* hide default scrollbar visually but keep functionality (small unobtrusive) */
+    #topSelection::-webkit-scrollbar { height: 8px; }
+    #topSelection::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 9999px; }
+
+  </style>
+
+  <script defer src="/common.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center p-6">
+
+  <h3 class="text-2xl font-bold text-gray-800 mb-4">What would you like to do today?</h3>
+  <hr class="w-full max-w-2xl mb-6"/>
+
+  <!-- TOP: Two responsive square cards each containing radio + icon -->
+  <!-- NOTE: changed container to non-wrapping horizontal scroll so cards remain side-by-side even on phones -->
+  <div id="topSelection" class="mb-6">
+
+     <!-- Home Delivery Card (scooter / delivery icon) -->
+    <button id="cardSelectHome" aria-pressed="false"
+      class="top-card border-2 rounded-xl bg-white shadow inline-flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
+      <!-- Scooter / delivery icon -->
+      <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- scooter body -->
+        <path d="M3 17h6l3-6h4l2 3h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- handle -->
+        <path d="M12 5h2l1 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- seat/box -->
+        <rect x="14" y="7" width="5" height="3" rx="0.5" stroke="currentColor" stroke-width="1.2" fill="none"/>
+        <!-- wheels -->
+        <circle cx="6" cy="18" r="1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>
+        <circle cx="18" cy="18" r="1.6" stroke="currentColor" stroke-width="1.4" fill="none"/>
+      </svg>
+      <div class="text-center">
+        <div class="text-lg font-semibold text-gray-800">Home Delivery</div>
+        <div class="text-sm text-gray-600 mt-1">We pick up & deliver</div>
+      </div>
+    </button>
+    
+    <!-- Shop Card (store / storefront icon) -->
+    <button id="cardSelectShop" aria-pressed="false"
+      class="top-card border-2 rounded-xl bg-white shadow inline-flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
+      <!-- Storefront / shop icon -->
+      <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Awning -->
+        <path d="M3 7h18v3H3z" fill="currentColor" opacity="0.12"/>
+        <path d="M2 10l1.5-3 3 0 1.5 3 3 0 1.5-3 3 0 1.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Building -->
+        <rect x="4" y="10" width="16" height="9" rx="1" stroke="currentColor" stroke-width="1.4" fill="none"/>
+        <!-- Door -->
+        <rect x="11" y="14" width="2" height="5" rx="0.5" fill="currentColor"/>
+      </svg>
+      <div class="text-center">
+        <div class="text-lg font-semibold text-gray-800">At Shop</div>
+        <div class="text-sm text-gray-600 mt-1">Visit our shop</div>
+      </div>
+    </button>
+
+  </div>
+
+  <!-- Shop Section (renamed) -->
+  <div class="w-full max-w-2xl" id="shopServicesSection">
+    <h4 class="text-lg font-semibold text-gray-700 mb-3">Shop</h4>
+    <div class="space-y-4" id="shopServices">
+
+      <div onclick="selectOrderType('shop-buy-mill')" id="card-shop-buy-mill" data-serveat="ShopService"
+        class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
+        <strong class="text-indigo-700">Buy Atta/Grains from us at shop</strong>
+        <p class="text-gray-600">Select grains from our shop, mill fresh atta, and take it home.</p>
+        <span id="tick-shop-buy-mill" class="tick hidden text-green-600">✔️</span>
+      </div>
+      
+      <div onclick="selectOrderType('shop-milling')" id="card-shop-milling" data-serveat="ShopService"
+        class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
+        <strong class="text-indigo-700">Bring Your Grains to shop</strong>
+        <p class="text-gray-600">Bring your grains to our shop and get them milled on the spot.</p>
+        <span id="tick-shop-milling" class="tick hidden text-green-600">✔️</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Home Delivery Section (renamed) -->
+  <div class="w-full max-w-2xl mt-8" id="homeServicesSection">
+    <h4 class="text-lg font-semibold text-gray-700 mb-3">Home Delivery</h4>
+    <div class="space-y-4" id="homeServices">
+
+      <div onclick="selectOrderType('home-buy-mill')" id="card-home-buy-mill" data-serveat="HomeService"
+        class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
+        <strong class="text-indigo-700">Order Atta - Home Delivery</strong>
+        <p class="text-gray-600">Atta Home delivery, select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
+        <span id="tick-home-buy-mill" class="tick hidden text-green-600">✔️</span>
+      </div>
+
+       <div onclick="selectOrderType('home-milling')" id="card-home-milling" data-serveat="HomeService"
+        class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
+        <strong class="text-indigo-700">Pick up and drop Delivery</strong>
+        <p class="text-gray-600">We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
+        <span id="tick-home-milling" class="tick hidden text-green-600">✔️</span>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- Supabase and app script -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+
+  <script>
+    // preserve business logic: create the small DOM elements JS expects (radioShop, radioHome, atHomeOption)
+    (function ensureCompatibilityElements() {
+      // radioShop (hidden)
+      if (!document.getElementById('radioShop')) {
+        const rShop = document.createElement('input');
+        rShop.type = 'radio';
+        rShop.name = 'location';
+        rShop.value = 'ShopService';
+        rShop.id = 'radioShop';
+        rShop.className = 'sr-only';
+        document.body.appendChild(rShop);
+      }
+      // radioHome (hidden)
+      if (!document.getElementById('radioHome')) {
+        const rHome = document.createElement('input');
+        rHome.type = 'radio';
+        rHome.name = 'location';
+        rHome.value = 'HomeService';
+        rHome.id = 'radioHome';
+        rHome.className = 'sr-only';
+        document.body.appendChild(rHome);
+      }
+      // atHomeOption container used by some code paths to show/hide the home option; create as hidden container
+      if (!document.getElementById('atHomeOption')) {
+        const opt = document.createElement('div');
+        opt.id = 'atHomeOption';
+        opt.style.display = 'flex';
+        opt.className = 'sr-only';
+        document.body.appendChild(opt);
+      }
+    })();
+
+    // ✅ Read Supabase credentials from config.js (populated by Netlify)
+    const SUPABASE_URL = window._env_ && window._env_.SUPABASE_URL;
+    const SUPABASE_KEY = window._env_ && window._env_.SUPABASE_ANON_KEY;
+
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // top card elements
+    const cardSelectShop = document.getElementById('cardSelectShop');
+    const cardSelectHome = document.getElementById('cardSelectHome');
+
+    // hidden/compat radios (created above)
+    const radioShop = document.getElementById('radioShop');
+    const radioHome = document.getElementById('radioHome');
+    const atHomeOption = document.getElementById('atHomeOption');
+
+    const shopServicesSection = document.getElementById('shopServicesSection');
+    const homeServicesSection = document.getElementById('homeServicesSection');
+
+    // helper: apply selected visuals to top cards
+    function updateTopCardVisuals() {
+      const serveAt = localStorage.getItem('serveAt');
+      if (serveAt === 'HomeService') {
+        cardSelectHome.classList.add('selected');
+        cardSelectShop.classList.remove('selected');
+        cardSelectHome.setAttribute('aria-pressed', 'true');
+        cardSelectShop.setAttribute('aria-pressed', 'false');
+      } else if (serveAt === 'ShopService') {
+        cardSelectShop.classList.add('selected');
+        cardSelectHome.classList.remove('selected');
+        cardSelectShop.setAttribute('aria-pressed', 'true');
+        cardSelectHome.setAttribute('aria-pressed', 'false');
+      } else {
+        cardSelectHome.classList.remove('selected');
+        cardSelectShop.classList.remove('selected');
+        cardSelectHome.setAttribute('aria-pressed', 'false');
+        cardSelectShop.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    // helper: show/hide sections based on selection
+    function updateSectionsVisibilityBySelection() {
+      const serveAt = localStorage.getItem('serveAt') || (radioHome.checked ? 'HomeService' : 'ShopService');
+      if (serveAt === 'HomeService') {
+        if (shopServicesSection) shopServicesSection.style.display = 'none';
+        if (homeServicesSection) homeServicesSection.style.display = 'block';
+      } else {
+        if (homeServicesSection) homeServicesSection.style.display = 'none';
+        if (shopServicesSection) shopServicesSection.style.display = 'block';
+      }
+    }
+
+    // centralize selection logic to preserve business logic
+    function setServeAt(serveAt) {
+      if (serveAt === 'HomeService') {
+        localStorage.setItem('serveAt', 'HomeService');
+        if (radioHome) radioHome.checked = true;
+        if (radioShop) radioShop.checked = false;
+        updateTopCardVisuals();
+        disableCards('ShopService');
+      } else {
+        localStorage.setItem('serveAt', 'ShopService');
+        if (radioShop) radioShop.checked = true;
+        if (radioHome) radioHome.checked = false;
+        updateTopCardVisuals();
+        disableCards('HomeService');
+      }
+      updateSectionsVisibilityBySelection();
+    }
+
+    // top card click handlers (select underlying hidden radios and apply same logic)
+    cardSelectShop.addEventListener('click', () => setServeAt('ShopService'));
+    cardSelectHome.addEventListener('click', () => setServeAt('HomeService'));
+
+    // Also allow keyboard activation for accessibility
+    cardSelectShop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setServeAt('ShopService'); }});
+    cardSelectHome.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setServeAt('HomeService'); }});
+
+    // keep original logic functions and behavior — unchanged except for safe null checks
+    function disableCards(serveAtToDisable) {
+      const cards = document.querySelectorAll('.relative');
+      cards.forEach(card => {
+        if (serveAtToDisable !== 'none' && card.dataset.serveat === serveAtToDisable) {
+          card.classList.add('opacity-50', 'cursor-not-allowed');
+          card.onclick = null;
+        } else {
+          card.classList.remove('opacity-50', 'cursor-not-allowed');
+          card.onclick = () => selectOrderType(card.id.replace('card-', ''));
+        }
+      });
+    }
+
+    function setRadioSelection(serveAt) {
+      if (serveAt === 'ShopService') {
+        if (radioShop) radioShop.checked = true;
+        if (radioHome) radioHome.checked = false;
+      } else if (serveAt === 'HomeService') {
+        if (radioShop) radioShop.checked = false;
+        if (radioHome) radioHome.checked = true;
+      } else {
+        if (radioShop) radioShop.checked = true;
+        if (radioHome) radioHome.checked = false;
+      }
+      updateTopCardVisuals();
+      updateSectionsVisibilityBySelection();
+    }
+
+    async function checkHomePickupConfig() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('Configuration')
+          .select('config_value')
+          .eq('config_key', 'home_pickup_delivery')
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error fetching config:", error);
+          return;
+        }
+
+        const isEnabled = data && (data.config_value === "True" || data.config_value === "true");
+
+        if (isEnabled) {
+          // Home pickup available — show Home option and leave behavior as normal
+          if (atHomeOption) atHomeOption.style.display = "flex";
+          if (cardSelectHome) cardSelectHome.style.display = 'flex';
+          if (homeServicesSection) homeServicesSection.style.display = 'block';
+        } else {
+          // Home pickup disabled — hide Home option & home services,
+          // default to Shop
+          if (atHomeOption) atHomeOption.style.display = "none";
+          if (cardSelectHome) cardSelectHome.style.display = 'none';
+          if (homeServicesSection) homeServicesSection.style.display = 'none';
+
+          localStorage.setItem('serveAt', 'ShopService');
+          disableCards('HomeService');
+          setRadioSelection('ShopService');
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+      }
+    }
+
+    // Existing selectOrderType logic preserved exactly
+    function selectOrderType(type) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const phone = urlParams.get('phone');
+
+      localStorage.setItem('orderType', type);
+      const card = document.getElementById(`card-${type}`);
+      if (card) {
+        localStorage.setItem('serveAt', card.dataset.serveat);
+      }
+
+      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+      document.querySelectorAll('.relative').forEach(card => card.classList.remove('ring-2', 'ring-indigo-500'));
+
+      const tickId = `tick-${type}`;
+      const tick = document.getElementById(tickId);
+      if (tick) tick.classList.remove('hidden');
+      if (card) card.classList.add('ring-2', 'ring-indigo-500');
+
+      let nextPage = "create-order.html";
+      if (type === "shop-buy-mill" || type === "home-buy-mill") {
+        nextPage = "create-buy-grain-order.html";
+      }
+
+      setTimeout(() => {
+        window.location.href = `${nextPage}?phone=${phone}`;
+      }, 500);
+    }
+
+    // ---- Modified load logic: set HomeService as default on first visit ----
+    // We set default to HomeService only when no serveAt exists. checkHomePickupConfig()
+    // will override this if home pickup is disabled by config (preserves server-side rule).
+    window.addEventListener('load', () => {
+      const serveAt = localStorage.getItem('serveAt');
+      if (!serveAt) {
+        // first visit (no preference) -> default to HomeService
+        localStorage.setItem('serveAt', 'HomeService');
+      }
+
+      // run server-side config check (it will switch to shop if home is disabled)
+      checkHomePickupConfig().finally(() => {
+        // After config resolves, apply UI state consistent with localStorage
+        const finalServeAt = localStorage.getItem('serveAt');
+        if (finalServeAt === 'HomeService' || finalServeAt === 'ShopService') {
+          disableCards(finalServeAt === 'HomeService' ? 'ShopService' : 'HomeService');
+          setRadioSelection(finalServeAt);
+        } else {
+          // fallback: default to HomeService (we already set above), keep cards enabled
+          setRadioSelection(null);
+          disableCards('none');
+        }
+        document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+        updateTopCardVisuals();
+        updateSectionsVisibilityBySelection();
+      });
+    });
+  </script>
+</body>
+</html>
