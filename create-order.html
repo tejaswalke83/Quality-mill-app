@@ -23,19 +23,11 @@
 
   <div class="max-w-3xl mx-auto">
     <div class="bg-white shadow-md rounded-xl p-6">
-      <p class="mb-4 text-gray-700">You selected: 
-        <span id="selectedService" class="font-semibold text-indigo-600"></span>
-      </p>
 
-      <h2 class="text-2xl font-bold mb-4">Create New Order</h2>
+      <!-- Title changed to "New Order" per your request -->
+      <h2 class="text-2xl font-bold mb-4">New Order</h2>
 
       <div id="user-info" class="mb-4 text-gray-700"></div>
-
-      <!-- SUMMARY BELOW USER DETAILS: will show the readable type (one of the four) -->
-      <div id="selection-summary" class="mb-4 text-sm text-gray-700 hidden">
-        <strong class="text-gray-800">Order Type: </strong>
-        <span id="selection-summary-text" class="text-indigo-600"></span>
-      </div>
 
       <hr class="my-4">
 
@@ -109,9 +101,6 @@
     const toast = document.getElementById('toast');
     const deliveryRowEl = document.getElementById('delivery-row');
     const deliveryCostEl = document.getElementById('delivery-cost');
-    const selectedServiceEl = document.getElementById('selectedService');
-    const selectionSummaryEl = document.getElementById('selection-summary');
-    const selectionSummaryTextEl = document.getElementById('selection-summary-text');
     const cancelBtn = document.getElementById('cancel-btn');
 
     // ✅ Toast function
@@ -131,53 +120,10 @@
     });
 
     document.addEventListener("DOMContentLoaded", () => {
-      const service = localStorage.getItem("orderService") || localStorage.getItem("orderType");
-      if (service) {
-        selectedServiceEl.textContent = service;
-      }
-      // Update readable selection summary
-      updateSelectionSummaryDisplay();
-
+      // no "You selected" UI anymore per your request
       // fetch user & grains then initialize UI
       fetchData();
     });
-
-    // Returns a human readable selection summary (one of 4)
-    function computeSelectionSummary() {
-      // serveAt comes from previous page, e.g. 'ShopService' or 'HomeService'
-      const serveAt = localStorage.getItem('serveAt') || '';
-      const orderType = (localStorage.getItem('orderType') || '').toLowerCase(); // e.g. "home-milling", "shop-buy-mill"
-
-      // Map to four types:
-      if (orderType.includes('home') && orderType.includes('buy')) {
-        return "Home delivery — Atta Order";
-      }
-      if (orderType.includes('shop') && orderType.includes('buy')) {
-        return "At shop — Atta Order";
-      }
-      if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) {
-        return "Home delivery — Pickup & Drop";
-      }
-      if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) {
-        return "At shop — Pickup & Drop";
-      }
-
-      // Fallback: use serveAt + generic wording
-      if (serveAt.toLowerCase() === 'homeservice' || serveAt.toLowerCase() === 'home') {
-        return "Home delivery";
-      }
-      return "At shop";
-    }
-
-    function updateSelectionSummaryDisplay() {
-      const txt = computeSelectionSummary();
-      if (txt) {
-        selectionSummaryTextEl.textContent = txt;
-        selectionSummaryEl.style.display = 'block';
-      } else {
-        selectionSummaryEl.style.display = 'none';
-      }
-    }
 
     async function generateTokenNumber() {
       console.log("🔎 generateTokenNumber() called");
@@ -240,8 +186,6 @@
         <p><strong>Society:</strong> ${user.society_name || ''}</p>
       `;
 
-      updateSelectionSummaryDisplay();
-
       // Load grain prices and then add a default row
       await loadMillingGrains();
 
@@ -253,8 +197,26 @@
     }
 
     async function loadMillingGrains() {
-      const { data: grains } = await supabase.from('grain_prices').select('*');
+      // Fetch grains ordered by sort_order (DB-level ordering)
+      const { data: grains, error } = await supabase
+        .from('grain_prices')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
       grainList = grains || [];
+
+      // Client-side fallback: ensure preferred list order for common grains
+      // (this only reorders known grains and leaves other DB-ordered items untouched)
+      const preferredOrder = ['Wheat', 'Jowar', 'Bajra', 'Rice', 'Chana Dal'];
+      grainList.sort((a, b) => {
+        const ai = preferredOrder.indexOf(a.grain);
+        const bi = preferredOrder.indexOf(b.grain);
+        if (ai === -1 && bi === -1) return 0; // keep DB order for both
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
       // add an initial row if none exist
       if (orderRows.children.length === 0) addRow();
     }
@@ -404,100 +366,101 @@
     /**
      * Fetch delivery charge for current selection using the rule:
      * - If serve_at === 'HomeService' -> lookup delivery_pricing.delivery_type = 'normal'
-     *   (try society-specific first, then global)
+     *   (try society-specific first, then global, then fallback any active 'normal')
      * - Otherwise (ShopService) -> deliveryCharge = 0
      *
      * This preserves your DB structure where delivery_type currently contains 'normal'.
      */
     async function fetchDeliveryChargeForSelection() {
-  const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
- 
-  deliveryCharge = 0;
+      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+      console.log('[delivery] serveAt (from localStorage):', serveAt);
 
-  if (!serveAt.includes('home')) {
-   
-    deliveryRowEl.style.display = 'none';
-    deliveryCostEl.textContent = `₹0.00`;
-    return;
-  }
+      deliveryCharge = 0;
 
-  const deliveryTypeKey = 'normal';
- 
-  try {
-    const societyId = user?.society_id || user?.society || null;
-    let foundPrice = null;
+      if (!serveAt.includes('home')) {
+        console.log('[delivery] serveAt is not HomeService — deliveryCharge set to 0');
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = `₹0.00`;
+        return;
+      }
 
-    // 1) Society-specific exact match
-    if (societyId) {
-    
-      const { data: socData, error: socErr } = await supabase
-        .from('delivery_pricing')
-        .select('id, price, society_id, delivery_type, is_active')
-        .eq('delivery_type', deliveryTypeKey)
-        .eq('is_active', true)
-        .eq('society_id', societyId)
-        .limit(1)
-        .maybeSingle();
+      const deliveryTypeKey = 'normal';
+      console.log('[delivery] fetching price for delivery_type:', deliveryTypeKey);
 
-      console.log('[delivery] society-specific result:', socErr || socData);
-      if (!socErr && socData && socData.price != null) {
-        foundPrice = Number(socData.price);
-       
+      try {
+        const societyId = user?.society_id || user?.society || null;
+        let foundPrice = null;
+
+        // 1) Society-specific exact match
+        if (societyId) {
+          console.log(`[delivery] trying society-specific price for society_id=${societyId}`);
+          const { data: socData, error: socErr } = await supabase
+            .from('delivery_pricing')
+            .select('price')
+            .eq('delivery_type', deliveryTypeKey)
+            .eq('is_active', true)
+            .eq('society_id', societyId)
+            .limit(1)
+            .maybeSingle();
+
+          console.log('[delivery] society-specific result:', socErr || socData);
+          if (!socErr && socData && socData.price != null) {
+            foundPrice = Number(socData.price);
+            console.log('[delivery] found society-specific price:', foundPrice);
+          }
+        }
+
+        // 2) Try global (society_id IS NULL)
+        if (foundPrice == null) {
+          console.log('[delivery] trying global price (society_id IS NULL)');
+          const { data: globData, error: globErr } = await supabase
+            .from('delivery_pricing')
+            .select('price')
+            .eq('delivery_type', deliveryTypeKey)
+            .eq('is_active', true)
+            .is('society_id', null)
+            .limit(1)
+            .maybeSingle();
+
+          console.log('[delivery] global result:', globErr || globData);
+          if (!globErr && globData && globData.price != null) {
+            foundPrice = Number(globData.price);
+            console.log('[delivery] found global price:', foundPrice);
+          }
+        }
+
+        // 3) Fallback: any active 'normal' row (pick the first) — avoids missing altogether
+        if (foundPrice == null) {
+          console.log('[delivery] trying fallback: any active delivery_pricing with delivery_type=normal');
+          const { data: anyData, error: anyErr } = await supabase
+            .from('delivery_pricing')
+            .select('id, price, society_id, delivery_type, is_active')
+            .eq('delivery_type', deliveryTypeKey)
+            .eq('is_active', true)
+            .limit(1);
+
+          console.log('[delivery] fallback result:', anyErr || anyData);
+          if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
+            foundPrice = Number(anyData[0].price);
+            console.log('[delivery] found fallback price:', foundPrice, 'from society_id=', anyData[0].society_id);
+          }
+        }
+
+        deliveryCharge = foundPrice != null ? foundPrice : 0;
+      } catch (err) {
+        console.error('[delivery] error during lookup:', err);
+        deliveryCharge = 0;
+      }
+
+      // Update UI now (updateTotal will also re-evaluate)
+      if (deliveryCharge && Number(deliveryCharge) > 0) {
+        deliveryRowEl.style.display = 'flex';
+        deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
+      } else {
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = `₹0.00`;
       }
     }
-
-    // 2) Global exact match (society_id IS NULL)
-    if (foundPrice == null) {
-
-      const { data: globData, error: globErr } = await supabase
-        .from('delivery_pricing')
-        .select('id, price, society_id, delivery_type, is_active')
-        .eq('delivery_type', deliveryTypeKey)
-        .eq('is_active', true)
-        .is('society_id', null)
-        .limit(1)
-        .maybeSingle();
-
-     
-      if (!globErr && globData && globData.price != null) {
-        foundPrice = Number(globData.price);
-        
-      }
-    }
-
-    // 3) Fallback: any active 'normal' row (pick the first) — avoids missing altogether
-    if (foundPrice == null) {
-     
-      const { data: anyData, error: anyErr } = await supabase
-        .from('delivery_pricing')
-        .select('id, price, society_id, delivery_type, is_active')
-        .eq('delivery_type', deliveryTypeKey)
-        .eq('is_active', true)
-        .limit(1);
-
-    
-      if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
-        foundPrice = Number(anyData[0].price);
-        
-      }
-    }
-
-    deliveryCharge = foundPrice != null ? foundPrice : 0;
-  } catch (err) {
-   
-    deliveryCharge = 0;
-  }
-
-  // Update UI now (updateTotal will also re-evaluate)
-  if (deliveryCharge && Number(deliveryCharge) > 0) {
-    deliveryRowEl.style.display = 'flex';
-    deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
-  } else {
-    deliveryRowEl.style.display = 'none';
-    deliveryCostEl.textContent = `₹0.00`;
-  }
-}
-
 
   </script>
 </body>
