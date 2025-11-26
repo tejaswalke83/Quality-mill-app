@@ -410,85 +410,96 @@
      * This preserves your DB structure where delivery_type currently contains 'normal'.
      */
     async function fetchDeliveryChargeForSelection() {
-      // Check serveAt (from previous page)
-      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
-      console.log('[delivery] serveAt (from localStorage):', serveAt);
+  const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+  console.log('[delivery] serveAt (from localStorage):', serveAt);
 
-      // Default
-      deliveryCharge = 0;
+  deliveryCharge = 0;
 
-      // Only fetch for HomeService
-      if (!serveAt.includes('home')) {
-        console.log('[delivery] serveAt is not HomeService — deliveryCharge set to 0');
-        deliveryRowEl.style.display = 'none';
-        deliveryCostEl.textContent = `₹0.00`;
-        return;
-      }
+  if (!serveAt.includes('home')) {
+    console.log('[delivery] serveAt is not HomeService — deliveryCharge set to 0');
+    deliveryRowEl.style.display = 'none';
+    deliveryCostEl.textContent = `₹0.00`;
+    return;
+  }
 
-      // We will lookup delivery_type = 'normal' (your DB uses 'normal')
-      const deliveryTypeKey = 'normal';
-      console.log('[delivery] fetching price for delivery_type:', deliveryTypeKey);
+  const deliveryTypeKey = 'normal';
+  console.log('[delivery] fetching price for delivery_type:', deliveryTypeKey);
 
-      try {
-        const societyId = user?.society_id || user?.society || null;
-        let foundPrice = null;
+  try {
+    const societyId = user?.society_id || user?.society || null;
+    let foundPrice = null;
 
-        // 1) Try society-specific price
-        if (societyId) {
-          console.log(`[delivery] trying society-specific price for society_id=${societyId}`);
-          const { data: socData, error: socErr } = await supabase
-            .from('delivery_pricing')
-            .select('price')
-            .eq('delivery_type', deliveryTypeKey)
-            .eq('is_active', true)
-            .eq('society_id', societyId)
-            .limit(1)
-            .maybeSingle();
+    // 1) Society-specific exact match
+    if (societyId) {
+      console.log(`[delivery] trying society-specific price for society_id=${societyId}`);
+      const { data: socData, error: socErr } = await supabase
+        .from('delivery_pricing')
+        .select('id, price, society_id, delivery_type, is_active')
+        .eq('delivery_type', deliveryTypeKey)
+        .eq('is_active', true)
+        .eq('society_id', societyId)
+        .limit(1)
+        .maybeSingle();
 
-          if (!socErr && socData && socData.price != null) {
-            foundPrice = Number(socData.price);
-            console.log('[delivery] found society-specific price:', foundPrice);
-          } else {
-            console.log('[delivery] no society-specific exact match', socErr || socData);
-          }
-        }
-
-        // 2) Try global (society_id IS NULL)
-        if (foundPrice == null) {
-          console.log('[delivery] trying global price (society_id IS NULL)');
-          const { data: globData, error: globErr } = await supabase
-            .from('delivery_pricing')
-            .select('price')
-            .eq('delivery_type', deliveryTypeKey)
-            .eq('is_active', true)
-            .is('society_id', null)
-            .limit(1)
-            .maybeSingle();
-
-          if (!globErr && globData && globData.price != null) {
-            foundPrice = Number(globData.price);
-            console.log('[delivery] found global price:', foundPrice);
-          } else {
-            console.log('[delivery] no global exact match', globErr || globData);
-          }
-        }
-
-        // Set deliveryCharge from foundPrice (if any)
-        deliveryCharge = foundPrice != null ? foundPrice : 0;
-      } catch (err) {
-        console.error('[delivery] error during lookup:', err);
-        deliveryCharge = 0;
-      }
-
-      // Update UI now (updateTotal will also re-evaluate)
-      if (deliveryCharge && Number(deliveryCharge) > 0) {
-        deliveryRowEl.style.display = 'flex';
-        deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
-      } else {
-        deliveryRowEl.style.display = 'none';
-        deliveryCostEl.textContent = `₹0.00`;
+      console.log('[delivery] society-specific result:', socErr || socData);
+      if (!socErr && socData && socData.price != null) {
+        foundPrice = Number(socData.price);
+        console.log('[delivery] found society-specific price:', foundPrice);
       }
     }
+
+    // 2) Global exact match (society_id IS NULL)
+    if (foundPrice == null) {
+      console.log('[delivery] trying global price (society_id IS NULL)');
+      const { data: globData, error: globErr } = await supabase
+        .from('delivery_pricing')
+        .select('id, price, society_id, delivery_type, is_active')
+        .eq('delivery_type', deliveryTypeKey)
+        .eq('is_active', true)
+        .is('society_id', null)
+        .limit(1)
+        .maybeSingle();
+
+      console.log('[delivery] global result:', globErr || globData);
+      if (!globErr && globData && globData.price != null) {
+        foundPrice = Number(globData.price);
+        console.log('[delivery] found global price:', foundPrice);
+      }
+    }
+
+    // 3) Fallback: any active 'normal' row (pick the first) — avoids missing altogether
+    if (foundPrice == null) {
+      console.log('[delivery] trying fallback: any active delivery_pricing with delivery_type=normal');
+      const { data: anyData, error: anyErr } = await supabase
+        .from('delivery_pricing')
+        .select('id, price, society_id, delivery_type, is_active')
+        .eq('delivery_type', deliveryTypeKey)
+        .eq('is_active', true)
+        .limit(1);
+
+      console.log('[delivery] fallback result:', anyErr || anyData);
+      if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
+        foundPrice = Number(anyData[0].price);
+        console.log('[delivery] found fallback price:', foundPrice, 'from society_id=', anyData[0].society_id);
+      }
+    }
+
+    deliveryCharge = foundPrice != null ? foundPrice : 0;
+  } catch (err) {
+    console.error('[delivery] error during lookup:', err);
+    deliveryCharge = 0;
+  }
+
+  // Update UI now (updateTotal will also re-evaluate)
+  if (deliveryCharge && Number(deliveryCharge) > 0) {
+    deliveryRowEl.style.display = 'flex';
+    deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
+  } else {
+    deliveryRowEl.style.display = 'none';
+    deliveryCostEl.textContent = `₹0.00`;
+  }
+}
+
 
   </script>
 </body>
