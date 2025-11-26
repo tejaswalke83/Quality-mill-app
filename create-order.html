@@ -17,11 +17,7 @@
   <style>
     body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
   </style>
-  <!-- <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#007bff">
-<link rel="icon" href="/icons/icon-192.png" sizes="192x192">-->
-<script defer src="/common.js"></script>
-
+  <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen p-4">
 
@@ -35,6 +31,12 @@
 
       <div id="user-info" class="mb-4 text-gray-700"></div>
 
+      <!-- SUMMARY BELOW USER DETAILS: will show the readable type (one of the four) -->
+      <div id="selection-summary" class="mb-4 text-sm text-gray-700 hidden">
+        <strong class="text-gray-800">Order Type: </strong>
+        <span id="selection-summary-text" class="text-indigo-600"></span>
+      </div>
+
       <hr class="my-4">
 
       <div id="order-rows" class="space-y-4"></div>
@@ -45,29 +47,33 @@
 
       <hr class="my-6">
 
-      
       <!-- Pricing breakdown -->
-<div class="bg-gray-50 p-4 rounded-lg mb-4">
-  <h3 class="font-semibold mb-1">Pricing Breakdown</h3>
-  <p class="text-xs text-gray-500 mb-2">*Values are rounded off to the nearest number</p>
+      <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <h3 class="font-semibold mb-1">Pricing Breakdown</h3>
+        <p class="text-xs text-gray-500 mb-2">*Values are rounded off to the nearest number</p>
 
-  <div class="flex justify-between mb-1">
-    <span class="text-gray-600">Subtotal</span>
-    <span id="subtotal" class="font-medium">₹0</span>
-  </div>
+        <div class="flex justify-between mb-1">
+          <span class="text-gray-600">Subtotal</span>
+          <span id="subtotal" class="font-medium">₹0</span>
+        </div>
 
-  <div class="flex justify-between font-bold text-lg border-t pt-2">
-    <span>Total</span>
-    <span id="total-price">₹0</span>
-  </div>
-</div>
+        <!-- Delivery charges row (hidden by default) -->
+        <div id="delivery-row" class="flex justify-between mb-1" style="display: none;">
+          <span class="text-gray-600">Delivery Charges</span>
+          <span id="delivery-cost" class="font-medium">₹0</span>
+        </div>
 
+        <div class="flex justify-between font-bold text-lg border-t pt-2">
+          <span>Total</span>
+          <span id="total-price">₹0</span>
+        </div>
+      </div>
 
       <div class="flex space-x-3">
-        <button class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700" onclick="submitOrder()">
+        <button id="submit-btn" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700" onclick="submitOrder()">
           Submit Order
         </button>
-        <button class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100" onclick="window.location.href='my-orders.html?phone=' + phone">
+        <button id="cancel-btn" class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100">
           Cancel
         </button>
       </div>
@@ -83,25 +89,30 @@
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     // ✅ Read Supabase credentials from config.js (populated by Netlify)
-  const SUPABASE_URL = window._env_.SUPABASE_URL;
-  const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
-  
-  const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
-
+    const SUPABASE_URL = window._env_.SUPABASE_URL;
+    const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
+    
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
 
     const urlParams = new URLSearchParams(window.location.search);
     const phone = urlParams.get('phone');
 
     let grainList = [];
     let user = null;
-
+    let deliveryCharge = 0; // global delivery charge (numeric, rupees)
     const orderRows = document.getElementById('order-rows');
     const totalPriceEl = document.getElementById('total-price');
     const subtotalEl = document.getElementById('subtotal');
     const toast = document.getElementById('toast');
+    const deliveryRowEl = document.getElementById('delivery-row');
+    const deliveryCostEl = document.getElementById('delivery-cost');
+    const selectedServiceEl = document.getElementById('selectedService');
+    const selectionSummaryEl = document.getElementById('selection-summary');
+    const selectionSummaryTextEl = document.getElementById('selection-summary-text');
+    const cancelBtn = document.getElementById('cancel-btn');
 
     // ✅ Toast function
     function showToast(message, type = "success") {
@@ -113,98 +124,104 @@
       setTimeout(() => { toast.style.display = "none"; }, 3000);
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const service = localStorage.getItem("orderService");
-      if (service) {
-        document.getElementById("selectedService").textContent = service;
-      }
+    // Cancel should go back to previous page (browser history)
+    cancelBtn.addEventListener('click', () => {
+      // preserve business logic: no other state changes, just navigate back
+      history.back();
     });
 
-async function generateTokenNumber() {
-  console.log("🔎 generateTokenNumber() called");
+    document.addEventListener("DOMContentLoaded", () => {
+      const service = localStorage.getItem("orderService") || localStorage.getItem("orderType");
+      if (service) {
+        selectedServiceEl.textContent = service;
+      }
+      // Update readable selection summary
+      updateSelectionSummaryDisplay();
 
-  const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+      // fetch user & grains then initialize UI
+      fetchData();
+    });
 
-  const { data: activeOrders, error } = await supabase
-    .from("orders")
-    .select(`id, token_number, order_statuses ( status_name )`);
+    // Returns a human readable selection summary (one of 4)
+    function computeSelectionSummary() {
+      // serveAt comes from previous page, e.g. 'ShopService' or 'HomeService'
+      const serveAt = localStorage.getItem('serveAt') || '';
+      const orderType = (localStorage.getItem('orderType') || '').toLowerCase(); // e.g. "home-milling", "shop-buy-mill"
 
-  if (error) {
-    console.error("❌ Supabase error:", error);
-    throw error;
-  }
+      // Map to four types:
+      // home delivery pickup and drop -> home-milling (pickup & drop)
+      // at shop pick up and drop -> shop-milling
+      // home delivery atta order -> home-buy-mill
+      // at shop atta order -> shop-buy-mill
+      if (orderType.includes('home') && orderType.includes('buy')) {
+        return "Home delivery — Atta Order";
+      }
+      if (orderType.includes('shop') && orderType.includes('buy')) {
+        return "At shop — Atta Order";
+      }
+      if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) {
+        return "Home delivery — Pickup & Drop";
+      }
+      if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) {
+        return "At shop — Pickup & Drop";
+      }
 
-  console.log("📦 Raw orders from DB:", activeOrders);
-
-  const activeTokens = new Set(
-    (activeOrders || [])
-      .filter(o => {
-        const status = o.order_statuses?.status_name;
-        console.log(`➡️ Order ${o.id} | Token: ${o.token_number} | Status: ${status}`);
-        return !inactiveStatuses.includes(status);
-      })
-      .map(o => o.token_number)
-  );
-
-  console.log("✅ Active tokens:", Array.from(activeTokens));
-
-  let maxTokenNum = 0;
-  activeTokens.forEach(token => {
-    const num = parseInt(token?.slice(2), 10);
-    console.log(`🔢 Parsed token: ${token} → ${num}`);
-    if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
-  });
-
-  console.log("📈 Max token number found:", maxTokenNum);
-
-  for (let attempt = 1; attempt <= 999; attempt++) {
-    let nextNum = maxTokenNum + attempt;
-    if (nextNum > 999) nextNum -= 999;
-    const token = `QA${nextNum}`;
-    if (!activeTokens.has(token)) {
-      console.log("🎯 Generated token:", token);
-      return token;
+      // Fallback: use serveAt + generic wording
+      if (serveAt.toLowerCase() === 'homeservice' || serveAt.toLowerCase() === 'home') {
+        return "Home delivery";
+      }
+      return "At shop";
     }
-  }
-  throw new Error("All token numbers are in use.");
-}
 
+    function updateSelectionSummaryDisplay() {
+      const txt = computeSelectionSummary();
+      if (txt) {
+        selectionSummaryTextEl.textContent = txt;
+        selectionSummaryEl.style.display = 'block';
+      } else {
+        selectionSummaryEl.style.display = 'none';
+      }
+    }
 
+    async function generateTokenNumber() {
+      console.log("🔎 generateTokenNumber() called");
 
+      const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
 
+      const { data: activeOrders, error } = await supabase
+        .from("orders")
+        .select(`id, token_number, order_statuses ( status_name )`);
 
-    // ✅ Keep your existing generateTokenNumber() logic here
-    // async function generateTokenNumber() {
-    //   console.log("generateTokenNumber() called");
+      if (error) {
+        console.error("❌ Supabase error:", error);
+        throw error;
+      }
 
-    //   const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+      const activeTokens = new Set(
+        (activeOrders || [])
+          .filter(o => {
+            const status = o.order_statuses?.status_name;
+            return !inactiveStatuses.includes(status);
+          })
+          .map(o => o.token_number)
+      );
 
-    //   const { data: activeOrders, error } = await supabase
-    //     .from("orders")
-    //     .select(`token_number, order_statuses ( status_name )`);
+      let maxTokenNum = 0;
+      activeTokens.forEach(token => {
+        const num = parseInt(token?.slice(2), 10);
+        if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+      });
 
-    //   if (error) throw error;
-
-    //   const activeTokens = new Set(
-    //     (activeOrders || [])
-    //       .filter(o => !inactiveStatuses.includes(o.order_statuses?.status_name))
-    //       .map(o => o.token_number)
-    //   );
-
-    //   let maxTokenNum = 0;
-    //   activeTokens.forEach(token => {
-    //     const num = parseInt(token?.slice(2), 10);
-    //     if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
-    //   });
-
-    //   for (let attempt = 1; attempt <= 999; attempt++) {
-    //     let nextNum = maxTokenNum + attempt;
-    //     if (nextNum > 999) nextNum -= 999;
-    //     const token = `QA${nextNum}`;
-    //     if (!activeTokens.has(token)) return token;
-    //   }
-    //   throw new Error("All token numbers are in use.");
-    // }
+      for (let attempt = 1; attempt <= 999; attempt++) {
+        let nextNum = maxTokenNum + attempt;
+        if (nextNum > 999) nextNum -= 999;
+        const token = `QA${nextNum}`;
+        if (!activeTokens.has(token)) {
+          return token;
+        }
+      }
+      throw new Error("All token numbers are in use.");
+    }
 
     async function fetchData() {
       const { data, error } = await supabase
@@ -223,119 +240,102 @@ async function generateTokenNumber() {
       document.getElementById('user-info').innerHTML = `
         <p><strong>Name:</strong> ${user.name}</p>
         <p><strong>Mobile:</strong> ${user.phone_number}</p>
-        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
-        <p><strong>Society:</strong> ${user.society_name}</p>
+        <p><strong>Flat:</strong> ${user.flat_number || ''}, ${user.wing || ''}</p>
+        <p><strong>Society:</strong> ${user.society_name || ''}</p>
       `;
 
-      loadMillingGrains();
+      updateSelectionSummaryDisplay();
+
+      // Load grain prices and then add a default row
+      await loadMillingGrains();
+
+      // fetch delivery pricing for current selection (if applicable)
+      await fetchDeliveryChargeForSelection();
+
+      // initial totals
+      updateTotal();
     }
 
     async function loadMillingGrains() {
       const { data: grains } = await supabase.from('grain_prices').select('*');
-      grainList = grains;
-      addRow();
+      grainList = grains || [];
+      // add an initial row if none exist
+      if (orderRows.children.length === 0) addRow();
     }
 
-window.addRow = function () {
-  const row = document.createElement('div');
-  row.className = 'p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2';
+    window.addRow = function () {
+      const row = document.createElement('div');
+      row.className = 'p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2';
 
-  row.innerHTML = `
-    <!-- Line 1: Grain + Qty -->
-    <div class="flex items-center gap-3">
-      <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
-        <option value="">Select Grain</option>
-        ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-      </select>
+      row.innerHTML = `
+        <!-- Line 1: Grain + Qty -->
+        <div class="flex items-center gap-3">
+          <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
+            <option value="">Select Grain</option>
+            ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+          </select>
 
-      <input type="number" min="1" placeholder="Qty (kg)" 
-        oninput="updateTotal()" 
-        class="w-28 p-2 border rounded" />
-    </div>
+          <input type="number" min="1" placeholder="Qty (kg)" 
+            oninput="updateTotal()" 
+            class="w-28 p-2 border rounded" />
+        </div>
 
-    <!-- Line 2: Milling price + Total + Remove -->
-    <div class="flex items-center justify-between text-sm text-gray-700">
-      <span class="milling-price">Milling Price: ₹0/kg</span>
-      <span>Total: ₹<span class="row-total">0</span></span>
-      <button class="text-red-600 border border-red-600 px-2 py-1 rounded text-xs" 
-        onclick="this.closest('.p-3').remove(); updateTotal();">Remove</button>
-    </div>
+        <!-- Line 2: Milling price + Total + Remove -->
+        <div class="flex items-center justify-between text-sm text-gray-700">
+          <span class="milling-price">Milling Price: ₹0/kg</span>
+          <span>Total: ₹<span class="row-total">0</span></span>
+          <button class="text-red-600 border border-red-600 px-2 py-1 rounded text-xs" 
+            onclick="this.closest('.p-3').remove(); updateTotal();">Remove</button>
+        </div>
 
-    <!-- Line 3: Error -->
-    <div class="error text-red-500 text-sm"></div>
-  `;
-  orderRows.appendChild(row);
-}
-
-
-    // window.addRow = function () {
-    //   const row = document.createElement('div');
-    //   row.className = 'flex items-center gap-3 p-3 border rounded-lg shadow-sm bg-gray-50';
-
-    //   row.innerHTML = `
-    //     <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
-    //       <option value="">Select Grain</option>
-    //       ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-    //     </select>
-
-    //     <input type="number" min="1" placeholder="Qty (kg)" 
-    //       oninput="updateTotal()" 
-    //       class="w-24 p-2 border rounded" />
-
-    //     <div class="text-gray-700">₹<span>0</span></div>
-
-    //     <button class="text-red-600 border border-red-600 px-2 py-1 rounded" 
-    //       onclick="this.parentElement.remove(); updateTotal();">Remove</button>
-
-    //     <div class="error text-red-500 text-sm flex-1"></div>
-    //   `;
-    //   orderRows.appendChild(row);
-    // }
+        <!-- Line 3: Error -->
+        <div class="error text-red-500 text-sm"></div>
+      `;
+      orderRows.appendChild(row);
+    }
 
     window.updatePrice = function () {
       updateTotal();
     }
 
-    // window.updateTotal = function() {
-    //   let grandTotal = 0;
-    //   [...orderRows.children].forEach(row => {
-    //     const select = row.querySelector('select');
-    //     const qtyInput = row.querySelector('input');
-    //     const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-    //     const qty = parseFloat(qtyInput.value || 0);
-    //     const rowTotal = price * qty;
-    //     row.querySelector('span').textContent = rowTotal.toFixed(2);
-    //     grandTotal += rowTotal;
-    //   });
-    //   subtotalEl.textContent = `₹${grandTotal.toFixed(2)}`;
-    //   totalPriceEl.textContent = `₹${grandTotal.toFixed(2)}`;
-    // }
-    window.updateTotal = function() {
-  let grandTotal = 0;
+    window.updateTotal = async function() {
+      let grandTotal = 0;
 
-  [...orderRows.children].forEach(row => {
-    const select = row.querySelector('select');
-    const qtyInput = row.querySelector('input');
-    const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-    const qty = parseFloat(qtyInput.value || 0);
-    const rowTotal = price * qty;
+      [...orderRows.children].forEach(row => {
+        const select = row.querySelector('select');
+        const qtyInput = row.querySelector('input');
+        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+        const qty = parseFloat(qtyInput.value || 0);
+        const rowTotal = price * qty;
 
-    // Update row values
-    row.querySelector('.row-total').textContent = rowTotal.toFixed(2);
-    row.querySelector('.milling-price').textContent =
-      price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
+        // Update row values
+        row.querySelector('.row-total').textContent = rowTotal.toFixed(2);
+        row.querySelector('.milling-price').textContent =
+          price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
 
-    grandTotal += rowTotal;
-  });
+        grandTotal += rowTotal;
+      });
 
-  // ✅ Round the final total
-  const roundedGrandTotal = Math.round(grandTotal);
+      // Round the item subtotal
+      const roundedGrandTotal = Math.round(grandTotal);
 
-  subtotalEl.textContent = `₹${roundedGrandTotal}`;
-  totalPriceEl.textContent = `₹${roundedGrandTotal}`;
-};
+      // Ensure delivery charge is up-to-date for current selection
+      await fetchDeliveryChargeForSelection();
 
+      // final total includes deliveryCharge
+      const finalTotal = Math.round(roundedGrandTotal + (Number(deliveryCharge) || 0));
 
+      subtotalEl.textContent = `₹${roundedGrandTotal}`;
+      // show or hide delivery row depending on charge
+      if (deliveryCharge && Number(deliveryCharge) > 0) {
+        deliveryRowEl.style.display = 'flex';
+        deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
+      } else {
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = `₹0.00`;
+      }
+      totalPriceEl.textContent = `₹${finalTotal}`;
+    };
 
     window.submitOrder = async function () {
       let grainDetails = [];
@@ -366,7 +366,8 @@ window.addRow = function () {
         return;
       }
 
-      const total_price = Math.round(parseFloat(totalPriceEl.textContent.replace("₹", "")));
+      // parse current displayed total and include deliveryCharge (already included in UI)
+      const total_price_display = Math.round(parseFloat(totalPriceEl.textContent.replace("₹", "")));
 
       try {
         const token_number = await generateTokenNumber();
@@ -384,7 +385,7 @@ window.addRow = function () {
           .insert([{
             customer_id: user.id,
             grain_details: grainDetails,
-            total_price,
+            total_price: total_price_display,
             token_number,
             order_type: localStorage.getItem("orderType") || "pickup",
             serve_at: localStorage.getItem("serveAt") || null,
@@ -404,32 +405,103 @@ window.addRow = function () {
       }
     }
 
-async function fetchDeliveryChargeIfNeeded() {
-  const service = localStorage.getItem("orderType") || localStorage.getItem("orderService") || "";
-  // Only for Home by Mill
-  if (!service.toLowerCase().includes("home buy mill")) {
-    deliveryCharge = 0;
-    document.getElementById("delivery-row").style.display = "none";
-    document.getElementById("delivery-cost").textContent = "₹0.00";
-    return;
-  }
+    /**
+     * Determine delivery_pricing.delivery_type value for current selection.
+     * We try to return an expected delivery_type string based on orderType and serveAt.
+     * Known mappings (based on your earlier naming):
+     *  - "home-buy-mill"   => delivery_type "home_buy_mill"
+     *  - "home-milling"    => delivery_type "home_milling" (pickup/drop)
+     *  - "shop-buy-mill"   => delivery_type "shop_buy_mill" (usually no delivery charge)
+     *  - "shop-milling"    => delivery_type "shop_milling" (usually no delivery charge)
+     *
+     * If nothing matches, returns null.
+     */
+    function mapOrderToDeliveryTypeKey() {
+      const orderType = (localStorage.getItem('orderType') || '').toLowerCase();
+      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
 
-  // Try to get a global active price for home_buy_mill (adjust the delivery_type if yours differs)
-  const { data, error } = await supabase
-    .from("delivery_pricing")
-    .select("price")
-    .eq("delivery_type", "home_buy_mill")
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
+      if (orderType.includes('home') && orderType.includes('buy')) return 'home_buy_mill';
+      if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) return 'home_milling';
+      if (orderType.includes('shop') && orderType.includes('buy')) return 'shop_buy_mill';
+      if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) return 'shop_milling';
 
-  deliveryCharge = data ? Number(data.price) : 0;
-  document.getElementById("delivery-row").style.display = "flex";
-  document.getElementById("delivery-cost").textContent = `₹${deliveryCharge.toFixed(2)}`;
-}
+      // fallback: if serveAt indicates home, use home_milling (pickup/drop) as default
+      if (serveAt.includes('home')) return 'home_milling';
+      if (serveAt.includes('shop')) return 'shop_milling';
+      return null;
+    }
 
+    /**
+     * Fetch delivery charge for the current selection (if applicable).
+     * Strategy:
+     *  - Try to find a society-specific active price (matching user.society_id) first
+     *  - If not found, try to find a global active price with society_id IS NULL
+     *  - If none found, deliveryCharge = 0
+     */
+    async function fetchDeliveryChargeForSelection() {
+      // Compute the delivery_type key mapped from orderType/serveAt
+      const deliveryKey = mapOrderToDeliveryTypeKey();
+      deliveryCharge = 0;
 
-fetchData();
-</script>
+      // If deliveryKey is null or it is a shop-based delivery type, assume no delivery charge (but still try fetch)
+      if (!deliveryKey) {
+        deliveryCharge = 0;
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = `₹0.00`;
+        return;
+      }
+
+      try {
+        // Try society-specific price if we have a society id on the user
+        const societyId = user?.society_id || user?.society || null;
+
+        if (societyId) {
+          const { data: socData, error: socErr } = await supabase
+            .from('delivery_pricing')
+            .select('price')
+            .eq('delivery_type', deliveryKey)
+            .eq('is_active', true)
+            .eq('society_id', societyId)
+            .limit(1)
+            .maybeSingle();
+
+          if (!socErr && socData && socData.price != null) {
+            deliveryCharge = Number(socData.price);
+          }
+        }
+
+        // If not found (or no society), try global (society_id IS NULL)
+        if (!deliveryCharge || Number(deliveryCharge) === 0) {
+          const { data: globData, error: globErr } = await supabase
+            .from('delivery_pricing')
+            .select('price')
+            .eq('delivery_type', deliveryKey)
+            .eq('is_active', true)
+            .is('society_id', null)
+            .limit(1)
+            .maybeSingle();
+
+          if (!globErr && globData && globData.price != null) {
+            deliveryCharge = Number(globData.price);
+          }
+        }
+
+        // if still zero or missing -> leave deliveryCharge = 0
+      } catch (err) {
+        console.error("Error fetching delivery price:", err);
+        deliveryCharge = 0;
+      }
+
+      // Update UI elements for delivery cost (updateTotal will re-show/hide row)
+      if (deliveryCharge && Number(deliveryCharge) > 0) {
+        deliveryRowEl.style.display = 'flex';
+        deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
+      } else {
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = `₹0.00`;
+      }
+    }
+
+  </script>
 </body>
 </html>
