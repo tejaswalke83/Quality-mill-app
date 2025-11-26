@@ -19,6 +19,7 @@
       height: 11rem;
       min-width: 11rem;
       min-height: 11rem;
+      flex-shrink: 0; /* keep cards side-by-side without shrinking */
     }
     .top-card .icon {
       width: 2.25rem;
@@ -33,7 +34,7 @@
 
     /* responsive tweak: smaller footprint on very small screens */
     @media (max-width: 420px) {
-      .top-card { width: 10rem; height: 10rem; }
+      .top-card { width: 10rem; height: 10rem; min-width: 10rem; min-height: 10rem; }
     }
 
     /* visually-hidden utility for accessibility (if needed) */
@@ -41,6 +42,23 @@
 
     /* make service cards slightly larger on touch */
     .service-card { min-height: 5.25rem; }
+
+    /* horizontal container: keep cards in a single row and allow horizontal scrolling on small screens */
+    #topSelection {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      align-items: center;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      white-space: nowrap;
+      padding-bottom: 0.25rem;
+    }
+
+    /* hide default scrollbar visually but keep functionality (small unobtrusive) */
+    #topSelection::-webkit-scrollbar { height: 8px; }
+    #topSelection::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 9999px; }
+
   </style>
 
   <script defer src="/common.js"></script>
@@ -51,12 +69,12 @@
   <hr class="w-full max-w-2xl mb-6"/>
 
   <!-- TOP: Two responsive square cards each containing radio + icon -->
-  <div id="topSelection" class="flex gap-6 justify-center mb-6 flex-wrap">
-
+  <!-- NOTE: changed container to non-wrapping horizontal scroll so cards remain side-by-side even on phones -->
+  <div id="topSelection" class="mb-6">
 
      <!-- Home Delivery Card (scooter / delivery icon) -->
     <button id="cardSelectHome" aria-pressed="false"
-      class="top-card border-2 rounded-xl bg-white shadow flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
+      class="top-card border-2 rounded-xl bg-white shadow inline-flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
       <!-- Scooter / delivery icon -->
       <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <!-- scooter body -->
@@ -77,7 +95,7 @@
     
     <!-- Shop Card (store / storefront icon) -->
     <button id="cardSelectShop" aria-pressed="false"
-      class="top-card border-2 rounded-xl bg-white shadow flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
+      class="top-card border-2 rounded-xl bg-white shadow inline-flex flex-col items-center justify-center p-4 cursor-pointer transition hover:border-indigo-500 focus:outline-none">
       <!-- Storefront / shop icon -->
       <svg class="icon mb-3 text-indigo-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <!-- Awning -->
@@ -94,19 +112,14 @@
       </div>
     </button>
 
-   
   </div>
-
-  <!-- NOTE: old hidden radios & modal were removed from static HTML to clean markup.
-       To preserve business logic (existing JS expects elements with ids 'radioShop', 'radioHome', 'atHomeOption'),
-       these are created dynamically in the script below. -->
 
   <!-- Shop Section (renamed) -->
   <div class="w-full max-w-2xl" id="shopServicesSection">
     <h4 class="text-lg font-semibold text-gray-700 mb-3">Shop</h4>
     <div class="space-y-4" id="shopServices">
 
-            <div onclick="selectOrderType('shop-buy-mill')" id="card-shop-buy-mill" data-serveat="ShopService"
+      <div onclick="selectOrderType('shop-buy-mill')" id="card-shop-buy-mill" data-serveat="ShopService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
         <strong class="text-indigo-700">Buy Atta/Grains from us at shop</strong>
         <p class="text-gray-600">Select grains from our shop, mill fresh atta, and take it home.</p>
@@ -120,8 +133,6 @@
         <span id="tick-shop-milling" class="tick hidden text-green-600">✔️</span>
       </div>
 
-
-      
     </div>
   </div>
 
@@ -130,19 +141,16 @@
     <h4 class="text-lg font-semibold text-gray-700 mb-3">Home Delivery</h4>
     <div class="space-y-4" id="homeServices">
 
-      
-     
-
       <div onclick="selectOrderType('home-buy-mill')" id="card-home-buy-mill" data-serveat="HomeService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
-        <strong class="text-indigo-700">Order Atta - Home Delivery  </strong>
+        <strong class="text-indigo-700">Order Atta - Home Delivery</strong>
         <p class="text-gray-600">Atta Home delivery, select pre-cleaned grain from us, we mill & deliver fresh atta at your doorstep.</p>
         <span id="tick-home-buy-mill" class="tick hidden text-green-600">✔️</span>
       </div>
 
        <div onclick="selectOrderType('home-milling')" id="card-home-milling" data-serveat="HomeService"
         class="relative service-card border-2 rounded-xl p-5 bg-white shadow hover:border-indigo-500 cursor-pointer transition">
-        <strong class="text-indigo-700">Pick up and drop Delivery </strong>
+        <strong class="text-indigo-700">Pick up and drop Delivery</strong>
         <p class="text-gray-600">We’ll pick up your grains from your doorstep, mill them, and deliver back to you.</p>
         <span id="tick-home-milling" class="tick hidden text-green-600">✔️</span>
       </div>
@@ -359,22 +367,32 @@
       }, 500);
     }
 
-    // On load: run config check and set defaults — same business rules preserved
+    // ---- Modified load logic: set HomeService as default on first visit ----
+    // We set default to HomeService only when no serveAt exists. checkHomePickupConfig()
+    // will override this if home pickup is disabled by config (preserves server-side rule).
     window.addEventListener('load', () => {
-      checkHomePickupConfig();
-
       const serveAt = localStorage.getItem('serveAt');
-      if (serveAt === 'HomeService' || serveAt === 'ShopService') {
-        disableCards(serveAt === 'HomeService' ? 'ShopService' : 'HomeService');
-        setRadioSelection(serveAt);
-      } else {
-        // default to Shop but do NOT show any modal (user requested no popup)
-        setRadioSelection(null);
-        disableCards('none');
+      if (!serveAt) {
+        // first visit (no preference) -> default to HomeService
+        localStorage.setItem('serveAt', 'HomeService');
       }
-      document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
-      updateTopCardVisuals();
-      updateSectionsVisibilityBySelection();
+
+      // run server-side config check (it will switch to shop if home is disabled)
+      checkHomePickupConfig().finally(() => {
+        // After config resolves, apply UI state consistent with localStorage
+        const finalServeAt = localStorage.getItem('serveAt');
+        if (finalServeAt === 'HomeService' || finalServeAt === 'ShopService') {
+          disableCards(finalServeAt === 'HomeService' ? 'ShopService' : 'HomeService');
+          setRadioSelection(finalServeAt);
+        } else {
+          // fallback: default to HomeService (we already set above), keep cards enabled
+          setRadioSelection(null);
+          disableCards('none');
+        }
+        document.querySelectorAll('.tick').forEach(tick => tick.classList.add('hidden'));
+        updateTopCardVisuals();
+        updateSectionsVisibilityBySelection();
+      });
     });
   </script>
 </body>
