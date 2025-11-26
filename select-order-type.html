@@ -13,28 +13,59 @@
     body { font-family: "Inter", system-ui, sans-serif; }
     .tick { position: absolute; top: 8px; right: 8px; font-size: 20px; }
 
-    /* top cards sizes and visuals */
+    /* -------------------------
+       PREMIUM INDIGO TILE DESIGN
+       ------------------------- */
+
+    /* top cards sizes and visuals (kept same dimensions as before) */
     .top-card {
       width: 11rem;
       height: 11rem;
       min-width: 11rem;
       min-height: 11rem;
-      flex-shrink: 0; /* keep cards side-by-side without shrinking */
+      flex-shrink: 0;
+
+      border-radius: 1rem;
+      background: linear-gradient(135deg, #ffffff 0%, #f7f7fb 100%);
+      border: 2px solid #e5e7eb;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease,
+        border-color 0.25s ease,
+        background 0.3s ease;
     }
+
+    /* icon sizing and color */
     .top-card .icon {
       width: 2.25rem;
       height: 2.25rem;
-    }
-    /* selected visual for top cards */
-    .top-card.selected {
-      border-color: #6366f1; /* indigo-500 */
-      box-shadow: 0 0 0 6px rgba(99,102,241,0.08);
-      transform: translateY(-3px);
+      color: #6366f1;
+      transition: color 0.3s ease, transform 0.25s ease;
     }
 
-    /* responsive tweak: smaller footprint on very small screens */
-    @media (max-width: 420px) {
-      .top-card { width: 10rem; height: 10rem; min-width: 10rem; min-height: 10rem; }
+    /* hover effect for a subtle lift */
+    .top-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 18px rgba(99,102,241,0.18);
+      border-color: #818cf8;
+    }
+
+    /* Selected card – Premium Indigo appearance */
+    .top-card.selected {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: white !important;
+      border-color: #4f46e5;
+      transform: scale(1.06);
+      box-shadow:
+        0 0 0 4px rgba(99,102,241,0.20),
+        0 12px 22px rgba(0,0,0,0.20);
+    }
+
+    /* Selected card icon becomes white */
+    .top-card.selected .icon {
+      color: white !important;
+      transform: translateY(-2px);
     }
 
     /* visually-hidden utility for accessibility (if needed) */
@@ -59,6 +90,11 @@
     #topSelection::-webkit-scrollbar { height: 8px; }
     #topSelection::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius: 9999px; }
 
+    /* responsive tweak: smaller footprint on very small screens */
+    @media (max-width: 420px) {
+      .top-card { width: 10rem; height: 10rem; min-width: 10rem; min-height: 10rem; }
+    }
+
   </style>
 
   <script defer src="/common.js"></script>
@@ -69,7 +105,7 @@
   <hr class="w-full max-w-2xl mb-6"/>
 
   <!-- TOP: Two responsive square cards each containing radio + icon -->
-  <!-- NOTE: changed container to non-wrapping horizontal scroll so cards remain side-by-side even on phones -->
+  <!-- NOTE: container keeps cards side-by-side and scrollable on small screens -->
   <div id="topSelection" class="mb-6">
 
      <!-- Home Delivery Card (scooter / delivery icon) -->
