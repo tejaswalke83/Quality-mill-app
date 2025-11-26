@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Create Order by Grain</title>
+  <title>New Order (By Grain)</title>
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,17 +12,21 @@
   <style>
     body { font-family: "Inter", system-ui, sans-serif; }
   </style>
-  <!-- <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#007bff">
-  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">-->
   <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen p-4">
   <div class="max-w-3xl mx-auto">
     <div class="bg-white shadow-md rounded-xl p-6">
-      <h2 class="text-2xl font-bold mb-4">Create Order (By Grain)</h2>
+      <h2 class="text-2xl font-bold mb-4">New Order (By Grain)</h2>
 
       <div id="user-info" class="mb-4 text-gray-700"></div>
+
+      <!-- Order Type Summary (added back as requested) -->
+      <div id="selection-summary" class="mb-4 text-sm text-gray-700 hidden">
+        <strong class="text-gray-800">Order Type: </strong>
+        <span id="selection-summary-text" class="text-indigo-600"></span>
+      </div>
+
       <hr class="my-4">
 
       <div id="order-rows" class="space-y-4"></div>
@@ -44,18 +48,33 @@
           <span>Milling Charges</span>
           <span>₹<span id="milling-total">0</span></span>
         </div>
-        <div class="flex justify-between font-bold text-lg border-t pt-2">
+
+        <!-- Delivery Charges (NEW) -->
+        <div id="delivery-row" class="flex justify-between text-gray-600" style="display:none;">
+          <span>Delivery Charges</span>
+          <span>₹<span id="delivery-cost">0</span></span>
+        </div>
+
+        <div class="flex justify-between font-bold text-lg border-t pt-2 mt-2">
           <span>Total Price</span>
           <span>₹<span id="total-price">0</span></span>
+        </div>
+
+        <!-- NEW Grand Total row -->
+        <div class="flex justify-between font-bold text-lg border-t pt-2 mt-3">
+          <span>Grand Total</span>
+          <span>₹<span id="grand-total">0</span></span>
         </div>
       </div>
 
       <div class="flex space-x-3">
-        <button onclick="submitOrder()" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">
+        <button id="submit-btn" onclick="submitOrder()" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">
           Create Order
         </button>
-        <button onclick="window.location.href='my-orders.html?phone=' + phone" class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100">
-          Cancel
+
+        <!-- CANCEL → BACK -->
+        <button onclick="history.back()" class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100">
+          Back
         </button>
       </div>
     </div>
@@ -63,30 +82,32 @@
 
   <!-- Toast -->
   <div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow"></div>
- <script src="config.js"></script>
+
+  <script src="config.js"></script>
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // ✅ Read Supabase credentials from config.js (populated by Netlify)
-  const SUPABASE_URL = window._env_.SUPABASE_URL;
-  const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
+    const SUPABASE_URL = window._env_.SUPABASE_URL;
+    const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
   
-  const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     const urlParams = new URLSearchParams(window.location.search);
     const phone = urlParams.get('phone');
     let user = null;
+    let deliveryCharge = 0;
+    let isSubmitting = false;
 
     const orderRows = document.getElementById("order-rows");
     const totalItemsEl = document.getElementById("total-items");
     const totalQtyEl = document.getElementById("total-qty");
     const millingTotalEl = document.getElementById("milling-total");
     const totalPriceEl = document.getElementById("total-price");
+    const grandTotalEl = document.getElementById("grand-total");
     const toast = document.getElementById("toast");
+    const deliveryRowEl = document.getElementById("delivery-row");
+    const deliveryCostEl = document.getElementById("delivery-cost");
 
     function showToast(message, type = "success") {
       toast.textContent = message;
@@ -97,7 +118,25 @@
       setTimeout(() => { toast.style.display = "none"; }, 3000);
     }
 
-    // ✅ Load customer
+    function computeSelectionSummary() {
+      const serveAt = localStorage.getItem('serveAt') || '';
+      const orderType = (localStorage.getItem('orderType') || '').toLowerCase();
+
+      if (orderType.includes('home') && orderType.includes('buy')) return "Home delivery — Atta Order";
+      if (orderType.includes('shop') && orderType.includes('buy')) return "At shop — Atta Order";
+      if (orderType.includes('home')) return "Home delivery — Pickup & Drop";
+      if (orderType.includes('shop')) return "At shop — Pickup & Drop";
+
+      return serveAt.toLowerCase().includes('home') ? "Home delivery" : "At shop";
+    }
+
+    function updateSelectionSummaryDisplay() {
+      const text = computeSelectionSummary();
+      const el = document.getElementById("selection-summary");
+      document.getElementById("selection-summary-text").textContent = text;
+      el.style.display = text ? "block" : "none";
+    }
+
     async function loadUser() {
       const { data } = await supabase
         .from("customers")
@@ -105,21 +144,17 @@
         .eq("phone_number", phone)
         .maybeSingle();
 
-      if (!data) {
-        document.getElementById("user-info").innerHTML = `<p class="text-red-600">Customer not found!</p>`;
-        return;
-      }
-
       user = data;
       document.getElementById("user-info").innerHTML = `
-        <p><strong>Name:</strong> ${user.name}</p>
-        <p><strong>Mobile:</strong> ${user.phone_number}</p>
-        <p><strong>Flat:</strong> ${user.flat_number}, ${user.wing}</p>
-        <p><strong>Society:</strong> ${user.society_name}</p>
+        <p><strong>Name:</strong> ${user?.name || ''}</p>
+        <p><strong>Mobile:</strong> ${user?.phone_number || ''}</p>
+        <p><strong>Flat:</strong> ${user?.flat_number || ''}, ${user?.wing || ''}</p>
+        <p><strong>Society:</strong> ${user?.society_name || ''}</p>
       `;
+
+      updateSelectionSummaryDisplay();
     }
 
-    // ✅ Load grains
     async function loadGrains() {
       const { data: grains } = await supabase
         .from("Grain_for_sell")
@@ -144,30 +179,18 @@
           <div class="error text-red-500 text-sm"></div>
         `;
 
-        const checkbox = row.querySelector(".grain-check");
+        const check = row.querySelector(".grain-check");
         const qtyInput = row.querySelector(".grain-qty");
         const errorEl = row.querySelector(".error");
 
-        // Checkbox toggle
-        checkbox.addEventListener("change", () => {
+        check.addEventListener("change", () => {
           errorEl.textContent = "";
-          if (!checkbox.checked) {
-            qtyInput.value = "";
-            row.querySelector(".row-total").textContent = "0";
-          } else if (!qtyInput.value) {
-            errorEl.textContent = "Please enter quantity";
-          }
+          if (!check.checked) qtyInput.value = "";
           updateTotals();
         });
 
-        // Auto-check when qty is entered
         qtyInput.addEventListener("input", () => {
-          if (parseFloat(qtyInput.value) > 0) {
-            checkbox.checked = true;
-            errorEl.textContent = "";
-          } else {
-            checkbox.checked = false;
-          }
+          if (qtyInput.value > 0) check.checked = true;
           updateTotals();
         });
 
@@ -175,7 +198,6 @@
       });
     }
 
-    // ✅ Update totals
     function updateTotals() {
       let totalItems = 0, totalQty = 0, totalPrice = 0, millingTotal = 0;
 
@@ -183,25 +205,14 @@
         const check = row.querySelector(".grain-check");
         const qtyInput = row.querySelector(".grain-qty");
         const totalEl = row.querySelector(".row-total");
-        const priceEl = row.querySelector(".price");
-        const millingEl = row.querySelector(".milling");
-        const errorEl = row.querySelector(".error");
+        const price = parseFloat(row.querySelector(".price").dataset.price);
+        const milling = parseFloat(row.querySelector(".milling").dataset.milling);
 
-        errorEl.textContent = "";
-        let qty = parseFloat(qtyInput.value) || 0;
-
-        if (check.checked) {
-          if (qty <= 0) {
-            errorEl.textContent = "Please enter quantity";
-            totalEl.textContent = "0";
-            return;
-          }
-
-          const price = parseFloat(priceEl.dataset.price || 0);
-          const milling = parseFloat(millingEl.dataset.milling || 0);
+        if (check.checked && qtyInput.value > 0) {
+          const qty = parseFloat(qtyInput.value);
           const rowTotal = (price + milling) * qty;
-
           totalEl.textContent = rowTotal.toFixed(2);
+
           totalItems++;
           totalQty += qty;
           totalPrice += rowTotal;
@@ -215,99 +226,168 @@
       totalQtyEl.textContent = totalQty;
       millingTotalEl.textContent = Math.round(millingTotal);
       totalPriceEl.textContent = Math.round(totalPrice);
+
+      updateDeliveryCharge(totalPrice);
     }
 
-    // ✅ Submit order
+    async function updateDeliveryCharge(subtotal) {
+      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+
+      if (!serveAt.includes('home')) {
+        deliveryCharge = 0;
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = `0`;
+        grandTotalEl.textContent = Math.round(subtotal);
+        return;
+      }
+
+      let foundPrice = 0;
+      const societyId = user?.society_id || null;
+
+      // 1) Society specific
+      if (societyId) {
+        const { data } = await supabase
+          .from("delivery_pricing")
+          .select("price")
+          .eq("delivery_type", "normal")
+          .eq("is_active", true)
+          .eq("society_id", societyId)
+          .maybeSingle();
+
+        if (data?.price != null) foundPrice = Number(data.price);
+      }
+
+      // 2) Global
+      if (!foundPrice) {
+        const { data } = await supabase
+          .from("delivery_pricing")
+          .select("price")
+          .eq("delivery_type", "normal")
+          .eq("is_active", true)
+          .is("society_id", null)
+          .maybeSingle();
+
+        if (data?.price != null) foundPrice = Number(data.price);
+      }
+
+      // 3) Fallback
+      if (!foundPrice) {
+        const { data } = await supabase
+          .from("delivery_pricing")
+          .select("price")
+          .eq("delivery_type", "normal")
+          .eq("is_active", true)
+          .limit(1);
+
+        if (data?.[0]?.price != null) foundPrice = Number(data[0].price);
+      }
+
+      deliveryCharge = foundPrice || 0;
+
+      if (deliveryCharge > 0) {
+        deliveryRowEl.style.display = 'flex';
+        deliveryCostEl.textContent = deliveryCharge;
+      } else {
+        deliveryRowEl.style.display = 'none';
+        deliveryCostEl.textContent = 0;
+      }
+
+      grandTotalEl.textContent = Math.round(subtotal + deliveryCharge);
+    }
+
     window.submitOrder = async function () {
+      if (isSubmitting) return;
+      isSubmitting = true;
+
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.textContent = "Processing...";
+
       let grainDetails = [];
       let hasError = false;
 
       [...orderRows.querySelectorAll(".p-3")].forEach(row => {
         const check = row.querySelector(".grain-check");
-        const qtyInput = row.querySelector(".grain-qty");
-        const totalEl = row.querySelector(".row-total");
-        const priceEl = row.querySelector(".price");
-        const millingEl = row.querySelector(".milling");
-        const errorEl = row.querySelector(".error");
-
         if (!check.checked) return;
 
+        const qtyInput = row.querySelector(".grain-qty");
         const name = row.querySelector(".grain-name").textContent.trim();
-        const price = parseFloat(priceEl.dataset.price || 0);
-        const milling = parseFloat(millingEl.dataset.milling || 0);
+        const price = parseFloat(row.querySelector(".price").dataset.price);
+        const milling = parseFloat(row.querySelector(".milling").dataset.milling);
         const qty = parseFloat(qtyInput.value || 0);
+        const total = (price + milling) * qty;
 
-        if (qty <= 0) {
-          errorEl.textContent = "Please enter quantity";
-          hasError = true;
-        } else {
-          const rowTotal = (price + milling) * qty;
-          totalEl.textContent = rowTotal.toFixed(2);
-          grainDetails.push({ grain: name, quantity: qty, price, milling, total: rowTotal });
-        }
+        if (qty <= 0) hasError = true;
+        else grainDetails.push({ grain: name, quantity: qty, price, milling, total });
       });
 
       if (hasError || grainDetails.length === 0) {
         showToast("Fix errors before submitting", "error");
+        btn.disabled = false;
+        btn.textContent = "Create Order";
+        isSubmitting = false;
         return;
       }
 
-      const total_price = Math.round(parseFloat(totalPriceEl.textContent));
+      const subtotal = Number(totalPriceEl.textContent);
+      const grandTotal = Number(grandTotalEl.textContent);
+
+      const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
 
       async function generateTokenNumber() {
-        const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
         const { data: activeOrders } = await supabase
           .from("orders")
           .select("token_number, order_statuses!inner(status_name)")
           .not("order_statuses.status_name", "in", `(${inactiveStatuses.map(s => `'${s}'`).join(",")})`);
 
-        const activeTokens = new Set((activeOrders || []).map(o => o.token_number));
+        const activeTokens = new Set(activeOrders.map(o => o.token_number));
         let maxTokenNum = 0;
+
         activeTokens.forEach(token => {
-          const num = parseInt(token?.slice(2), 10);
-          if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+          const num = parseInt(token.slice(2), 10);
+          if (num > maxTokenNum) maxTokenNum = num;
         });
 
-        for (let attempt = 1; attempt <= 999; attempt++) {
-          let nextNum = maxTokenNum + attempt;
-          if (nextNum > 999) nextNum -= 999;
-          const token = `QA${nextNum}`;
+        for (let i = 1; i <= 999; i++) {
+          let next = maxTokenNum + i;
+          if (next > 999) next -= 999;
+          const token = `QA${next}`;
           if (!activeTokens.has(token)) return token;
         }
-        throw new Error("All tokens in use");
       }
 
-      const token_number = await generateTokenNumber();
+      const token = await generateTokenNumber();
 
-      async function getStatusId(statusName) {
-        const { data } = await supabase
-          .from("order_statuses")
-          .select("id")
-          .eq("status_name", statusName)
-          .maybeSingle();
-        return data?.id || null;
-      }
+      const { data: statusData } = await supabase
+        .from("order_statuses")
+        .select("id")
+        .eq("status_name", "NEW")
+        .maybeSingle();
 
-      const statusId = await getStatusId("NEW");
+      const statusId = statusData?.id || null;
 
       const { error } = await supabase.from("orders").insert([{
         customer_id: user.id,
         grain_details: grainDetails,
-        total_price,
-        token_number,
-        order_type: localStorage.getItem("orderType") || null,
-        serve_at: localStorage.getItem("serveAt") || null,
+        total_price: grandTotal,
+        token_number: token,
+        order_type: localStorage.getItem("orderType") || "",
+        serve_at: localStorage.getItem("serveAt") || "",
         status_id: statusId
       }]);
 
       if (error) {
         showToast("❌ Failed to place order", "error");
-      } else {
-        showToast("✅ Order placed! Token: " + token_number);
-        setTimeout(() => {
-          window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token_number;
-        }, 2000);
+        btn.disabled = false;
+        btn.textContent = "Create Order";
+        isSubmitting = false;
+        return;
       }
+
+      showToast("✅ Order placed! Token: " + token);
+      setTimeout(() => {
+        window.location.href = '/my-orders.html?phone=' + phone + '&token=' + token;
+      }, 1500);
     };
 
     loadUser();
