@@ -91,40 +91,57 @@
   //   return icons[type] || `<svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>`;
   // }
 
+//   function getOrderTypeIcon(type) {
+//   // Pin wheel icon (Chakki)
+//   const pinWheel = `
+//     <svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+//       <circle cx="12" cy="12" r="3" />
+//       <path d="M12 2v4M12 18v4M4 12h4M16 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>
+//     </svg>
+//   `;
+
+//   // Delivery scooter icon
+//   const scooter = `
+//     <svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+//       <circle cx="6" cy="18" r="3"/>
+//       <circle cx="18" cy="18" r="3"/>
+//       <path d="M6 18H3l3-7h6l4 7h2"/>
+//       <path d="M12 11l2-5h4"/>
+//     </svg>
+//   `;
+
+//   // 🎯 Logic
+//   switch (type) {
+//     case "shop-buy-mill":   // You sell grains + mill
+//       return pinWheel;
+
+//     case "home-buy-mill":   // You sell grain + home delivery
+//       return pinWheel + scooter;
+
+//     case "home-milling":    // customer gives grain, home pickup/delivery
+//       return scooter;
+
+//     default:
+//       return ""; // No icon for shop-milling or anything else
+//   }
+// }
+
   function getOrderTypeIcon(type) {
-  // Pin wheel icon (Chakki)
-  const pinWheel = `
-    <svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 2v4M12 18v4M4 12h4M16 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>
-    </svg>
+  const pinwheelIcon = `
+    <img src="https://openmoji.org/data/color/svg/1F38B.svg" class="order-icon" />
   `;
 
-  // Delivery scooter icon
-  const scooter = `
-    <svg class="order-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <circle cx="6" cy="18" r="3"/>
-      <circle cx="18" cy="18" r="3"/>
-      <path d="M6 18H3l3-7h6l4 7h2"/>
-      <path d="M12 11l2-5h4"/>
-    </svg>
+  const scooterIcon = `
+    <img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon" />
   `;
 
-  // 🎯 Logic
-  switch (type) {
-    case "shop-buy-mill":   // You sell grains + mill
-      return pinWheel;
+  if (type === "shop-buy-mill") return pinwheelIcon;
+  if (type === "home-milling") return scooterIcon;
+  if (type === "home-buy-mill") return pinwheelIcon + scooterIcon;
 
-    case "home-buy-mill":   // You sell grain + home delivery
-      return pinWheel + scooter;
-
-    case "home-milling":    // customer gives grain, home pickup/delivery
-      return scooter;
-
-    default:
-      return ""; // No icon for shop-milling or anything else
-  }
+  return "";
 }
+
 
 
   async function fetchAllOrders() {
