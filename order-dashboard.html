@@ -432,13 +432,17 @@ div.innerHTML = `
     const searchBox = document.getElementById('searchBox');
     if (searchBox.value.trim() === '') return;
     await loadOrders();
-    const container = document.getElementById('ordersList');
-    The firstOrder = container.querySelector('.order-card');
-    if (firstOrder) {
-      firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      firstOrder.classList.add("ring-2", "ring-blue-400");
-      setTimeout(() => firstOrder.classList.remove("ring-2", "ring-blue-400"), 2000);
-    }
+    
+  const container = document.getElementById('ordersList');
+const firstOrder = container.querySelector('.order-card');
+if (firstOrder) {
+  firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  firstOrder.classList.add("ring-2", "ring-blue-400");
+  setTimeout(() => firstOrder.classList.remove("ring-2", "ring-blue-400"), 2000);
+}
+
+
+    
   }
   window.searchAndScroll = searchAndScroll;
 
