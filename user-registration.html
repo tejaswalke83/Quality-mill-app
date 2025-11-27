@@ -294,7 +294,7 @@ if ("serviceWorker" in navigator) {
         } else if (staffUser.role && staffUser.role.toLowerCase() === "Delivery") {
           // ✅ Delivery partner login → delivery_partner.html
           window.location.href = `delivery_partner.html?phone=${staffUser.phone_number}`; 
-        else {
+        } else {
           // ✅ Other staff roles (operator, delivery, etc.)
           window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
         }
