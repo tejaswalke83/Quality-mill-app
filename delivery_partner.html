@@ -57,9 +57,10 @@
 
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-    // Supabase credentials provided by your existing config.js pattern
-    const SUPABASE_URL = window._env_.SUPABASE_URL;
-    const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
+
+    // Supabase credentials (from your config.js)
+    const SUPABASE_URL = window._env_?.SUPABASE_URL;
+    const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY;
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // OpenMoji icons (color)
@@ -129,93 +130,118 @@
     }
 
     /* ------------------------
-       Data fetching
+       Robust getStatusIdByName (live first, then fallback UUIDs)
        ------------------------ */
-  async function fetchOrdersFromDB() {
-  // Request all customer columns to avoid "column does not exist" SQL errors
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      *,
-      customers(*),
-      order_statuses(status_name, sort_order, id)
-    `)
-    .order('created_at', { ascending: false });
+    function getStatusIdByName(name) {
+      if (!name) return null;
+      const normalized = name.toString().trim().toUpperCase();
 
-  if (error) {
-    console.error('fetchOrdersFromDB:', error);
-    const container = document.getElementById('ordersContainer') || document.getElementById('ordersList');
-    if (container) {
-      container.innerHTML = '';
-      const errEl = document.createElement('div');
-      errEl.className = 'text-red-600 text-sm p-3';
-      errEl.textContent = `Error fetching orders: ${error.message || error.code || 'unknown'}`;
-      container.appendChild(errEl);
+      // 1) prefer live cache
+      const live = statusesCache.find(x => (x.status_name || '').toUpperCase() === normalized);
+      if (live) return live.id;
+
+      // 2) fallback UUIDs captured from your screenshot
+      const fallback = {
+        'NEW': '465bf226-1312-4708-a99e-bf90e400f7e0',
+        'PICKED UP': '24cd0820-1735-4017-aeaf-9463c08820f6',
+        'RECEIVED AT MILL': '15b2a302-64f4-4fdf-b021-be497f2b38f3',
+        'IN PROCESS': 'c1dd1b37-62c4-46f5-a134-b50a7ca66588',
+        'MILLING COMPLETED': 'a396305a-8b27-4d5d-b3ce-408fb875d29',
+        'OUT FOR DELIVERY': '0b7136c4-1392-40df-bd1a-20df5df98656',
+        'DELIVERED': 'a8909616-20ad-44f3-9d78-bc2b22ccd60',
+        // note: keep exact spelling from your screenshot
+        'ARCHIEVED': '9a30f2df-199d-439f-9fef-9dbd088be84a'
+      };
+      return fallback[normalized] || null;
     }
-    return [];
-  }
-
-  // debug: inspect first row (remove after debugging)
-  if (Array.isArray(data) && data.length > 0) {
-    console.log('DEBUG: sample order[0]:', data[0]);
-    console.log('DEBUG: sample customer object:', data[0].customers);
-  } else {
-    console.log('DEBUG: no orders returned from DB');
-  }
-
-  return data || [];
-}
 
     /* ------------------------
-       Utilities: address & society detection
+       Data fetching (robust)
        ------------------------ */
-  function getFullAddress(order) {
-  const c = order.customers || {};
-  const parts = [];
+    async function fetchOrdersFromDB() {
+      // Request all customer columns to avoid "column does not exist" SQL errors
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customers(*),
+          order_statuses(status_name, sort_order, id)
+        `)
+        .order('created_at', { ascending: false });
 
-  // Known / common top-level fields
-  if (c.address_line) parts.push(c.address_line);
-  if (c.address) {
-    if (typeof c.address === 'string') {
-      parts.push(c.address);
-    } else if (typeof c.address === 'object') {
-      if (c.address.line1) parts.push(c.address.line1);
-      if (c.address.line2) parts.push(c.address.line2);
-      if (c.address.street) parts.push(c.address.street);
-      if (c.address.locality) parts.push(c.address.locality);
-      if (c.address.society) parts.push(c.address.society);
-      if (c.address.socity) parts.push(c.address.socity); // common typo
-      if (c.address.city) parts.push(c.address.city);
-      if (c.address.state) parts.push(c.address.state);
-      if (c.address.pincode) parts.push(c.address.pincode);
+      if (error) {
+        console.error('fetchOrdersFromDB:', error);
+        const container = document.getElementById('ordersContainer') || document.getElementById('ordersList');
+        if (container) {
+          container.innerHTML = '';
+          const errEl = document.createElement('div');
+          errEl.className = 'text-red-600 text-sm p-3';
+          errEl.textContent = `Error fetching orders: ${error.message || error.code || 'unknown'}`;
+          container.appendChild(errEl);
+        }
+        return [];
+      }
+
+      // debug: inspect first row (remove after debugging)
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('DEBUG: sample order[0]:', data[0]);
+        console.log('DEBUG: sample customer object:', data[0].customers);
+      } else {
+        console.log('DEBUG: no orders returned from DB');
+      }
+
+      return data || [];
     }
-  }
 
-  // fallback top-level fields
-  if (c.street) parts.push(c.street);
-  if (c.city) parts.push(c.city);
-  if (c.state) parts.push(c.state);
-  if (c.pincode) parts.push(c.pincode);
-  if (c.zip) parts.push(c.zip);
-  if (c.postal_code) parts.push(c.postal_code);
+    /* ------------------------
+       Utilities: address & society detection (defensive)
+       ------------------------ */
+    function getFullAddress(order) {
+      const c = order.customers || {};
+      const parts = [];
 
-  // last resort: join whatever metadata exists
-  if (c.metadata && typeof c.metadata === 'object') {
-    if (c.metadata.address) parts.push(c.metadata.address);
-    if (c.metadata.locality) parts.push(c.metadata.locality);
-  }
+      // Known / common top-level fields
+      if (c.address_line) parts.push(c.address_line);
+      if (c.address) {
+        if (typeof c.address === 'string') {
+          parts.push(c.address);
+        } else if (typeof c.address === 'object') {
+          if (c.address.line1) parts.push(c.address.line1);
+          if (c.address.line2) parts.push(c.address.line2);
+          if (c.address.street) parts.push(c.address.street);
+          if (c.address.locality) parts.push(c.address.locality);
+          if (c.address.society) parts.push(c.address.society);
+          if (c.address.socity) parts.push(c.address.socity); // common typo
+          if (c.address.city) parts.push(c.address.city);
+          if (c.address.state) parts.push(c.address.state);
+          if (c.address.pincode) parts.push(c.address.pincode);
+        }
+      }
 
-  return parts.filter(Boolean).join(', ') || 'Address not available';
-}
+      // fallback top-level fields
+      if (c.street) parts.push(c.street);
+      if (c.city) parts.push(c.city);
+      if (c.state) parts.push(c.state);
+      if (c.pincode) parts.push(c.pincode);
+      if (c.zip) parts.push(c.zip);
+      if (c.postal_code) parts.push(c.postal_code);
 
-function getSocietyName(order) {
-  const c = order.customers || {};
-  return c.society || c.society_name || c.societyId || c.society_id ||
-         (c.address && (c.address.society || c.address.locality || c.address.socity)) ||
-         (c.metadata && (c.metadata.society || c.metadata.locality)) ||
-         "Other";
-}
+      // last resort: join whatever metadata exists
+      if (c.metadata && typeof c.metadata === 'object') {
+        if (c.metadata.address) parts.push(c.metadata.address);
+        if (c.metadata.locality) parts.push(c.metadata.locality);
+      }
 
+      return parts.filter(Boolean).join(', ') || 'Address not available';
+    }
+
+    function getSocietyName(order) {
+      const c = order.customers || {};
+      return c.society || c.society_name || c.societyId || c.society_id ||
+             (c.address && (c.address.society || c.address.locality || c.address.socity)) ||
+             (c.metadata && (c.metadata.society || c.metadata.locality)) ||
+             "Other";
+    }
 
     /* ------------------------
        Render logic (grouped by society)
@@ -432,7 +458,7 @@ function getSocietyName(order) {
             </label>
             <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
           </div>
-          <button onclick="updateOrderStatus('${order.id}', ${getStatusIdByName('DELIVERED')})"
+          <button onclick="updateOrderStatus('${order.id}', '${getStatusIdByName('DELIVERED')}')"
             class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
             Mark as Delivered
           </button>
@@ -484,11 +510,6 @@ function getSocietyName(order) {
       await reloadOrders();
     }
     window.savePaymentMethod = savePaymentMethod;
-
-    function getStatusIdByName(name) {
-      const s = statusesCache.find(x => (x.status_name || '').toUpperCase() === (name||'').toUpperCase());
-      return s ? s.id : null;
-    }
 
     /* ------------------------
        Tabs & init
