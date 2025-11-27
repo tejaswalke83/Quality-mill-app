@@ -277,7 +277,11 @@ div.innerHTML = `
   <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
 
   <!-- ADDED milling preference next to Grains label (small font inside brackets) -->
-  ${grainsHTML ? `<div class="mt-2"><strong>Grains <span class="text-xs text-gray-600">(${millingPref})</span>:</strong>${grainsHTML}</div>` : ''}
+  // ${grainsHTML ? `<div class="mt-2"><strong>Grains <span class="text-xs text-gray-600">(${millingPref})</span>:</strong>${grainsHTML}</div>` : ''}
+${grainsHTML ? `<div class="mt-2">
+  <strong>Grains <span class="text-xs text-gray-600">(${millingPref})</span>:</strong>
+  ${grainsHTML}
+</div>` : ''}
 
   <div class="mt-2 flex justify-between items-center">
     <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
