@@ -131,7 +131,7 @@
     /* ------------------------
        Data fetching
        ------------------------ */
-   async function fetchOrdersFromDB() {
+  async function fetchOrdersFromDB() {
   // Request all customer columns to avoid "column does not exist" SQL errors
   const { data, error } = await supabase
     .from('orders')
@@ -144,11 +144,20 @@
 
   if (error) {
     console.error('fetchOrdersFromDB:', error);
+    const container = document.getElementById('ordersContainer') || document.getElementById('ordersList');
+    if (container) {
+      container.innerHTML = '';
+      const errEl = document.createElement('div');
+      errEl.className = 'text-red-600 text-sm p-3';
+      errEl.textContent = `Error fetching orders: ${error.message || error.code || 'unknown'}`;
+      container.appendChild(errEl);
+    }
     return [];
   }
 
-  // debug: log the first few customer objects so you can map fields
+  // debug: inspect first row (remove after debugging)
   if (Array.isArray(data) && data.length > 0) {
+    console.log('DEBUG: sample order[0]:', data[0]);
     console.log('DEBUG: sample customer object:', data[0].customers);
   } else {
     console.log('DEBUG: no orders returned from DB');
