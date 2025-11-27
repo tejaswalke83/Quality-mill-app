@@ -10,9 +10,42 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
-    /* bigger icons */
     .order-icon { width: 28px; height: 28px; }
     .society-section { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; }
+
+    /* Tabs styling (clean tab look) */
+    .tabs { display:flex; gap:8px; background:transparent; }
+    .tab {
+      padding: 10px 14px;
+      border-radius: 10px 10px 0 0;
+      cursor: pointer;
+      font-weight: 600;
+      color: #374151; /* gray-700 */
+      background: transparent;
+      border-bottom: 2px solid transparent;
+    }
+    .tab:hover { background: rgba(15, 23, 42, 0.03); }
+    .tab.active {
+      color: #0b74ff; /* blue */
+      border-bottom-color: #0b74ff;
+      background: white;
+      box-shadow: 0 2px 6px rgba(11,116,255,0.08);
+    }
+    .tab-badge {
+      display:inline-block;
+      margin-left:8px;
+      background:#eef2ff;
+      color:#4338ca;
+      padding:2px 8px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:12px;
+    }
+
+    /* small responsive tweaks */
+    @media (max-width: 640px) {
+      .tab { padding:8px 10px; font-size:14px; }
+    }
   </style>
   <script defer src="/common.js"></script>
 </head>
@@ -21,18 +54,19 @@
 
   <div class="max-w-5xl mx-auto">
     <!-- Tabs -->
-    <div class="bg-white shadow rounded-lg p-4 mb-6">
-      <div class="flex gap-2">
-        <button id="tabOpen" class="px-4 py-2 bg-blue-500 text-white rounded">Open Orders</button>
-        <button id="tabDelivered" class="px-4 py-2 bg-gray-100 rounded">Delivered</button>
-      </div>
-      <div class="mt-4 text-sm text-gray-600">
-        Showing only home orders (home-milling &amp; home-buy-mill). Open shows "Out for delivery" and NEW home-milling orders.
+    <div class="bg-white shadow rounded-t-lg p-4 mb-0">
+      <div class="flex items-center justify-between">
+        <div class="tabs" role="tablist" aria-label="Order tabs">
+          <div id="tabOpen" class="tab active" role="tab" aria-selected="true">Open Orders <span id="countOpen" class="tab-badge">0</span></div>
+          <div id="tabPicked" class="tab" role="tab" aria-selected="false">Pickup Done <span id="countPicked" class="tab-badge">0</span></div>
+          <div id="tabDelivered" class="tab" role="tab" aria-selected="false">Delivery Done <span id="countDelivered" class="tab-badge">0</span></div>
+        </div>
+        <div class="text-sm text-gray-600">Showing only home orders (home-milling &amp; home-buy-mill).</div>
       </div>
     </div>
 
     <!-- Filters / Search -->
-    <div class="bg-white shadow rounded-lg p-4 mb-6">
+    <div class="bg-white shadow rounded-b-lg p-4 mb-6">
       <div class="flex gap-3 items-center">
         <input id="searchBox" type="text"
                placeholder="Search by name, phone, token, address, society..."
@@ -54,27 +88,20 @@
   </div>
 
   <script src="config.js"></script>
-
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    // Supabase credentials (from your config.js)
     const SUPABASE_URL = window._env_?.SUPABASE_URL;
     const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY;
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // OpenMoji icons (color)
     const PINWHEEL_URL = "https://openmoji.org/data/color/svg/269B.svg";
     const SCOOTER_URL = "https://openmoji.org/data/color/svg/1F6F5.svg";
 
     let statusesCache = [];
     let statusFlows = {};
-    let currentTab = 'open';
+    let currentTab = 'open'; // 'open' | 'picked' | 'delivered'
     let searchTimeout;
 
-    /* ------------------------
-       Helpers: status class + icon HTML
-       ------------------------ */
     function getStatusClass(status) {
       const map = {
         "NEW": "bg-yellow-100 text-yellow-800",
@@ -82,6 +109,10 @@
         "MILLING COMPLETED": "bg-green-100 text-green-800",
         "DELIVERED": "bg-gray-200 text-gray-800",
         "PICKED UP": "bg-purple-100 text-purple-800",
+        "PICKEDUP": "bg-purple-100 text-purple-800",
+        "PICKED_UP": "bg-purple-100 text-purple-800",
+        "PICKED-UP": "bg-purple-100 text-purple-800",
+        "PICKEDUP": "bg-purple-100 text-purple-800",
         "RECEIVED AT MILL": "bg-orange-100 text-orange-800",
         "OUT FOR DELIVERY": "bg-pink-100 text-pink-800"
       };
@@ -97,9 +128,6 @@
       return '';
     }
 
-    /* ------------------------
-       Fetch statuses and build flows
-       ------------------------ */
     async function fetchStatuses() {
       const { data, error } = await supabase.from('order_statuses').select('*').order('sort_order', { ascending: true });
       if (error) {
@@ -129,18 +157,11 @@
       return statusesCache.find(s => s.id === flow[idx + 1]) || null;
     }
 
-    /* ------------------------
-       Robust getStatusIdByName (live first, then fallback UUIDs)
-       ------------------------ */
     function getStatusIdByName(name) {
       if (!name) return null;
       const normalized = name.toString().trim().toUpperCase();
-
-      // 1) prefer live cache
       const live = statusesCache.find(x => (x.status_name || '').toUpperCase() === normalized);
       if (live) return live.id;
-
-      // 2) fallback UUIDs captured from your screenshot
       const fallback = {
         'NEW': '465bf226-1312-4708-a99e-bf90e400f7e0',
         'PICKED UP': '24cd0820-1735-4017-aeaf-9463c08820f6',
@@ -149,17 +170,12 @@
         'MILLING COMPLETED': 'a396305a-8b27-4d5d-b3ce-408fb875d29',
         'OUT FOR DELIVERY': '0b7136c4-1392-40df-bd1a-20df5df98656',
         'DELIVERED': 'a8909616-20ad-44f3-9d78-bc2b22ccd60',
-        // note: keep exact spelling from your screenshot
         'ARCHIEVED': '9a30f2df-199d-439f-9fef-9dbd088be84a'
       };
       return fallback[normalized] || null;
     }
 
-    /* ------------------------
-       Data fetching (robust)
-       ------------------------ */
     async function fetchOrdersFromDB() {
-      // Request all customer columns to avoid "column does not exist" SQL errors
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -182,7 +198,6 @@
         return [];
       }
 
-      // debug: inspect first row (remove after debugging)
       if (Array.isArray(data) && data.length > 0) {
         console.log('DEBUG: sample order[0]:', data[0]);
         console.log('DEBUG: sample customer object:', data[0].customers);
@@ -193,45 +208,34 @@
       return data || [];
     }
 
-    /* ------------------------
-       Utilities: address & society detection (defensive)
-       ------------------------ */
     function getFullAddress(order) {
       const c = order.customers || {};
       const parts = [];
-
-      // Known / common top-level fields
       if (c.address_line) parts.push(c.address_line);
       if (c.address) {
-        if (typeof c.address === 'string') {
-          parts.push(c.address);
-        } else if (typeof c.address === 'object') {
+        if (typeof c.address === 'string') parts.push(c.address);
+        else {
           if (c.address.line1) parts.push(c.address.line1);
           if (c.address.line2) parts.push(c.address.line2);
           if (c.address.street) parts.push(c.address.street);
           if (c.address.locality) parts.push(c.address.locality);
           if (c.address.society) parts.push(c.address.society);
-          if (c.address.socity) parts.push(c.address.socity); // common typo
+          if (c.address.socity) parts.push(c.address.socity);
           if (c.address.city) parts.push(c.address.city);
           if (c.address.state) parts.push(c.address.state);
           if (c.address.pincode) parts.push(c.address.pincode);
         }
       }
-
-      // fallback top-level fields
       if (c.street) parts.push(c.street);
       if (c.city) parts.push(c.city);
       if (c.state) parts.push(c.state);
       if (c.pincode) parts.push(c.pincode);
       if (c.zip) parts.push(c.zip);
       if (c.postal_code) parts.push(c.postal_code);
-
-      // last resort: join whatever metadata exists
       if (c.metadata && typeof c.metadata === 'object') {
         if (c.metadata.address) parts.push(c.metadata.address);
         if (c.metadata.locality) parts.push(c.metadata.locality);
       }
-
       return parts.filter(Boolean).join(', ') || 'Address not available';
     }
 
@@ -243,17 +247,14 @@
              "Other";
     }
 
-    /* ------------------------
-       Render logic (grouped by society)
-       ------------------------ */
     async function renderOrders() {
       await fetchStatuses();
       const all = await fetchOrdersFromDB();
 
-      // Filter only home order types
+      // only home orders
       const homeOrders = all.filter(o => ['home-milling','home-buy-mill'].includes(o.order_type));
 
-      // Partition open & delivered according to your rule
+      // open: OUT FOR DELIVERY OR NEW (NEW only for home-milling)
       const openOrders = homeOrders.filter(o => {
         const statusObj = statusesCache.find(s => s.id === o.status_id) || {};
         const statusName = (statusObj.status_name || '').toUpperCase();
@@ -262,15 +263,43 @@
         return false;
       });
 
+      // pickup done: PICKED UP
+      const pickedOrders = homeOrders.filter(o => {
+        const statusObj = statusesCache.find(s => s.id === o.status_id) || {};
+        const statusName = (statusObj.status_name || '').toUpperCase();
+        return statusName === "PICKED UP" || statusName === "PICKEDUP" || statusName === "PICKED_UP" || statusName === "PICKED-UP";
+      });
+
+      // delivery done: DELIVERED
       const deliveredOrders = homeOrders.filter(o => {
         const statusObj = statusesCache.find(s => s.id === o.status_id) || {};
         const statusName = (statusObj.status_name || '').toUpperCase();
         return statusName === "DELIVERED";
       });
 
+      // update tab counts
+      document.getElementById('countOpen').textContent = openOrders.length;
+      document.getElementById('countPicked').textContent = pickedOrders.length;
+      document.getElementById('countDelivered').textContent = deliveredOrders.length;
+
       const searchTerm = (document.getElementById('searchBox').value || '').toLowerCase().trim();
 
       const filteredOpen = openOrders.filter(o => {
+        if (!searchTerm) return true;
+        const name = (o.customers?.name || '').toLowerCase();
+        const phone = String(o.customers?.phone_number || '').toLowerCase();
+        const token = String(o.token_number || '').toLowerCase();
+        const total = String(o.total_price || '').toLowerCase();
+        const addr = getFullAddress(o).toLowerCase();
+        const society = getSocietyName(o).toLowerCase();
+        const statusName = (statusesCache.find(s => s.id === o.status_id)?.status_name || '').toLowerCase();
+
+        return name.includes(searchTerm) || phone.includes(searchTerm) || token.includes(searchTerm) ||
+               total.includes(searchTerm) || addr.includes(searchTerm) || society.includes(searchTerm) ||
+               statusName.includes(searchTerm);
+      });
+
+      const filteredPicked = pickedOrders.filter(o => {
         if (!searchTerm) return true;
         const name = (o.customers?.name || '').toLowerCase();
         const phone = String(o.customers?.phone_number || '').toLowerCase();
@@ -358,9 +387,62 @@
           container.appendChild(section);
         });
 
-      } else { // delivered tab
+      } else if (currentTab === 'picked') {
+        if (filteredPicked.length === 0) {
+          container.innerHTML = '<p class="text-gray-500">No pickup-done orders found.</p>';
+          return;
+        }
+
+        const groups = {};
+        filteredPicked.forEach(o => {
+          const s = getSocietyName(o);
+          groups[s] = groups[s] || [];
+          groups[s].push(o);
+        });
+
+        Object.keys(groups).forEach(soc => {
+          const section = document.createElement('div');
+          section.className = 'society-section bg-white p-4 shadow rounded-lg mb-4';
+          const hdr = document.createElement('div');
+          hdr.className = 'flex justify-between items-center mb-3';
+          hdr.innerHTML = `<div class="font-semibold">${soc} <span class="text-sm text-gray-500">(${groups[soc].length})</span></div>`;
+          section.appendChild(hdr);
+
+          groups[soc].forEach(order => {
+            const statusObj = statusesCache.find(s => s.id === order.status_id);
+            const statusLabel = statusObj ? statusObj.status_name : 'Unknown';
+            const statusClass = getStatusClass(statusLabel);
+
+            const card = document.createElement('div');
+            card.className = 'order-card bg-gray-50 rounded p-3 mb-3';
+            card.innerHTML = `
+              <div class="flex justify-between items-start gap-3">
+                <div class="flex items-start gap-3">
+                  ${getOrderIconHTML(order)}
+                  <div>
+                    <h3 class="font-semibold">${order.customers?.name || 'N/A'}</h3>
+                    <p class="text-sm text-gray-600">Token: ${order.token_number || ''} • ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
+                    <p class="text-sm"><strong>Phone:</strong> <a href="tel:${order.customers?.phone_number || ''}" class="text-blue-600 underline">${order.customers?.phone_number || 'N/A'}</a></p>
+                    <p class="text-sm mt-1"><strong>Address:</strong> ${getFullAddress(order)}</p>
+                    <p class="text-sm mt-1"><strong>Total:</strong> ₹${(order.total_price||0).toFixed(2)}</p>
+                  </div>
+                </div>
+
+                <div class="text-right">
+                  <div class="mb-2"><span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></div>
+                  <div class="text-sm text-gray-600">${order.payment_status || 'Not Paid'}</div>
+                </div>
+              </div>
+            `;
+            section.appendChild(card);
+          });
+
+          container.appendChild(section);
+        });
+
+      } else { // delivered tab (Delivery Done)
         if (filteredDelivered.length === 0) {
-          container.innerHTML = '<p class="text-gray-500">No delivered orders yet.</p>';
+          container.innerHTML = '<p class="text-gray-500">No delivery-done orders yet.</p>';
           return;
         }
 
@@ -405,7 +487,6 @@
                 </div>
               </div>
             `;
-            // delivered entries are read-only
             section.appendChild(card);
           });
 
@@ -414,17 +495,16 @@
       }
     }
 
-    /* ------------------------
-       Modal for marking delivered
-       ------------------------ */
     function openModal(order) {
       const modal = document.getElementById("orderModal");
       const content = document.getElementById("modalContent");
       const statusObj = statusesCache.find(s => s.id === order.status_id);
       const statusLabel = statusObj ? statusObj.status_name : 'Unknown';
       const next = getNextStatus(order);
-      // allow marking delivered if currently OUT FOR DELIVERY or next is DELIVERED
+
       const allowDeliver = (statusLabel.toUpperCase() === "OUT FOR DELIVERY") || (next && next.status_name === "DELIVERED");
+      // allow marking picked up if order is NEW and home-milling
+      const allowPickUp = (statusLabel.toUpperCase() === "NEW" && order.order_type === "home-milling");
 
       const grainsHTML = Array.isArray(order.grain_details)
         ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
@@ -443,6 +523,12 @@
         ${grainsHTML}
         <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${getStatusClass(statusLabel)}">${statusLabel}</span></p>
 
+        ${allowPickUp ? `
+          <div class="mt-4">
+            <button onclick="markPickedUp('${order.id}')" class="mt-2 w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700">Mark as Picked Up</button>
+          </div>
+        ` : ''}
+
         ${allowDeliver ? `
           <div class="mt-4">
             <p class="font-medium mb-2">Payment Method (if marking Delivered):</p>
@@ -457,15 +543,17 @@
                 onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Cash
             </label>
             <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
+
+            <button onclick="updateOrderStatus('${order.id}', '${getStatusIdByName('DELIVERED')}')"
+              class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+              Mark as Delivered
+            </button>
           </div>
-          <button onclick="updateOrderStatus('${order.id}', '${getStatusIdByName('DELIVERED')}')"
-            class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-            Mark as Delivered
-          </button>
-        ` : `
-          <div class="mt-4 text-sm text-gray-500">This order cannot be updated from this screen.</div>
-        `}
+        ` : ''}
+
+        ${(!allowDeliver && !allowPickUp) ? `<div class="mt-4 text-sm text-gray-500">This order cannot be updated from this screen.</div>` : ''}
       `;
+
       modal.classList.remove('hidden');
     }
     window.openModal = openModal;
@@ -473,9 +561,18 @@
     function closeModal() { document.getElementById('orderModal').classList.add('hidden'); }
     window.closeModal = closeModal;
 
-    /* ------------------------
-       Update status & payment helpers
-       ------------------------ */
+    async function markPickedUp(orderId) {
+      const pickedId = getStatusIdByName('PICKED UP');
+      if (!pickedId) {
+        alert('Could not resolve PICKED UP status id. Check statuses configuration.');
+        return;
+      }
+      await supabase.from('orders').update({ status_id: pickedId }).eq('id', orderId);
+      closeModal();
+      await reloadOrders();
+    }
+    window.markPickedUp = markPickedUp;
+
     async function updateOrderStatus(orderId, newStatusId) {
       const nextStatus = statusesCache.find(s => s.id === newStatusId);
       if (!nextStatus) return;
@@ -511,26 +608,25 @@
     }
     window.savePaymentMethod = savePaymentMethod;
 
-    /* ------------------------
-       Tabs & init
-       ------------------------ */
-    document.getElementById('tabOpen').addEventListener('click', () => {
-      currentTab = 'open';
-      document.getElementById('tabOpen').classList.add('bg-blue-500','text-white');
-      document.getElementById('tabDelivered').classList.remove('bg-blue-500','text-white');
+    // Tab click handlers (set active class)
+    function setActiveTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabOpen').classList.toggle('active', tab === 'open');
+      document.getElementById('tabOpen').setAttribute('aria-selected', tab === 'open');
+      document.getElementById('tabPicked').classList.toggle('active', tab === 'picked');
+      document.getElementById('tabPicked').setAttribute('aria-selected', tab === 'picked');
+      document.getElementById('tabDelivered').classList.toggle('active', tab === 'delivered');
+      document.getElementById('tabDelivered').setAttribute('aria-selected', tab === 'delivered');
       reloadOrders();
-    });
-    document.getElementById('tabDelivered').addEventListener('click', () => {
-      currentTab = 'delivered';
-      document.getElementById('tabDelivered').classList.add('bg-blue-500','text-white');
-      document.getElementById('tabOpen').classList.remove('bg-blue-500','text-white');
-      reloadOrders();
-    });
+    }
+
+    document.getElementById('tabOpen').addEventListener('click', () => setActiveTab('open'));
+    document.getElementById('tabPicked').addEventListener('click', () => setActiveTab('picked'));
+    document.getElementById('tabDelivered').addEventListener('click', () => setActiveTab('delivered'));
 
     async function init() {
       statusFlows = await buildStatusFlows();
-      // initial tab style
-      if (currentTab === 'open') document.getElementById('tabOpen').classList.add('bg-blue-500','text-white');
+      // initial tab style already set in markup
       await reloadOrders();
     }
 
