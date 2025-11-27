@@ -131,50 +131,82 @@
     /* ------------------------
        Data fetching
        ------------------------ */
-    async function fetchOrdersFromDB() {
-      // Keep same join shape as your dashboard
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customers(name, phone_number, milling_preference, society, society_name, address, city, pincode),
-          order_statuses(status_name, sort_order, id)
-        `)
-        .order('created_at', { ascending: false });
+   async function fetchOrdersFromDB() {
+  // Request all customer columns to avoid "column does not exist" SQL errors
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      *,
+      customers(*),
+      order_statuses(status_name, sort_order, id)
+    `)
+    .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('fetchOrdersFromDB:', error);
-        return [];
-      }
-      return data || [];
-    }
+  if (error) {
+    console.error('fetchOrdersFromDB:', error);
+    return [];
+  }
+
+  // debug: log the first few customer objects so you can map fields
+  if (Array.isArray(data) && data.length > 0) {
+    console.log('DEBUG: sample customer object:', data[0].customers);
+  } else {
+    console.log('DEBUG: no orders returned from DB');
+  }
+
+  return data || [];
+}
 
     /* ------------------------
        Utilities: address & society detection
        ------------------------ */
-    function getFullAddress(order) {
-      const c = order.customers || {};
-      const parts = [];
-      if (c.address_line) parts.push(c.address_line);
-      if (c.address) {
-        if (typeof c.address === 'string') parts.push(c.address);
-        else {
-          if (c.address.line1) parts.push(c.address.line1);
-          if (c.address.locality) parts.push(c.address.locality);
-          if (c.address.city) parts.push(c.address.city);
-          if (c.address.state) parts.push(c.address.state);
-          if (c.address.pincode) parts.push(c.address.pincode);
-        }
-      }
-      if (c.city) parts.push(c.city);
-      if (c.pincode) parts.push(c.pincode);
-      return parts.filter(Boolean).join(', ') || 'Address not available';
-    }
+  function getFullAddress(order) {
+  const c = order.customers || {};
+  const parts = [];
 
-    function getSocietyName(order) {
-      const c = order.customers || {};
-      return c.society || c.society_name || (c.address && c.address.society) || (c.address && c.address.locality) || "Other";
+  // Known / common top-level fields
+  if (c.address_line) parts.push(c.address_line);
+  if (c.address) {
+    if (typeof c.address === 'string') {
+      parts.push(c.address);
+    } else if (typeof c.address === 'object') {
+      if (c.address.line1) parts.push(c.address.line1);
+      if (c.address.line2) parts.push(c.address.line2);
+      if (c.address.street) parts.push(c.address.street);
+      if (c.address.locality) parts.push(c.address.locality);
+      if (c.address.society) parts.push(c.address.society);
+      if (c.address.socity) parts.push(c.address.socity); // common typo
+      if (c.address.city) parts.push(c.address.city);
+      if (c.address.state) parts.push(c.address.state);
+      if (c.address.pincode) parts.push(c.address.pincode);
     }
+  }
+
+  // fallback top-level fields
+  if (c.street) parts.push(c.street);
+  if (c.city) parts.push(c.city);
+  if (c.state) parts.push(c.state);
+  if (c.pincode) parts.push(c.pincode);
+  if (c.zip) parts.push(c.zip);
+  if (c.postal_code) parts.push(c.postal_code);
+
+  // last resort: join whatever metadata exists
+  if (c.metadata && typeof c.metadata === 'object') {
+    if (c.metadata.address) parts.push(c.metadata.address);
+    if (c.metadata.locality) parts.push(c.metadata.locality);
+  }
+
+  return parts.filter(Boolean).join(', ') || 'Address not available';
+}
+
+function getSocietyName(order) {
+  const c = order.customers || {};
+  return c.society || c.society_name || c.societyId || c.society_id ||
+         (c.address && (c.address.society || c.address.locality || c.address.socity)) ||
+         (c.metadata && (c.metadata.society || c.metadata.locality)) ||
+         "Other";
+}
+
 
     /* ------------------------
        Render logic (grouped by society)
