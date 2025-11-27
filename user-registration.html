@@ -271,38 +271,103 @@ if ("serviceWorker" in navigator) {
       }
     };
 
+// Robust replacement for verifyStaffPassword()
+window.verifyStaffPassword = async function() {
+  const passwordInput = document.getElementById('staff-password').value;
+  const staffUser = window.currentStaffUser;
+  document.getElementById('password-error').innerText = "";
+
+  if (!passwordInput) {
+    document.getElementById('password-error').innerText = "Password cannot be empty.";
+    return;
+  }
+
+  // Keep identical behaviour for password check (plaintext in your current setup)
+  if (passwordInput === staffUser.password) {
+    document.getElementById('status').innerText = "Login successful! Redirecting...";
+
+    // Normalize role safely and log it so we can debug if redirect still fails
+    const rawRole = (staffUser.role ?? '').toString();
+    const role = rawRole.toLowerCase().trim();
+    console.log('Staff login:', { id: staffUser.id, phone: staffUser.phone_number, roleRaw: rawRole, roleNormalized: role });
+
+    // Save small UX-only marker
+    try {
+      const marker = {
+        id: staffUser.id || null,
+        phone: staffUser.phone_number || null,
+        role: role || null,
+        ts: new Date().toISOString()
+      };
+      localStorage.setItem('currentUser', JSON.stringify(marker));
+    } catch (e) {
+      console.warn('Could not set localStorage marker', e);
+    }
+
+    setTimeout(() => {
+      // Delivery variants we accept (add more if your DB uses different text)
+      const deliveryVariants = new Set(['delivery','deliver','delivered_partner','delivery_partner','del']);
+      if (role === 'admin') {
+        window.location.href = `Admin.html?phone=${encodeURIComponent(staffUser.phone_number)}`;
+      } else if (role === 'manager') {
+        window.location.href = `order-dashboard.html?phone=${encodeURIComponent(staffUser.phone_number)}`;
+      } else if (deliveryVariants.has(role) || role.includes('delivery')) {
+        // allow fuzzy match ("Delivery", " delivery ", "delivery_partner", etc.)
+        window.location.href = `delivery_partner.html?phone=${encodeURIComponent(staffUser.phone_number)}&role=delivery`;
+      } else {
+        // fallback - operator and others
+        window.location.href = `order-dashboard.html?phone=${encodeURIComponent(staffUser.phone_number)}`;
+      }
+    }, 900);
+
+  } else {
+    document.getElementById('password-error').innerText = "Incorrect password.";
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+    
     // ✅ Verify staff login
-    window.verifyStaffPassword = async function() {
-    const passwordInput = document.getElementById('staff-password').value;
-    const staffUser = window.currentStaffUser;
-    document.getElementById('password-error').innerText = "";
+  //   window.verifyStaffPassword = async function() {
+  //   const passwordInput = document.getElementById('staff-password').value;
+  //   const staffUser = window.currentStaffUser;
+  //   document.getElementById('password-error').innerText = "";
 
-    if (!passwordInput) {
-      document.getElementById('password-error').innerText = "Password cannot be empty.";
-      return;
-    }
+  //   if (!passwordInput) {
+  //     document.getElementById('password-error').innerText = "Password cannot be empty.";
+  //     return;
+  //   }
 
-    if (passwordInput === staffUser.password) {
-      document.getElementById('status').innerText = "Login successful! Redirecting...";
-      setTimeout(() => {
-        if (staffUser.role && staffUser.role.toLowerCase() === "admin") {
-          // ✅ Admin login → Admin.html
-          window.location.href = `Admin.html?phone=${staffUser.phone_number}`;
-        } else if (staffUser.role && staffUser.role.toLowerCase() === "manager") {
-          // ✅ Manager login → order-dashboard.html
-          window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-        } else if (staffUser.role && staffUser.role.toLowerCase() === "delivery") {
-          // ✅ Delivery partner login → delivery_partner.html
-          window.location.href = `delivery_partner.html?phone=${staffUser.phone_number}`; 
-        } else {
-          // ✅ Other staff roles (operator, delivery, etc.)
-          window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-        }
-      }, 1000);
-    } else {
-      document.getElementById('password-error').innerText = "Incorrect password.";
-    }
-  };
+  //   if (passwordInput === staffUser.password) {
+  //     document.getElementById('status').innerText = "Login successful! Redirecting...";
+  //     setTimeout(() => {
+  //       if (staffUser.role && staffUser.role.toLowerCase() === "admin") {
+  //         // ✅ Admin login → Admin.html
+  //         window.location.href = `Admin.html?phone=${staffUser.phone_number}`;
+  //       } else if (staffUser.role && staffUser.role.toLowerCase() === "manager") {
+  //         // ✅ Manager login → order-dashboard.html
+  //         window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
+  //       } else if (staffUser.role && staffUser.role.toLowerCase() === "delivery") {
+  //         // ✅ Delivery partner login → delivery_partner.html
+  //         window.location.href = `delivery_partner.html?phone=${staffUser.phone_number}`; 
+  //       } else {
+  //         // ✅ Other staff roles (operator, delivery, etc.)
+  //         window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
+  //       }
+  //     }, 1000);
+  //   } else {
+  //     document.getElementById('password-error').innerText = "Incorrect password.";
+  //   }
+  // };
 
     // ✅ Societies typeahead
     async function loadSocieties() {
