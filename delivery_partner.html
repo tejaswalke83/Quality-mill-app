@@ -110,7 +110,7 @@
     const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY;
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const PINWHEEL_URL = "https://openmoji.org/data/color/svg/269B.svg";
+    const PINWHEEL_URL = "https://openmoji.org/data/color/svg/1F33E.svg";
     const SCOOTER_URL = "https://openmoji.org/data/color/svg/1F6F5.svg";
 
     let statusesCache = [];
@@ -343,9 +343,17 @@
             const statusLabel = statusObj ? statusObj.status_name : 'Unknown';
             const statusClass = getStatusClass(statusLabel);
 
+            // create grains HTML (bulleted) similar to popup
+            const grainsHTML = Array.isArray(order.grain_details) ?
+              `<ul class="list-disc ml-6 text-sm text-gray-600">${order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('')}</ul>` : '';
+
+            const societyName = getSocietyName(order);
+            const flat = order.customers?.flat_number || order.customers?.flat || order.customers?.flatNo || order.customers?.flat_no || '';
+            const wing = order.customers?.wing || order.customers?.block || '';
+
             const card = document.createElement('div');
             card.className = 'order-card mb-3';
-            /* new layout: icon left, token right, name, phone/created row, total, footer (status + payment) */
+            /* new layout: icon left, token right, name, phone (line), date (next line), society+wing+flat, grains, total, footer (status + payment) */
             card.innerHTML = `
               <div class="flex items-start justify-between">
                 <div class="flex items-center gap-2">
@@ -361,10 +369,14 @@
                   <strong>Phone:</strong>
                   <a href="tel:${order.customers?.phone_number || ''}" class="text-blue-600 underline">${order.customers?.phone_number || 'N/A'}</a>
                 </div>
-                <div class="order-meta text-right">
-                  ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}
-                </div>
+                <div class="order-meta text-right"></div>
               </div>
+
+              <div class="order-meta mt-1">${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
+
+              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}${wing ? ' • Wing: ' + wing : ''}${flat ? ' • Flat: ' + flat : ''}</div>
+
+              ${grainsHTML}
 
               <div class="order-total">Total: ₹${(order.total_price||0).toFixed(2)}</div>
 
@@ -406,6 +418,13 @@
             const statusLabel = statusObj ? statusObj.status_name : 'Unknown';
             const statusClass = getStatusClass(statusLabel);
 
+            const grainsHTML = Array.isArray(order.grain_details) ?
+              `<ul class="list-disc ml-6 text-sm text-gray-600">${order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('')}</ul>` : '';
+
+            const societyName = getSocietyName(order);
+            const flat = order.customers?.flat_number || order.customers?.flat || order.customers?.flatNo || order.customers?.flat_no || '';
+            const wing = order.customers?.wing || order.customers?.block || '';
+
             const card = document.createElement('div');
             card.className = 'order-card mb-3';
             card.innerHTML = `
@@ -423,10 +442,14 @@
                   <strong>Phone:</strong>
                   <a href="tel:${order.customers?.phone_number || ''}" class="text-blue-600 underline">${order.customers?.phone_number || 'N/A'}</a>
                 </div>
-                <div class="order-meta text-right">
-                  ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}
-                </div>
+                <div class="order-meta text-right"></div>
               </div>
+
+              <div class="order-meta mt-1">${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
+
+              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}${wing ? ' • Wing: ' + wing : ''}${flat ? ' • Flat: ' + flat : ''}</div>
+
+              ${grainsHTML}
 
               <div class="order-total">Total: ₹${(order.total_price||0).toFixed(2)}</div>
 
@@ -467,6 +490,13 @@
             const statusLabel = statusObj ? statusObj.status_name : 'Unknown';
             const statusClass = getStatusClass(statusLabel);
 
+            const grainsHTML = Array.isArray(order.grain_details) ?
+              `<ul class="list-disc ml-6 text-sm text-gray-600">${order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('')}</ul>` : '';
+
+            const societyName = getSocietyName(order);
+            const flat = order.customers?.flat_number || order.customers?.flat || order.customers?.flatNo || order.customers?.flat_no || '';
+            const wing = order.customers?.wing || order.customers?.block || '';
+
             const card = document.createElement('div');
             card.className = 'order-card mb-3';
             card.innerHTML = `
@@ -484,10 +514,14 @@
                   <strong>Phone:</strong>
                   <a href="tel:${order.customers?.phone_number || ''}" class="text-blue-600 underline">${order.customers?.phone_number || 'N/A'}</a>
                 </div>
-                <div class="order-meta text-right">
-                  ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}
-                </div>
+                <div class="order-meta text-right"></div>
               </div>
+
+              <div class="order-meta mt-1">${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
+
+              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}${wing ? ' • Wing: ' + wing : ''}${flat ? ' • Flat: ' + flat : ''}</div>
+
+              ${grainsHTML}
 
               <div class="order-total">Total: ₹${(order.total_price||0).toFixed(2)}</div>
 
