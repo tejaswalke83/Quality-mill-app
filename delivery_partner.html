@@ -110,7 +110,7 @@
     const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY;
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const PINWHEEL_URL = "https://openmoji.org/data/color/svg/1F33E.svg";
+    const PINWHEEL_URL = "https://openmoji.org/data/color/svg/269B.svg";
     const SCOOTER_URL = "https://openmoji.org/data/color/svg/1F6F5.svg";
 
     let statusesCache = [];
@@ -353,7 +353,7 @@
 
             const card = document.createElement('div');
             card.className = 'order-card mb-3';
-            /* new layout: icon left, token right, name, phone (line), date (next line), society+wing+flat, grains, total, footer (status + payment) */
+            /* layout updated: token top-right, name, phone line, created line, society line, wing line, flat line, Grains label + list, total, footer */
             card.innerHTML = `
               <div class="flex items-start justify-between">
                 <div class="flex items-center gap-2">
@@ -374,8 +374,11 @@
 
               <div class="order-meta mt-1">${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
 
-              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}${wing ? ' • Wing: ' + wing : ''}${flat ? ' • Flat: ' + flat : ''}</div>
+              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}</div>
+              <div class="order-meta mt-1"><strong>Wing:</strong> ${wing || '-'}</div>
+              <div class="order-meta mt-1"><strong>Flat:</strong> ${flat || '-'}</div>
 
+              <div class="order-meta mt-2"><strong>Grains:</strong></div>
               ${grainsHTML}
 
               <div class="order-total">Total: ₹${(order.total_price||0).toFixed(2)}</div>
@@ -447,8 +450,11 @@
 
               <div class="order-meta mt-1">${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
 
-              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}${wing ? ' • Wing: ' + wing : ''}${flat ? ' • Flat: ' + flat : ''}</div>
+              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}</div>
+              <div class="order-meta mt-1"><strong>Wing:</strong> ${wing || '-'}</div>
+              <div class="order-meta mt-1"><strong>Flat:</strong> ${flat || '-'}</div>
 
+              <div class="order-meta mt-2"><strong>Grains:</strong></div>
               ${grainsHTML}
 
               <div class="order-total">Total: ₹${(order.total_price||0).toFixed(2)}</div>
@@ -519,8 +525,11 @@
 
               <div class="order-meta mt-1">${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
 
-              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}${wing ? ' • Wing: ' + wing : ''}${flat ? ' • Flat: ' + flat : ''}</div>
+              <div class="order-meta mt-1"><strong>Society:</strong> ${societyName}</div>
+              <div class="order-meta mt-1"><strong>Wing:</strong> ${wing || '-'}</div>
+              <div class="order-meta mt-1"><strong>Flat:</strong> ${flat || '-'}</div>
 
+              <div class="order-meta mt-2"><strong>Grains:</strong></div>
               ${grainsHTML}
 
               <div class="order-total">Total: ₹${(order.total_price||0).toFixed(2)}</div>
