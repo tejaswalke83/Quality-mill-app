@@ -35,6 +35,21 @@
         <span id="selection-summary-text" class="text-indigo-600"></span>
       </div>
 
+      <!-- Inline information message placed right after Order Type line (hidden by default) -->
+      <div id="delivery-info" class="mb-4" style="display:none;">
+        <div role="status" aria-live="polite" class="inline-flex items-start gap-3 rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-800">
+          <!-- small info icon (SVG) -->
+          <svg class="w-4 h-4 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M18 10A8 8 0 1 1 2 10a8 8 0 0 1 16 0zm-8-4a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm1 8a1 1 0 0 1-2 0v-4a1 1 0 0 1 2 0v4z" clip-rule="evenodd"/>
+          </svg>
+
+          <div class="leading-tight">
+            <span class="font-medium">Delivery timings:</span>
+            <span class="ml-1">7pm to 9pm every day — orders booked before 5pm will be delivered same day.</span>
+          </div>
+        </div>
+      </div>
+
       <hr class="my-4">
 
       <div id="order-rows" class="space-y-4"></div>
@@ -113,6 +128,7 @@
     const submitBtn = document.getElementById('submit-btn');
     const selectionSummaryEl = document.getElementById('selection-summary');
     const selectionSummaryTextEl = document.getElementById('selection-summary-text');
+    const deliveryInfoEl = document.getElementById('delivery-info');
 
     // ✅ Toast function
     function showToast(message, type = "success") {
@@ -163,6 +179,19 @@
         selectionSummaryEl.style.display = 'block';
       } else {
         selectionSummaryEl.style.display = 'none';
+      }
+
+      // Show delivery info ONLY when home delivery (reuse the same computed text)
+      try {
+        const lower = (txt || '').toLowerCase();
+        if (lower.includes('home')) {
+          deliveryInfoEl.style.display = 'block';
+        } else {
+          deliveryInfoEl.style.display = 'none';
+        }
+      } catch (e) {
+        // fallback: hide if anything goes wrong
+        deliveryInfoEl.style.display = 'none';
       }
     }
 
@@ -509,3 +538,4 @@
   </script>
 </body>
 </html>
+
