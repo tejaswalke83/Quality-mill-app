@@ -28,7 +28,7 @@
       </div>
 
       <!-- Inline information message placed right after Order Type line -->
-      <div id="delivery-info" class="mb-4">
+      <div id="delivery-info" class="mb-4" style="display:none;">
         <div role="status" aria-live="polite" class="inline-flex items-start gap-3 rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-800">
           <!-- small info icon (SVG) -->
           <svg class="w-4 h-4 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -145,12 +145,23 @@
       return serveAt.toLowerCase().includes('home') ? "Home delivery" : "At shop";
     }
 
-    function updateSelectionSummaryDisplay() {
-      const text = computeSelectionSummary();
-      const el = document.getElementById("selection-summary");
-      document.getElementById("selection-summary-text").textContent = text;
-      el.style.display = text ? "block" : "none";
-    }
+   function updateSelectionSummaryDisplay() {
+  const text = computeSelectionSummary();
+  const el = document.getElementById("selection-summary");
+  const infoBox = document.getElementById("delivery-info");
+
+  document.getElementById("selection-summary-text").textContent = text;
+  el.style.display = text ? "block" : "none";
+
+  // Show delivery info ONLY when home delivery
+  const lower = text.toLowerCase();
+  if (lower.includes("home")) {
+    infoBox.style.display = "block";
+  } else {
+    infoBox.style.display = "none";
+  }
+}
+
 
     async function loadUser() {
       const { data } = await supabase
