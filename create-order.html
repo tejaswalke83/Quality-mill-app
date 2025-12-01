@@ -327,6 +327,49 @@
       updateTotal();
     }
 
+    /**
+     * Helper: compute current total weight from orderRows
+     */
+    function computeTotalWeight() {
+      let totalWeight = 0;
+      [...orderRows.children].forEach(row => {
+        const qtyInput = row.querySelector('input');
+        const qty = parseFloat(qtyInput.value || 0);
+        if (!isNaN(qty) && qty > 0) totalWeight += qty;
+      });
+      return totalWeight;
+    }
+
+    /**
+     * Fetch per-kg delivery rate from your specific Configuration table:
+     *   public."Configuration" with config_key = 'delivery_per_kg'
+     * Returns numeric rate (e.g. 2) or null if not found/invalid.
+     *
+     * This function uses the exact table and column names you provided.
+     */
+    async function fetchPerKgRateFromConfig() {
+      try {
+        // NOTE: Supabase table names are case-sensitive if created with quotes.
+        // Use the exact table name 'Configuration' (no schema prefix in SDK call).
+        const { data, error } = await supabase
+          .from('Configuration')
+          .select('config_value')
+          .eq('config_key', 'delivery_per_kg')
+          .limit(1)
+          .maybeSingle();
+
+        // SDK returns { data, error } — handle defensively
+        const row = data ?? null;
+        if (!error && row && row.config_value != null) {
+          const v = Number(row.config_value);
+          if (!isNaN(v)) return v;
+        }
+      } catch (e) {
+        // ignore, return null below
+      }
+      return null;
+    }
+
     window.updateTotal = async function() {
       let grandTotal = 0;
 
@@ -451,11 +494,11 @@
 
     /**
      * Fetch delivery charge for current selection using the rule:
-     * - If serve_at === 'HomeService' -> lookup delivery_pricing.delivery_type = 'normal'
-     *   (try society-specific first, then global, then fallback any active 'normal')
-     * - Otherwise (ShopService) -> deliveryCharge = 0
+     * - If serve_at is not home -> deliveryCharge = 0
+     * - If totalWeight <= 5 kg -> use delivery_pricing lookup (existing logic)
+     * - If totalWeight > 5 kg -> use per-kg rate from Configuration table (config_key = 'delivery_per_kg')
      *
-     * NOTE: removed delivery-specific console.log statements per request.
+     * Note: This function preserves your original delivery_pricing lookup and fallback behaviour.
      */
     async function fetchDeliveryChargeForSelection() {
       const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
@@ -468,60 +511,124 @@
         return;
       }
 
+      // Compute total weight from rows
+      const totalWeight = computeTotalWeight(); // in kg
+
       const deliveryTypeKey = 'normal';
 
       try {
-        const societyId = user?.society_id || user?.society || null;
-        let foundPrice = null;
+        // If weight is <= 5 kg, preserve existing lookup behavior (society-specific -> global -> fallback)
+        if (totalWeight <= 5) {
+          const societyId = user?.society_id || user?.society || null;
+          let foundPrice = null;
 
-        // 1) Society-specific exact match
-        if (societyId) {
-          const { data: socData, error: socErr } = await supabase
-            .from('delivery_pricing')
-            .select('price')
-            .eq('delivery_type', deliveryTypeKey)
-            .eq('is_active', true)
-            .eq('society_id', societyId)
-            .limit(1)
-            .maybeSingle();
+          // 1) Society-specific exact match
+          if (societyId) {
+            const { data: socData, error: socErr } = await supabase
+              .from('delivery_pricing')
+              .select('price')
+              .eq('delivery_type', deliveryTypeKey)
+              .eq('is_active', true)
+              .eq('society_id', societyId)
+              .limit(1)
+              .maybeSingle();
 
-          if (!socErr && socData && socData.price != null) {
-            foundPrice = Number(socData.price);
+            if (!socErr && socData && socData.price != null) {
+              foundPrice = Number(socData.price);
+            }
+          }
+
+          // 2) Try global (society_id IS NULL)
+          if (foundPrice == null) {
+            const { data: globData, error: globErr } = await supabase
+              .from('delivery_pricing')
+              .select('price')
+              .eq('delivery_type', deliveryTypeKey)
+              .eq('is_active', true)
+              .is('society_id', null)
+              .limit(1)
+              .maybeSingle();
+
+            if (!globErr && globData && globData.price != null) {
+              foundPrice = Number(globData.price);
+            }
+          }
+
+          // 3) Fallback: any active 'normal' row (pick the first)
+          if (foundPrice == null) {
+            const { data: anyData, error: anyErr } = await supabase
+              .from('delivery_pricing')
+              .select('id, price, society_id, delivery_type, is_active')
+              .eq('delivery_type', deliveryTypeKey)
+              .eq('is_active', true)
+              .limit(1);
+
+            if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
+              foundPrice = Number(anyData[0].price);
+            }
+          }
+
+          deliveryCharge = foundPrice != null ? foundPrice : 0;
+        } else {
+          // weight > 5 kg: find per-kg rate from Configuration table (exact)
+          const perKgRate = await fetchPerKgRateFromConfig();
+
+          if (perKgRate != null && !isNaN(perKgRate)) {
+            // charge = per-kg * totalWeight
+            deliveryCharge = Number(perKgRate) * Number(totalWeight);
+          } else {
+            // fallback to original lookup if per-kg rate not found
+            const societyId = user?.society_id || user?.society || null;
+            let foundPrice = null;
+
+            if (societyId) {
+              const { data: socData, error: socErr } = await supabase
+                .from('delivery_pricing')
+                .select('price')
+                .eq('delivery_type', deliveryTypeKey)
+                .eq('is_active', true)
+                .eq('society_id', societyId)
+                .limit(1)
+                .maybeSingle();
+
+              if (!socErr && socData && socData.price != null) {
+                foundPrice = Number(socData.price);
+              }
+            }
+
+            if (foundPrice == null) {
+              const { data: globData, error: globErr } = await supabase
+                .from('delivery_pricing')
+                .select('price')
+                .eq('delivery_type', deliveryTypeKey)
+                .eq('is_active', true)
+                .is('society_id', null)
+                .limit(1)
+                .maybeSingle();
+
+              if (!globErr && globData && globData.price != null) {
+                foundPrice = Number(globData.price);
+              }
+            }
+
+            if (foundPrice == null) {
+              const { data: anyData, error: anyErr } = await supabase
+                .from('delivery_pricing')
+                .select('id, price, society_id, delivery_type, is_active')
+                .eq('delivery_type', deliveryTypeKey)
+                .eq('is_active', true)
+                .limit(1);
+
+              if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
+                foundPrice = Number(anyData[0].price);
+              }
+            }
+
+            deliveryCharge = foundPrice != null ? foundPrice : 0;
           }
         }
-
-        // 2) Try global (society_id IS NULL)
-        if (foundPrice == null) {
-          const { data: globData, error: globErr } = await supabase
-            .from('delivery_pricing')
-            .select('price')
-            .eq('delivery_type', deliveryTypeKey)
-            .eq('is_active', true)
-            .is('society_id', null)
-            .limit(1)
-            .maybeSingle();
-
-          if (!globErr && globData && globData.price != null) {
-            foundPrice = Number(globData.price);
-          }
-        }
-
-        // 3) Fallback: any active 'normal' row (pick the first)
-        if (foundPrice == null) {
-          const { data: anyData, error: anyErr } = await supabase
-            .from('delivery_pricing')
-            .select('id, price, society_id, delivery_type, is_active')
-            .eq('delivery_type', deliveryTypeKey)
-            .eq('is_active', true)
-            .limit(1);
-
-          if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
-            foundPrice = Number(anyData[0].price);
-          }
-        }
-
-        deliveryCharge = foundPrice != null ? foundPrice : 0;
       } catch (err) {
+        // on any error, fallback to zero
         deliveryCharge = 0;
       }
 
@@ -538,4 +645,5 @@
   </script>
 </body>
 </html>
+
 
