@@ -349,26 +349,93 @@
   let refreshTimer = null;
 
   // WebAudio chime
-  function playChime() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'sine';
-      o.frequency.value = 880;
-      g.gain.value = 0;
-      o.connect(g);
-      g.connect(ctx.destination);
-      const now = ctx.currentTime;
-      g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.12, now + 0.01);
-      o.start(now);
-      o.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-      o.stop(now + 0.55);
-      setTimeout(()=>{ try{ ctx.close(); }catch(e){} }, 800);
-    } catch (e) { console.warn('Audio failed', e); }
+    // Replace existing playChime() with this function
+function playChime() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return; // Audio API not supported
+
+    const ctx = new Ctx();
+
+    // Helper: create a bell-like tone
+    function playBell(freq, startOffset) {
+      // Oscillator + high-frequency partial for "metallic" tone
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const modalFilter = ctx.createBiquadFilter();
+
+      // oscillator waveforms
+      osc1.type = 'sine';           // fundamental
+      osc2.type = 'triangle';       // adds metallic overtone
+
+      osc1.frequency.value = freq;
+      osc2.frequency.value = freq * 2.01; // slight detune for shimmer
+
+      // band-pass to make it bell-like
+      modalFilter.type = 'bandpass';
+      modalFilter.frequency.value = Math.max(800, freq * 1.5);
+      modalFilter.Q.value = 6;
+
+      // connect chain: oscillators -> filter -> gain -> destination
+      osc1.connect(modalFilter);
+      osc2.connect(modalFilter);
+      modalFilter.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime + startOffset;
+
+      // amplitude envelope: fast attack, exponential decay
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.65);
+
+      // slight pitch glide for realism
+      osc1.frequency.setValueAtTime(freq * 1.01, now);
+      osc1.frequency.exponentialRampToValueAtTime(freq, now + 0.12);
+
+      // start / stop
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.85);
+      osc2.stop(now + 0.85);
+    }
+
+    // Play two dings: first now, second 260ms later (pleasant spacing)
+    playBell(880, 0.0);    // A5-ish
+    playBell(1046, 0.26);  // C6-ish - slightly higher second ding
+
+    // close the audio context after sounds finish
+    setTimeout(() => {
+      try { ctx.close(); } catch (e) { /* ignore */ }
+    }, 1200);
+
+  } catch (err) {
+    // fail silently if audio blocked/unavailable
+    console.warn('Bell chime failed:', err);
   }
+}
+
+  // function playChime() {
+  //   try {
+  //     const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  //     const o = ctx.createOscillator();
+  //     const g = ctx.createGain();
+  //     o.type = 'sine';
+  //     o.frequency.value = 880;
+  //     g.gain.value = 0;
+  //     o.connect(g);
+  //     g.connect(ctx.destination);
+  //     const now = ctx.currentTime;
+  //     g.gain.setValueAtTime(0, now);
+  //     g.gain.linearRampToValueAtTime(0.12, now + 0.01);
+  //     o.start(now);
+  //     o.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+  //     g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  //     o.stop(now + 0.55);
+  //     setTimeout(()=>{ try{ ctx.close(); }catch(e){} }, 800);
+  //   } catch (e) { console.warn('Audio failed', e); }
+  // }
 
   function formatTime(ts) {
     try { return new Date(ts).toLocaleString(); } catch(e) { return new Date().toLocaleString(); }
