@@ -640,12 +640,44 @@
 
       if (!archivedId) {
         // create ARCHIVED status
-        const { data: newArch, error: createErr } = await supabase
-          .from('order_statuses')
-          .insert([{ status_name: 'ARCHIVED' }])
-          .select('id')
-          .limit(1)
-          .maybeSingle();
+    // create ARCHIVED status (safe: compute next sort_order from existing rows)
+try {
+  // find current max sort_order (get highest sort_order row)
+  const { data: maxRow, error: maxErr } = await supabase
+    .from('order_statuses')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (maxErr) throw maxErr;
+
+  const currentMaxSort = (maxRow && typeof maxRow.sort_order === 'number') ? maxRow.sort_order : 0;
+  const nextSortOrder = currentMaxSort + 1;
+
+  const { data: newArch, error: createErr } = await supabase
+    .from('order_statuses')
+    .insert([{ status_name: 'ARCHIVED', sort_order: nextSortOrder }])
+    .select('id')
+    .limit(1)
+    .maybeSingle();
+
+  if (createErr) {
+    console.error('Failed to create ARCHIVED status', createErr);
+    showAdminToast('Failed to create ARCHIVED status. See console.');
+    return;
+  }
+  archivedId = newArch?.id;
+  if (!archivedId) {
+    showAdminToast('Could not determine ARCHIVED status id. Aborting.');
+    return;
+  }
+} catch (e) {
+  console.error('Error creating ARCHIVED status (with sort_order):', e);
+  showAdminToast('Failed to create ARCHIVED status. See console.');
+  return;
+}
+
 
         if (createErr) {
           console.error('Failed to create ARCHIVED status', createErr);
