@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>New Order</title>
+  <title>New Order (Buy Grains)</title>
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -123,6 +123,9 @@
     const toast = document.getElementById("toast");
     const deliveryRowEl = document.getElementById("delivery-row");
     const deliveryCostEl = document.getElementById("delivery-cost");
+    const selectionSummaryEl = document.getElementById("selection-summary");
+    const selectionSummaryTextEl = document.getElementById("selection-summary-text");
+    const deliveryInfoEl = document.getElementById("delivery-info");
 
     function showToast(message, type = "success") {
       toast.textContent = message;
@@ -145,23 +148,22 @@
       return serveAt.toLowerCase().includes('home') ? "Home delivery" : "At shop";
     }
 
-   function updateSelectionSummaryDisplay() {
-  const text = computeSelectionSummary();
-  const el = document.getElementById("selection-summary");
-  const infoBox = document.getElementById("delivery-info");
+    function updateSelectionSummaryDisplay() {
+      const text = computeSelectionSummary();
+      const el = document.getElementById("selection-summary");
+      const infoBox = document.getElementById("delivery-info");
 
-  document.getElementById("selection-summary-text").textContent = text;
-  el.style.display = text ? "block" : "none";
+      document.getElementById("selection-summary-text").textContent = text;
+      el.style.display = text ? "block" : "none";
 
-  // Show delivery info ONLY when home delivery
-  const lower = text.toLowerCase();
-  if (lower.includes("home")) {
-    infoBox.style.display = "block";
-  } else {
-    infoBox.style.display = "none";
-  }
-}
-
+      // Show delivery info ONLY when home delivery
+      const lower = text.toLowerCase();
+      if (lower.includes("home")) {
+        infoBox.style.display = "block";
+      } else {
+        infoBox.style.display = "none";
+      }
+    }
 
     async function loadUser() {
       const { data } = await supabase
@@ -253,12 +255,39 @@
       millingTotalEl.textContent = Math.round(millingTotal);
       totalPriceEl.textContent = Math.round(totalPrice);
 
+      // compute delivery charge using totalPrice and totalQty (weight)
       updateDeliveryCharge(totalPrice);
+    }
+
+    /**
+     * Fetch per-kg delivery rate from your Configuration table:
+     * public."Configuration" with config_key = 'delivery_per_kg'
+     * Returns numeric rate (e.g. 2) or null if not found/invalid.
+     */
+    async function fetchPerKgRateFromConfig() {
+      try {
+        const { data, error } = await supabase
+          .from('Configuration')
+          .select('config_value')
+          .eq('config_key', 'delivery_per_kg')
+          .limit(1)
+          .maybeSingle();
+
+        const row = data ?? null;
+        if (!error && row && row.config_value != null) {
+          const v = Number(row.config_value);
+          if (!isNaN(v)) return v;
+        }
+      } catch (e) {
+        // ignore
+      }
+      return null;
     }
 
     async function updateDeliveryCharge(subtotal) {
       const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
 
+      // if not home delivery, keep existing behaviour: no delivery
       if (!serveAt.includes('home')) {
         deliveryCharge = 0;
         deliveryRowEl.style.display = 'none';
@@ -267,49 +296,118 @@
         return;
       }
 
-      let foundPrice = 0;
-      const societyId = user?.society_id || null;
+      // compute total weight from rows (kg)
+      let totalWeight = 0;
+      [...orderRows.querySelectorAll(".p-3")].forEach(row => {
+        const check = row.querySelector(".grain-check");
+        const qtyInput = row.querySelector(".grain-qty");
+        if (check.checked && qtyInput.value) {
+          const q = parseFloat(qtyInput.value) || 0;
+          totalWeight += q;
+        }
+      });
 
-      // 1) Society specific
-      if (societyId) {
-        const { data } = await supabase
-          .from("delivery_pricing")
-          .select("price")
-          .eq("delivery_type", "normal")
-          .eq("is_active", true)
-          .eq("society_id", societyId)
-          .maybeSingle();
+      const deliveryTypeKey = 'normal';
+      let foundPrice = null;
 
-        if (data?.price != null) foundPrice = Number(data.price);
+      try {
+        // If totalWeight <= 5 kg -> use existing delivery_pricing lookup
+        if (totalWeight <= 5) {
+          const societyId = user?.society_id || null;
+
+          // 1) Society specific
+          if (societyId) {
+            const { data } = await supabase
+              .from("delivery_pricing")
+              .select("price")
+              .eq("delivery_type", deliveryTypeKey)
+              .eq("is_active", true)
+              .eq("society_id", societyId)
+              .maybeSingle();
+
+            if (data?.price != null) foundPrice = Number(data.price);
+          }
+
+          // 2) Global (society_id IS NULL)
+          if (foundPrice == null) {
+            const { data } = await supabase
+              .from("delivery_pricing")
+              .select("price")
+              .eq("delivery_type", deliveryTypeKey)
+              .eq("is_active", true)
+              .is("society_id", null)
+              .maybeSingle();
+
+            if (data?.price != null) foundPrice = Number(data.price);
+          }
+
+          // 3) Fallback
+          if (foundPrice == null) {
+            const { data } = await supabase
+              .from("delivery_pricing")
+              .select("price")
+              .eq("delivery_type", deliveryTypeKey)
+              .eq("is_active", true)
+              .limit(1);
+
+            if (data?.[0]?.price != null) foundPrice = Number(data[0].price);
+          }
+
+          deliveryCharge = foundPrice || 0;
+        } else {
+          // totalWeight > 5 kg -> use per-kg rate from Configuration table
+          const perKg = await fetchPerKgRateFromConfig();
+
+          if (perKg != null && !isNaN(perKg)) {
+            deliveryCharge = Number(perKg) * Number(totalWeight);
+          } else {
+            // fallback to existing lookup if config not found
+            const societyId = user?.society_id || null;
+
+            if (societyId) {
+              const { data } = await supabase
+                .from("delivery_pricing")
+                .select("price")
+                .eq("delivery_type", deliveryTypeKey)
+                .eq("is_active", true)
+                .eq("society_id", societyId)
+                .maybeSingle();
+
+              if (data?.price != null) foundPrice = Number(data.price);
+            }
+
+            if (foundPrice == null) {
+              const { data } = await supabase
+                .from("delivery_pricing")
+                .select("price")
+                .eq("delivery_type", deliveryTypeKey)
+                .eq("is_active", true)
+                .is("society_id", null)
+                .maybeSingle();
+
+              if (data?.price != null) foundPrice = Number(data.price);
+            }
+
+            if (foundPrice == null) {
+              const { data } = await supabase
+                .from("delivery_pricing")
+                .select("price")
+                .eq("delivery_type", deliveryTypeKey)
+                .eq("is_active", true)
+                .limit(1);
+
+              if (data?.[0]?.price != null) foundPrice = Number(data[0].price);
+            }
+
+            deliveryCharge = foundPrice || 0;
+          }
+        }
+      } catch (err) {
+        // on error fallback to zero
+        deliveryCharge = 0;
       }
 
-      // 2) Global
-      if (!foundPrice) {
-        const { data } = await supabase
-          .from("delivery_pricing")
-          .select("price")
-          .eq("delivery_type", "normal")
-          .eq("is_active", true)
-          .is("society_id", null)
-          .maybeSingle();
-
-        if (data?.price != null) foundPrice = Number(data.price);
-      }
-
-      // 3) Fallback
-      if (!foundPrice) {
-        const { data } = await supabase
-          .from("delivery_pricing")
-          .select("price")
-          .eq("delivery_type", "normal")
-          .eq("is_active", true)
-          .limit(1);
-
-        if (data?.[0]?.price != null) foundPrice = Number(data[0].price);
-      }
-
-      deliveryCharge = foundPrice || 0;
-
+      // Update UI
       if (deliveryCharge > 0) {
         deliveryRowEl.style.display = 'flex';
         deliveryCostEl.textContent = deliveryCharge;
@@ -318,7 +416,8 @@
         deliveryCostEl.textContent = 0;
       }
 
-      grandTotalEl.textContent = Math.round(subtotal + deliveryCharge);
+      // update grand total
+      grandTotalEl.textContent = Math.round(subtotal + (deliveryCharge || 0));
     }
 
     window.submitOrder = async function () {
@@ -421,4 +520,3 @@
   </script>
 </body>
 </html>
-
