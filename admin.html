@@ -623,44 +623,50 @@ async function archiveOldDeliveredOrders() {
     let archivedId = existing?.id || null;
 
     // 2️⃣ Step 2: If ARCHIVED does NOT exist → create it safely
-    if (!archivedId) {
-      try {
-        // Find max sort_order
-        const { data: maxRow, error: maxErr } = await supabase
-          .from("order_statuses")
-          .select("sort_order")
-          .order("sort_order", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+   // ---------- CREATE ARCHIVED STATUS IF NOT EXISTS ----------
+if (!archivedId) {
+  try {
+    console.log("ARCHIVED status does not exist. Creating it...");
 
-        if (maxErr) throw maxErr;
+    // find current max sort_order (fallback = 0)
+    const { data: maxRow, error: maxErr } = await supabase
+      .from("order_statuses")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-        const currentMax = (maxRow && typeof maxRow.sort_order === "number")
-          ? maxRow.sort_order
-          : 0;
+    if (maxErr) throw maxErr;
 
-        const nextSortOrder = currentMax + 1;
+    const currentMax = (maxRow && typeof maxRow.sort_order === "number")
+      ? maxRow.sort_order
+      : 0;
 
-        // Insert ARCHIVED status with required sort_order
-        const { data: newArch, error: insertErr } = await supabase
-          .from("order_statuses")
-          .insert([{ status_name: "ARCHIVED", sort_order: nextSortOrder }])
-          .select("id")
-          .limit(1)
-          .maybeSingle();
+    const nextSort = currentMax + 1;
 
-        if (insertErr) throw insertErr;
+    // insert ARCHIVED
+    const { data: newStatus, error: insertErr } = await supabase
+      .from("order_statuses")
+      .insert([{ status_name: "ARCHIVED", sort_order: nextSort }])
+      .select("id")
+      .maybeSingle();
 
-        archivedId = newArch?.id;
+    if (insertErr) throw insertErr;
 
-        if (!archivedId) throw new Error("ARCHIVED insert returned no id");
-      } catch (e) {
-        console.error("Error creating ARCHIVED status:", e);
-        showAdminToast("Failed to create ARCHIVED status.");
-        if (btn) { btn.disabled = false; btn.textContent = originalText; }
-        return;
-      }
+    if (!newStatus?.id) {
+      throw new Error("ARCHIVED insert returned no id.");
     }
+
+    archivedId = newStatus.id; // assign for later update
+    console.log("ARCHIVED status created with ID:", archivedId);
+
+  } catch (e) {
+    console.error("Failed creating ARCHIVED status:", e);
+    showAdminToast("Failed to create ARCHIVED status.");
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    return;
+  }
+}
 
     // 3️⃣ Step 3: Find delivered orders > 3 days old
     const threeDaysAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
