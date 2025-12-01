@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>New Order (Buy Grains)</title>
+  <title>New Order</title>
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -11,88 +11,109 @@
 
   <style>
     body { font-family: "Inter", system-ui, sans-serif; }
+    /* Make header compact */
+    .page-header { padding: 6px 0; margin-bottom: 8px; }
+    .user-card { font-size: 13px; }
+    .summary-card { font-size: 13px; }
+    /* Hide large outer white card look by keeping separate cards */
+    .outer-card { background: transparent; box-shadow: none; padding: 0; }
+    /* Hide visible grand total row, keep hidden element available for logic */
+    .grand-total-row { display: none; }
   </style>
   <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen p-4">
-  <div class="max-w-3xl mx-auto">
-    <div class="bg-white shadow-md rounded-xl p-6">
-      <h2 class="text-2xl font-bold mb-4">New Order (Buy Grains)</h2>
+  <div class="max-w-3xl mx-auto outer-card">
 
-      <div id="user-info" class="mb-4 text-gray-700"></div>
+    <!-- Small header -->
+    <header class="page-header">
+      <h2 class="text-lg font-semibold">New Order</h2>
+    </header>
 
-      <!-- Order Type Summary (added back as requested) -->
-      <div id="selection-summary" class="mb-4 text-sm text-gray-700 hidden">
-        <strong class="text-gray-800">Order Type: </strong>
-        <span id="selection-summary-text" class="text-indigo-600"></span>
+    <!-- USER CARD (compact) -->
+    <section id="user-info" class="bg-white rounded-xl p-4 mb-4 user-card border">
+      <!-- Will be populated by loadUser() with masked view and data-raw attributes -->
+      <div class="space-y-1">
+        <div><strong class="text-sm">Name:</strong> <span id="ui-name" data-raw=""></span></div>
+        <div><strong class="text-sm">Mobile:</strong> <span id="ui-mobile" data-raw=""></span></div>
+        <div><strong class="text-sm">Flat / Wing:</strong> <span id="ui-flat" data-raw=""></span></div>
+        <div><strong class="text-sm">Society:</strong> <span id="ui-society" data-raw=""></span></div>
+      </div>
+    </section>
+
+    <!-- Order Type Summary (moved below header as in original) -->
+    <div id="selection-summary" class="mb-3 text-sm hidden">
+      <strong class="text-sm">Order Type:</strong>
+      <span id="selection-summary-text" class="text-indigo-600"></span>
+    </div>
+
+    <!-- Inline info -->
+    <div id="delivery-info" class="mb-3" style="display:none;">
+      <div role="status" aria-live="polite" class="inline-flex items-start gap-3 rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-800">
+        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M18 10A8 8 0 1 1 2 10a8 8 0 0 1 16 0zm-8-4a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm1 8a1 1 0 0 1-2 0v-4a1 1 0 0 1 2 0v4z" clip-rule="evenodd"/>
+        </svg>
+        <div class="leading-tight">
+          <span class="font-medium">Delivery timings:</span>
+          <span class="ml-1">7pm to 9pm every day — orders booked before 5pm will be delivered same day.</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="my-3">
+
+    <!-- ORDER ROWS (grains): your loadGrains() will append rows here as before -->
+    <div id="order-rows" class="space-y-4 mb-4"></div>
+
+    <!-- Order Summary (separate card) -->
+    <div class="bg-white p-4 rounded-lg mb-4 summary-card border">
+      <h3 class="font-semibold mb-1 text-sm">Order Summary</h3>
+      <p class="text-xs text-gray-500 mb-2">*Values are rounded off to the nearest number</p>
+
+      <div class="flex justify-between text-gray-600 text-sm">
+        <span>Selected Items</span>
+        <span id="total-items">0</span>
+      </div>
+      <div class="flex justify-between text-gray-600 text-sm">
+        <span>Total Quantity</span>
+        <span id="total-qty">0 kg</span>
+      </div>
+      <div class="flex justify-between text-gray-600 text-sm">
+        <span>Milling Charges</span>
+        <span>₹<span id="milling-total">0</span></span>
       </div>
 
-      <!-- Inline information message placed right after Order Type line -->
-      <div id="delivery-info" class="mb-4" style="display:none;">
-        <div role="status" aria-live="polite" class="inline-flex items-start gap-3 rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-800">
-          <!-- small info icon (SVG) -->
-          <svg class="w-4 h-4 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M18 10A8 8 0 1 1 2 10a8 8 0 0 1 16 0zm-8-4a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm1 8a1 1 0 0 1-2 0v-4a1 1 0 0 1 2 0v4z" clip-rule="evenodd"/>
-          </svg>
-
-          <div class="leading-tight">
-            <span class="font-medium">Delivery timings:</span>
-            <span class="ml-1">7pm to 9pm every day — orders booked before 5pm will be delivered same day.</span>
-          </div>
-        </div>
+      <!-- Delivery Charges (NEW) -->
+      <div id="delivery-row" class="flex justify-between text-gray-600 text-sm" style="display:none;">
+        <span>Delivery Charges</span>
+        <span>₹<span id="delivery-cost">0</span></span>
       </div>
 
-      <hr class="my-4">
+      <!-- Visible Total Price (this will now include delivery charge i.e. grand total) -->
+      <div class="flex justify-between font-bold text-base border-t pt-2 mt-2">
+        <span>Total Price</span>
+        <span>₹<span id="total-price">0</span></span>
+      </div>
 
-      <div id="order-rows" class="space-y-4"></div>
-
-      <!-- Totals -->
-      <div class="bg-gray-50 p-4 rounded-lg mb-4">
-        <h3 class="font-semibold mb-1">Order Summary</h3>
-        <p class="text-xs text-gray-500 mb-2">*Values are rounded off to the nearest number</p>
-
-        <div class="flex justify-between text-gray-600">
-          <span>Selected Items</span>
-          <span id="total-items">0</span>
-        </div>
-        <div class="flex justify-between text-gray-600">
-          <span>Total Quantity</span>
-          <span id="total-qty">0 kg</span>
-        </div>
-        <div class="flex justify-between text-gray-600">
-          <span>Milling Charges</span>
-          <span>₹<span id="milling-total">0</span></span>
-        </div>
-
-        <!-- Delivery Charges (NEW) -->
-        <div id="delivery-row" class="flex justify-between text-gray-600" style="display:none;">
-          <span>Delivery Charges</span>
-          <span>₹<span id="delivery-cost">0</span></span>
-        </div>
-
-        <div class="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-          <span>Total Price</span>
-          <span>₹<span id="total-price">0</span></span>
-        </div>
-
-        <!-- NEW Grand Total row -->
+      <!-- Kept for business logic but hidden from UI -->
+      <div class="grand-total-row">
         <div class="flex justify-between font-bold text-lg border-t pt-2 mt-3">
           <span>Grand Total</span>
           <span>₹<span id="grand-total">0</span></span>
         </div>
       </div>
-
-      <div class="flex space-x-3">
-        <button id="submit-btn" onclick="submitOrder()" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">
-          Create Order
-        </button>
-
-        <!-- CANCEL → BACK -->
-        <button onclick="history.back()" class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100">
-          Back
-        </button>
-      </div>
     </div>
+
+    <div class="flex space-x-3">
+      <button id="submit-btn" onclick="submitOrder()" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">
+        Create Order
+      </button>
+
+      <button onclick="history.back()" class="flex-1 border border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-100">
+        Back
+      </button>
+    </div>
+
   </div>
 
   <!-- Toast -->
@@ -119,7 +140,7 @@
     const totalQtyEl = document.getElementById("total-qty");
     const millingTotalEl = document.getElementById("milling-total");
     const totalPriceEl = document.getElementById("total-price");
-    const grandTotalEl = document.getElementById("grand-total");
+    const grandTotalEl = document.getElementById("grand-total"); // kept for logic
     const toast = document.getElementById("toast");
     const deliveryRowEl = document.getElementById("delivery-row");
     const deliveryCostEl = document.getElementById("delivery-cost");
@@ -165,6 +186,19 @@
       }
     }
 
+    /* Masking utility used for user display only (raw value preserved in data-raw attribute) */
+    function maskValue(value, left = 1, right = 1) {
+      if (!value) return '';
+      const s = String(value);
+      if (s.length <= left + right + 2) {
+        return s.slice(0, left) + '*'.repeat(Math.max(2, s.length - left));
+      }
+      const leftPart = s.slice(0, left);
+      const rightPart = s.slice(s.length - right);
+      const mid = '*'.repeat(Math.max(3, s.length - left - right));
+      return leftPart + mid + rightPart;
+    }
+
     async function loadUser() {
       const { data } = await supabase
         .from("customers")
@@ -173,12 +207,28 @@
         .maybeSingle();
 
       user = data;
-      document.getElementById("user-info").innerHTML = `
-        <p><strong>Name:</strong> ${user?.name || ''}</p>
-        <p><strong>Mobile:</strong> ${user?.phone_number || ''}</p>
-        <p><strong>Flat:</strong> ${user?.flat_number || ''}, ${user?.wing || ''}</p>
-        <p><strong>Society:</strong> ${user?.society_name || ''}</p>
-      `;
+
+      // Preserve raw values in data-raw and show masked values to user
+      const uiName = document.getElementById('ui-name');
+      const uiMobile = document.getElementById('ui-mobile');
+      const uiFlat = document.getElementById('ui-flat');
+      const uiSociety = document.getElementById('ui-society');
+
+      const rawName = user?.name || '';
+      const rawPhone = user?.phone_number || '';
+      const rawFlat = `${user?.flat_number || ''}${user?.wing ? ', ' + user.wing : ''}`.trim();
+      const rawSociety = user?.society_name || '';
+
+      uiName.setAttribute('data-raw', rawName);
+      uiMobile.setAttribute('data-raw', rawPhone);
+      uiFlat.setAttribute('data-raw', rawFlat);
+      uiSociety.setAttribute('data-raw', rawSociety);
+
+      // Display masked versions (few chars + stars)
+      uiName.textContent = maskValue(rawName, 1, 1);
+      uiMobile.textContent = maskValue(rawPhone, 2, 2);
+      uiFlat.textContent = maskValue(rawFlat, 1, 1);
+      uiSociety.textContent = maskValue(rawSociety, 1, 1);
 
       updateSelectionSummaryDisplay();
     }
@@ -253,6 +303,8 @@
       totalItemsEl.textContent = totalItems;
       totalQtyEl.textContent = totalQty;
       millingTotalEl.textContent = Math.round(millingTotal);
+
+      // Set visible total to subtotal for now; updateDeliveryCharge will add delivery and set final visible total
       totalPriceEl.textContent = Math.round(totalPrice);
 
       // compute delivery charge using totalPrice and totalQty (weight)
@@ -292,7 +344,10 @@
         deliveryCharge = 0;
         deliveryRowEl.style.display = 'none';
         deliveryCostEl.textContent = `0`;
-        grandTotalEl.textContent = Math.round(subtotal);
+
+        // update visible total price to be the final amount (no delivery)
+        totalPriceEl.textContent = Math.round(subtotal);
+        grandTotalEl.textContent = Math.round(subtotal); // preserve for logic
         return;
       }
 
@@ -311,11 +366,9 @@
       let foundPrice = null;
 
       try {
-        // If totalWeight <= 5 kg -> use existing delivery_pricing lookup
         if (totalWeight <= 5) {
           const societyId = user?.society_id || null;
 
-          // 1) Society specific
           if (societyId) {
             const { data } = await supabase
               .from("delivery_pricing")
@@ -328,7 +381,6 @@
             if (data?.price != null) foundPrice = Number(data.price);
           }
 
-          // 2) Global (society_id IS NULL)
           if (foundPrice == null) {
             const { data } = await supabase
               .from("delivery_pricing")
@@ -341,7 +393,6 @@
             if (data?.price != null) foundPrice = Number(data.price);
           }
 
-          // 3) Fallback
           if (foundPrice == null) {
             const { data } = await supabase
               .from("delivery_pricing")
@@ -355,13 +406,11 @@
 
           deliveryCharge = foundPrice || 0;
         } else {
-          // totalWeight > 5 kg -> use per-kg rate from Configuration table
           const perKg = await fetchPerKgRateFromConfig();
 
           if (perKg != null && !isNaN(perKg)) {
             deliveryCharge = Number(perKg) * Number(totalWeight);
           } else {
-            // fallback to existing lookup if config not found
             const societyId = user?.society_id || null;
 
             if (societyId) {
@@ -403,7 +452,6 @@
           }
         }
       } catch (err) {
-        // on error fallback to zero
         deliveryCharge = 0;
       }
 
@@ -416,8 +464,10 @@
         deliveryCostEl.textContent = 0;
       }
 
-      // update grand total
-      grandTotalEl.textContent = Math.round(subtotal + (deliveryCharge || 0));
+      // update grand total (kept hidden) and show final amount in visible Total Price
+      const final = Math.round(subtotal + (deliveryCharge || 0));
+      grandTotalEl.textContent = final;      // kept for your submit logic
+      totalPriceEl.textContent = final;      // visible single total for user
     }
 
     window.submitOrder = async function () {
