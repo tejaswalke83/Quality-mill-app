@@ -663,7 +663,7 @@ async function archiveOldDeliveredOrders() {
     }
 
     // 3️⃣ Step 3: Find delivered orders > 3 days old
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const threeDaysAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: oldDelivered, error: fetchErr } = await supabase
       .from("orders")
