@@ -52,7 +52,31 @@
     .pricing .row .value { text-align:right; display:inline-block; min-width:100px; }
 
     /* Total row placed below delivery row and right aligned */
-    .pricing .total-row { margin-top: 8px; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 10px; display:flex; justify-content:flex-end; }
+    /* Total row placed below delivery row: label left, value right */
+.pricing .total-row {
+  margin-top: 8px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ensure label is left-aligned and value is right-aligned with a minimum width */
+.pricing .total-row .label {
+  text-align: left;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.pricing .total-row .total {
+  text-align: right;
+  min-width: 120px; /* gives room for the number to align right */
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+}
 
     /* Make Order Type value black (left-hand as requested) */
     #selection-summary { display:block; }
@@ -140,14 +164,12 @@
         <span id="delivery-cost" class="value">₹0</span>
       </div>
 
-      <!-- Actual total: right aligned and placed below delivery charge -->
-      <div class="total-row">
-        <div style="min-width:160px; text-align:left;">
-          <div class="label">Total</div>
-          <div id="total-price" class="total">₹0</div>
-        </div>
-      </div>
-    </div>
+     <!-- Actual total: label left, value right -->
+<div class="total-row">
+  <div class="label">Total</div>
+  <div id="total-price" class="total">₹0</div>
+</div>
+
 
     <!-- Buttons -->
     <div class="actions">
