@@ -603,126 +603,235 @@
    * Archive all Delivered orders older than 3 days.
    * Uses delivered_at field (preferred) as per your schema.
    */
-  async function archiveOldDeliveredOrders() {
-    if (!confirm('Archive all Delivered orders older than 3 days? This will change their status to ARCHIVED.')) return;
 
-    const btn = document.getElementById('archive-btn');
-    const originalText = btn ? btn.textContent : null;
-    if (btn) { btn.disabled = true; btn.textContent = 'Archiving...'; }
+async function archiveOldDeliveredOrders() {
+  const btn = document.getElementById('archive-orders-btn');
+  if (btn) {
+    btn.disabled = true;
+    var originalText = btn.textContent;
+    btn.textContent = "Archiving...";
+  }
 
-    try {
-      // 1) find delivered status id (case-insensitive)
-      const { data: deliveredRow, error: dErr } = await supabase
-        .from('order_statuses')
-        .select('id, status_name')
-        .ilike('status_name', 'DELIVERED')
-        .limit(1)
-        .maybeSingle();
+  try {
+    // 1️⃣ Step 1: Get ARCHIVED status id if exists
+    let { data: existing, error: findErr } = await supabase
+      .from("order_statuses")
+      .select("id")
+      .eq("status_name", "ARCHIVED")
+      .maybeSingle();
 
-      if (dErr) throw dErr;
-      if (!deliveredRow || !deliveredRow.id) {
-        showAdminToast('DELIVERED status not found — aborting.');
+    let archivedId = existing?.id || null;
+
+    // 2️⃣ Step 2: If ARCHIVED does NOT exist → create it safely
+    if (!archivedId) {
+      try {
+        // Find max sort_order
+        const { data: maxRow, error: maxErr } = await supabase
+          .from("order_statuses")
+          .select("sort_order")
+          .order("sort_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (maxErr) throw maxErr;
+
+        const currentMax = (maxRow && typeof maxRow.sort_order === "number")
+          ? maxRow.sort_order
+          : 0;
+
+        const nextSortOrder = currentMax + 1;
+
+        // Insert ARCHIVED status with required sort_order
+        const { data: newArch, error: insertErr } = await supabase
+          .from("order_statuses")
+          .insert([{ status_name: "ARCHIVED", sort_order: nextSortOrder }])
+          .select("id")
+          .limit(1)
+          .maybeSingle();
+
+        if (insertErr) throw insertErr;
+
+        archivedId = newArch?.id;
+
+        if (!archivedId) throw new Error("ARCHIVED insert returned no id");
+      } catch (e) {
+        console.error("Error creating ARCHIVED status:", e);
+        showAdminToast("Failed to create ARCHIVED status.");
+        if (btn) { btn.disabled = false; btn.textContent = originalText; }
         return;
       }
-      const deliveredId = deliveredRow.id;
+    }
 
-      // 2) find archived status id (create if not exists)
-      let { data: archivedRow, error: aErr } = await supabase
-        .from('order_statuses')
-        .select('id, status_name')
-        .ilike('status_name', 'ARCHIVED')
-        .limit(1)
-        .maybeSingle();
+    // 3️⃣ Step 3: Find delivered orders > 3 days old
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
 
-      if (aErr) throw aErr;
+    const { data: oldDelivered, error: fetchErr } = await supabase
+      .from("orders")
+      .select("id, delivered_at")
+      .eq("status_backup", "DELIVERED")
+      .lt("delivered_at", threeDaysAgo);
 
-      let archivedId = archivedRow?.id ?? null;
+    if (fetchErr) throw fetchErr;
 
-      if (!archivedId) {
-        // create ARCHIVED status
-    // create ARCHIVED status (safe: compute next sort_order from existing rows)
-try {
-  // find current max sort_order (get highest sort_order row)
-  const { data: maxRow, error: maxErr } = await supabase
-    .from('order_statuses')
-    .select('sort_order')
-    .order('sort_order', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    if (!oldDelivered || oldDelivered.length === 0) {
+      showAdminToast("No delivered orders older than 3 days.");
+      if (btn) { btn.disabled = false; btn.textContent = originalText; }
+      return;
+    }
 
-  if (maxErr) throw maxErr;
+    // Extract list of ids
+    const ids = oldDelivered.map(o => o.id);
 
-  const currentMaxSort = (maxRow && typeof maxRow.sort_order === 'number') ? maxRow.sort_order : 0;
-  const nextSortOrder = currentMaxSort + 1;
+    // 4️⃣ Step 4: Update orders → ARCHIVED
+    const { error: updErr } = await supabase
+      .from("orders")
+      .update({
+        status_id: archivedId,
+        status_backup: "ARCHIVED"
+      })
+      .in("id", ids);
 
-  const { data: newArch, error: createErr } = await supabase
-    .from('order_statuses')
-    .insert([{ status_name: 'ARCHIVED', sort_order: nextSortOrder }])
-    .select('id')
-    .limit(1)
-    .maybeSingle();
+    if (updErr) throw updErr;
 
-  if (createErr) {
-    console.error('Failed to create ARCHIVED status', createErr);
-    showAdminToast('Failed to create ARCHIVED status. See console.');
-    return;
+    showAdminToast(`Archived ${ids.length} orders.`);
+    
+    // Refresh dashboard
+    await refreshDashboardCountsAndStatuses();
+
+  } catch (err) {
+    console.error("archiveOldDeliveredOrders failed:", err);
+    showAdminToast("Archiving failed.");
   }
-  archivedId = newArch?.id;
-  if (!archivedId) {
-    showAdminToast('Could not determine ARCHIVED status id. Aborting.');
-    return;
+
+  // Restore button
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
-} catch (e) {
-  console.error('Error creating ARCHIVED status (with sort_order):', e);
-  showAdminToast('Failed to create ARCHIVED status. See console.');
-  return;
 }
 
 
-        if (createErr) {
-          console.error('Failed to create ARCHIVED status', createErr);
-          showAdminToast('Failed to create ARCHIVED status. See console.');
-          return;
-        }
-        archivedId = newArch?.id;
-        if (!archivedId) {
-          showAdminToast('Could not determine ARCHIVED status id. Aborting.');
-          return;
-        }
-      }
+    
+//   async function archiveOldDeliveredOrders() {
+//     if (!confirm('Archive all Delivered orders older than 3 days? This will change their status to ARCHIVED.')) return;
 
-      // 3) compute cutoff timestamp (ISO)
-      const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+//     const btn = document.getElementById('archive-btn');
+//     const originalText = btn ? btn.textContent : null;
+//     if (btn) { btn.disabled = true; btn.textContent = 'Archiving...'; }
 
-      // 4) perform update: set status_id = archivedId for delivered orders with delivered_at <= cutoff
-      // Also update status_backup to 'archived'
-      const { data: updatedRows, error: updateErr } = await supabase
-        .from('orders')
-        .update({ status_id: archivedId, status_backup: 'archived' })
-        .eq('status_id', deliveredId)
-        .lte('delivered_at', cutoff)
-        .select('id');
+//     try {
+//       // 1) find delivered status id (case-insensitive)
+//       const { data: deliveredRow, error: dErr } = await supabase
+//         .from('order_statuses')
+//         .select('id, status_name')
+//         .ilike('status_name', 'DELIVERED')
+//         .limit(1)
+//         .maybeSingle();
 
-      if (updateErr) {
-        console.error('Archive update failed:', updateErr);
-        showAdminToast('Archive operation failed — check console.');
-      } else {
-        const changed = Array.isArray(updatedRows) ? updatedRows.length : 0;
-        showAdminToast(`${changed} Delivered order(s) archived.`);
-        // refresh UI counts & status cards
-        await refreshDashboardCountsAndStatuses();
-        // if orders table visible, refresh it too
-        if (!document.getElementById('section-orders').classList.contains('hidden')) {
-          await fetchOrders();
-        }
-      }
-    } catch (err) {
-      console.error('archiveOldDeliveredOrders failed:', err);
-      showAdminToast('Unexpected error during archiving. See console.');
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = originalText; }
-    }
-  }
+//       if (dErr) throw dErr;
+//       if (!deliveredRow || !deliveredRow.id) {
+//         showAdminToast('DELIVERED status not found — aborting.');
+//         return;
+//       }
+//       const deliveredId = deliveredRow.id;
+
+//       // 2) find archived status id (create if not exists)
+//       let { data: archivedRow, error: aErr } = await supabase
+//         .from('order_statuses')
+//         .select('id, status_name')
+//         .ilike('status_name', 'ARCHIVED')
+//         .limit(1)
+//         .maybeSingle();
+
+//       if (aErr) throw aErr;
+
+//       let archivedId = archivedRow?.id ?? null;
+
+//       if (!archivedId) {
+//         // create ARCHIVED status
+//     // create ARCHIVED status (safe: compute next sort_order from existing rows)
+// try {
+//   // find current max sort_order (get highest sort_order row)
+//   const { data: maxRow, error: maxErr } = await supabase
+//     .from('order_statuses')
+//     .select('sort_order')
+//     .order('sort_order', { ascending: false })
+//     .limit(1)
+//     .maybeSingle();
+
+//   if (maxErr) throw maxErr;
+
+//   const currentMaxSort = (maxRow && typeof maxRow.sort_order === 'number') ? maxRow.sort_order : 0;
+//   const nextSortOrder = currentMaxSort + 1;
+
+//   const { data: newArch, error: createErr } = await supabase
+//     .from('order_statuses')
+//     .insert([{ status_name: 'ARCHIVED', sort_order: nextSortOrder }])
+//     .select('id')
+//     .limit(1)
+//     .maybeSingle();
+
+//   if (createErr) {
+//     console.error('Failed to create ARCHIVED status', createErr);
+//     showAdminToast('Failed to create ARCHIVED status. See console.');
+//     return;
+//   }
+//   archivedId = newArch?.id;
+//   if (!archivedId) {
+//     showAdminToast('Could not determine ARCHIVED status id. Aborting.');
+//     return;
+//   }
+// } catch (e) {
+//   console.error('Error creating ARCHIVED status (with sort_order):', e);
+//   showAdminToast('Failed to create ARCHIVED status. See console.');
+//   return;
+// }
+
+
+//         if (createErr) {
+//           console.error('Failed to create ARCHIVED status', createErr);
+//           showAdminToast('Failed to create ARCHIVED status. See console.');
+//           return;
+//         }
+//         archivedId = newArch?.id;
+//         if (!archivedId) {
+//           showAdminToast('Could not determine ARCHIVED status id. Aborting.');
+//           return;
+//         }
+//       }
+
+//       // 3) compute cutoff timestamp (ISO)
+//       const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+
+//       // 4) perform update: set status_id = archivedId for delivered orders with delivered_at <= cutoff
+//       // Also update status_backup to 'archived'
+//       const { data: updatedRows, error: updateErr } = await supabase
+//         .from('orders')
+//         .update({ status_id: archivedId, status_backup: 'archived' })
+//         .eq('status_id', deliveredId)
+//         .lte('delivered_at', cutoff)
+//         .select('id');
+
+//       if (updateErr) {
+//         console.error('Archive update failed:', updateErr);
+//         showAdminToast('Archive operation failed — check console.');
+//       } else {
+//         const changed = Array.isArray(updatedRows) ? updatedRows.length : 0;
+//         showAdminToast(`${changed} Delivered order(s) archived.`);
+//         // refresh UI counts & status cards
+//         await refreshDashboardCountsAndStatuses();
+//         // if orders table visible, refresh it too
+//         if (!document.getElementById('section-orders').classList.contains('hidden')) {
+//           await fetchOrders();
+//         }
+//       }
+//     } catch (err) {
+//       console.error('archiveOldDeliveredOrders failed:', err);
+//       showAdminToast('Unexpected error during archiving. See console.');
+//     } finally {
+//       if (btn) { btn.disabled = false; btn.textContent = originalText; }
+//     }
+//   }
 
   // call refresh when operations change data (e.g., after saving configs/grains etc.)
   // existing saveConfig/saveGrain/saveSociety functions already call refreshDashboardCountsAndStatuses()
