@@ -19,6 +19,12 @@
     .outer-card { background: transparent; box-shadow: none; padding: 0; }
     /* Hide visible grand total row, keep hidden element available for logic */
     .grand-total-row { display: none; }
+
+    /* Make delivery info (below user card) smaller */
+    #delivery-info .leading-tight { font-size: 12px; }
+
+    /* Make grains rows white background */
+    .grain-row { background-color: #ffffff; } /* white – keeps color intent */
   </style>
   <script defer src="/common.js"></script>
 </head>
@@ -29,12 +35,6 @@
     <header class="page-header">
       <h2 class="text-lg font-semibold">New Order</h2>
     </header>
-
-      <!-- Order Type Summary (moved below header as in original) -->
-    <div id="selection-summary" class="mb-3 text-sm hidden">
-      <strong class="text-sm">Order Type:</strong>
-      <span id="selection-summary-text" class="text-indigo-600"></span>
-    </div>
 
     <!-- USER CARD (compact) -->
     <section id="user-info" class="bg-white rounded-xl p-4 mb-4 user-card border">
@@ -47,9 +47,13 @@
       </div>
     </section>
 
-  
+    <!-- Order Type Summary (moved below header as in original) -->
+    <div id="selection-summary" class="mb-3 text-sm hidden">
+      <strong class="text-sm">Order Type:</strong>
+      <span id="selection-summary-text" class="text-indigo-600"></span>
+    </div>
 
-    <!-- Inline info -->
+    <!-- Inline info (smaller font) -->
     <div id="delivery-info" class="mb-3" style="display:none;">
       <div role="status" aria-live="polite" class="inline-flex items-start gap-3 rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-800">
         <svg class="w-4 h-4 flex-shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -103,6 +107,13 @@
           <span>Grand Total</span>
           <span>₹<span id="grand-total">0</span></span>
         </div>
+      </div>
+    </div>
+
+    <!-- Note line before buttons -->
+    <div class="mb-3 text-sm">
+      <div class="rounded px-3 py-2 border text-sm">
+        <strong>Note:</strong> Please pay cash on delivery.
       </div>
     </div>
 
@@ -188,8 +199,10 @@
       }
     }
 
-    /* Masking utility used for user display only (raw value preserved in data-raw attribute) */
-    function maskValue(value, left = 1, right = 1) {
+    /* Masking utility used for user display only (raw value preserved in data-raw attribute)
+       Updated to show 2 left and 2 right characters (more visible).
+    */
+    function maskValue(value, left = 2, right = 2) {
       if (!value) return '';
       const s = String(value);
       if (s.length <= left + right + 2) {
@@ -226,11 +239,11 @@
       uiFlat.setAttribute('data-raw', rawFlat);
       uiSociety.setAttribute('data-raw', rawSociety);
 
-      // Display masked versions (few chars + stars)
-      uiName.textContent = maskValue(rawName, 1, 1);
+      // Display masked versions (more visible now: 2 left, 2 right)
+      uiName.textContent = maskValue(rawName, 2, 2);
       uiMobile.textContent = maskValue(rawPhone, 2, 2);
-      uiFlat.textContent = maskValue(rawFlat, 1, 1);
-      uiSociety.textContent = maskValue(rawSociety, 1, 1);
+      uiFlat.textContent = maskValue(rawFlat, 2, 2);
+      uiSociety.textContent = maskValue(rawSociety, 2, 2);
 
       updateSelectionSummaryDisplay();
     }
@@ -243,7 +256,8 @@
 
       grains.forEach(g => {
         const row = document.createElement("div");
-        row.className = "p-3 border rounded-lg shadow-sm bg-gray-50 space-y-2";
+        // apply .grain-row so it has white background as requested
+        row.className = "p-3 border rounded-lg shadow-sm grain-row space-y-2";
 
         row.innerHTML = `
           <div class="flex items-center gap-3">
