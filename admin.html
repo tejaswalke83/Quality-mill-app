@@ -28,7 +28,9 @@
     <!-- Dashboard Section -->
     <section id="section-dashboard">
       <h1 class="text-2xl font-bold mb-6">Dashboard Overview</h1>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Top counts (existing) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
         <div class="bg-white p-6 rounded-lg shadow cursor-pointer" onclick="showSection('users')">
           <h2 class="text-gray-600">Total Users</h2>
           <p id="card-users" class="text-3xl font-bold mt-2">0</p>
@@ -50,6 +52,15 @@
           <p id="card-configs" class="text-3xl font-bold mt-2">0</p>
         </div>
       </div>
+
+      <!-- NEW: Order Status Cards -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold mb-3">Orders by Status</h2>
+        <div id="status-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <!-- Status cards will be injected here by JS -->
+        </div>
+      </div>
+
     </section>
 
     <!-- Configurations -->
@@ -69,6 +80,10 @@
     <!-- Orders -->
     <section id="section-orders" class="hidden">
       <h1 class="text-2xl font-bold mb-4">Order Management</h1>
+      <div class="mb-4">
+        <button onclick="fetchOrders()" class="mr-2 px-3 py-1 border rounded">Show All</button>
+        <span id="orders-filter-label" class="text-sm text-gray-600"></span>
+      </div>
       <table class="w-full border-collapse border border-gray-300">
         <thead class="bg-gray-200"><tr>
           <th class="border p-2">ID</th><th class="border p-2">Customer ID</th>
@@ -262,9 +277,24 @@
   async function deleteSociety(id){await supabase.from('societies').delete().eq('id',id);fetchSocieties();}
 
   // ---------- ORDERS ----------
-  async function fetchOrders(){
-    const {data,error}=await supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(20);
-    if(error)return console.error(error);
+  // Modified: fetchOrders accepts optional statusId to filter orders
+  async function fetchOrders(statusId = null){
+    // update filter label
+    const filterLabel = document.getElementById('orders-filter-label');
+    if(statusId) {
+      // find status name for display
+      const { data: st } = await supabase.from('order_statuses').select('status_name').eq('id', statusId).maybeSingle();
+      filterLabel.innerText = st ? `Filtered: ${st.status_name}` : '';
+    } else {
+      filterLabel.innerText = '';
+    }
+
+    let query = supabase.from('orders').select('*').order('created_at',{ascending:false}).limit(200);
+    if(statusId) query = query.eq('status_id', statusId);
+
+    const {data,error} = await query;
+    if(error) return console.error(error);
+
     document.getElementById("ordersTable").innerHTML=data.map(o=>`
       <tr><td class="border p-2">${o.id}</td><td class="border p-2">${o.customer_id||'-'}</td>
       <td class="border p-2">${o.grain_type||'-'}</td><td class="border p-2">${o.quantity_kg||'-'}</td>
@@ -272,10 +302,104 @@
       <td class="border p-2">${o.payment_status||'-'}</td><td class="border p-2">${o.status_backup||'-'}</td>
       <td class="border p-2">${o.created_at?new Date(o.created_at).toLocaleString():'-'}</td>
       <td class="border p-2"><button onclick="deleteOrder(${o.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button></td></tr>`).join('');
-    document.getElementById("card-orders").innerText=data.length;
+    document.getElementById("card-orders").innerText = data.length;
   }
   async function deleteOrder(id){await supabase.from('orders').delete().eq('id',id);fetchOrders();}
 
+  // ---------- STATUS CARDS (NEW) ----------
+  // Render one card per status and the "All" card
+  async function fetchAndRenderStatusCards(){
+    const container = document.getElementById('status-cards');
+    container.innerHTML = `<div class="col-span-full text-sm text-gray-500">Loading...</div>`;
+
+    // fetch statuses
+    const { data: statuses, error: statusErr } = await supabase.from('order_statuses').select('*').order('id');
+    if(statusErr) {
+      console.error(statusErr);
+      container.innerHTML = `<div class="col-span-full text-sm text-red-600">Failed to load statuses</div>`;
+      return;
+    }
+
+    // prepare an array of promises to fetch counts per status
+    const cards = [];
+
+    // First: "All" card — total orders count
+    const { count: totalCount } = await supabase.from('orders').select('id', { count: 'exact', head: true });
+    cards.push({
+      id: null,
+      name: 'All',
+      count: totalCount || 0,
+      bg: 'bg-white'
+    });
+
+    // For each status, fetch count via head:true to get exact count
+    for(const st of statuses){
+      const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status_id', st.id);
+      cards.push({
+        id: st.id,
+        name: st.status_name,
+        count: count || 0,
+        bg: 'bg-white'
+      });
+    }
+
+    // render cards
+    container.innerHTML = cards.map(c => `
+      <div class="p-4 rounded-lg shadow bg-white cursor-pointer hover:shadow-md flex flex-col items-start justify-between"
+           onclick="onStatusCardClick(${c.id === null ? 'null' : c.id})">
+        <div class="text-sm text-gray-600">${c.name}</div>
+        <div class="mt-2 text-2xl font-bold">${c.count}</div>
+      </div>
+    `).join('');
+  }
+
+  // When a status card clicked: open Orders section and filter by statusId (null -> all)
+  function onStatusCardClick(statusId) {
+    showSection('orders');
+    if(statusId === null) fetchOrders(); // show all
+    else fetchOrders(statusId);
+    // scroll to top of orders section
+    setTimeout(()=> { document.getElementById('section-orders').scrollIntoView({behavior:'smooth'}); }, 50);
+  }
+
+  // call the status cards loader when dashboard is shown
+  // We will also refresh counts periodically / after relevant operations (like deleteOrder)
+  async function refreshDashboardCountsAndStatuses() {
+    // top-level counts you already had (configs etc.)
+    try {
+      const { data: configsData } = await supabase.from('Configuration').select('*').order('id');
+      document.getElementById("card-configs").innerText = configsData ? configsData.length : 0;
+    } catch(e){ console.error(e); }
+
+    try {
+      const { data: societiesData } = await supabase.from('societies').select('*');
+      document.getElementById("card-societies").innerText = societiesData ? societiesData.length : 0;
+    } catch(e){ console.error(e); }
+
+    try {
+      const { data: grainsData } = await supabase.from('Grain_for_sell').select('*');
+      document.getElementById("card-grains").innerText = grainsData ? grainsData.length : 0;
+    } catch(e){ console.error(e); }
+
+    try {
+      // total orders count (for top card)
+      const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true });
+      document.getElementById("card-orders").innerText = count || 0;
+    } catch(e){ console.error(e); }
+
+    try {
+      const { data: usersData } = await supabase.from('customers').select('*');
+      document.getElementById("card-users").innerText = usersData ? usersData.length : 0;
+    } catch(e){ console.error(e); }
+
+    // status cards
+    await fetchAndRenderStatusCards();
+  }
+
+  // call refresh when app starts and whenever dashboard shown
+  refreshDashboardCountsAndStatuses();
+
+  // Re-use existing fetchGrains/fetchSocieties/fetchConfigs functions below...
   // ---------- GRAINS ----------
   async function fetchGrains(){
     const {data,error}=await supabase.from('Grain_for_sell').select('*').order('id');
@@ -301,10 +425,24 @@
     if(!product_name||!grain){alert("Please fill all required fields");return;}
     if(editGrainId)await supabase.from('Grain_for_sell').update({product_name,grain,price_per_kg,milling_price_per_kg,stock_qty,is_active}).eq('id',editGrainId);
     else await supabase.from('Grain_for_sell').insert([{product_name,grain,price_per_kg,milling_price_per_kg,stock_qty,is_active}]);
-    closeGrainForm();fetchGrains();
+    closeGrainForm();fetchGrains(); refreshDashboardCountsAndStatuses();
   }
   function editGrain(id){const g=grains.find(x=>x.id===id);editGrainId=id;openGrainForm();grainProductName.value=g.product_name;grainType.value=g.grain||"";grainPrice.value=g.price_per_kg;grainMillingPrice.value=g.milling_price_per_kg;grainStock.value=g.stock_qty;grainActive.checked=g.is_active;}
-  async function deleteGrain(id){if(!confirm("Delete this grain?"))return;await supabase.from('Grain_for_sell').delete().eq('id',id);fetchGrains();}
+  async function deleteGrain(id){if(!confirm("Delete this grain?"))return;await supabase.from('Grain_for_sell').delete().eq('id',id);fetchGrains(); refreshDashboardCountsAndStatuses();}
+
+  // ---------- remaining functions (users/societies/configs/orders) remain same except we call refreshDashboardCountsAndStatuses() where needed ----------
+  // (we already defined fetchConfigs(), fetchSocieties(), fetchOrders(), deleteOrder(), saveConfig(), saveSociety(), etc above)
+
+  // ensure that after an order is deleted or created, dashboard counts refresh
+  async function deleteOrder(id){
+    if(!confirm('Delete order?')) return;
+    await supabase.from('orders').delete().eq('id',id);
+    await fetchOrders();
+    await refreshDashboardCountsAndStatuses();
+  }
+
+  // Example: if you have an order-create flow elsewhere, call refreshDashboardCountsAndStatuses() after creation.
+
   </script>
 </body>
 </html>
