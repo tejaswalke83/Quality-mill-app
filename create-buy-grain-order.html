@@ -30,6 +30,12 @@
       <h2 class="text-lg font-semibold">New Order</h2>
     </header>
 
+      <!-- Order Type Summary (moved below header as in original) -->
+    <div id="selection-summary" class="mb-3 text-sm hidden">
+      <strong class="text-sm">Order Type:</strong>
+      <span id="selection-summary-text" class="text-indigo-600"></span>
+    </div>
+
     <!-- USER CARD (compact) -->
     <section id="user-info" class="bg-white rounded-xl p-4 mb-4 user-card border">
       <!-- Will be populated by loadUser() with masked view and data-raw attributes -->
@@ -41,11 +47,7 @@
       </div>
     </section>
 
-    <!-- Order Type Summary (moved below header as in original) -->
-    <div id="selection-summary" class="mb-3 text-sm hidden">
-      <strong class="text-sm">Order Type:</strong>
-      <span id="selection-summary-text" class="text-indigo-600"></span>
-    </div>
+  
 
     <!-- Inline info -->
     <div id="delivery-info" class="mb-3" style="display:none;">
