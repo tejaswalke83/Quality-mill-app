@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <title>Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small visual tweaks for the status badges inside cards */
+    .status-badge { @apply inline-block px-2 py-1 rounded-full text-xs font-semibold; }
+    /* tiny timestamp */
+    .refresh-meta { font-size: 12px; color: #6b7280; } /* text-gray-500 */
+  </style>
 </head>
 <body class="h-screen flex bg-gray-100">
 
@@ -55,7 +61,14 @@
 
       <!-- NEW: Order Status Cards -->
       <div class="mb-6">
-        <h2 class="text-lg font-semibold mb-3">Orders by Status</h2>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Orders by Status</h2>
+          <div class="flex items-center gap-3">
+            <button id="refresh-now-btn" onclick="manualRefresh()" class="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700">Refresh Now</button>
+            <div id="last-refresh" class="refresh-meta">Last refreshed: —</div>
+          </div>
+        </div>
+
         <div id="status-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           <!-- Status cards will be injected here by JS -->
         </div>
@@ -244,10 +257,10 @@
     const key=configKey.value.trim(),val=configValue.value.trim(),desc=configDesc.value.trim();
     if(editId)await supabase.from('Configuration').update({config_key:key,config_value:val,description:desc}).eq('id',editId);
     else await supabase.from('Configuration').insert([{config_key:key,config_value:val,description:desc}]);
-    closeForm();fetchConfigs();
+    closeForm();fetchConfigs(); refreshDashboardCountsAndStatuses();
   }
   function editConfig(id){const c=configs.find(x=>x.id===id);editId=id;openForm();configKey.value=c.config_key;configValue.value=c.config_value;configDesc.value=c.description||""}
-  async function deleteConfig(id){await supabase.from('Configuration').delete().eq('id',id);fetchConfigs();}
+  async function deleteConfig(id){await supabase.from('Configuration').delete().eq('id',id);fetchConfigs(); refreshDashboardCountsAndStatuses();}
 
   // ---------- SOCIETIES ----------
   async function fetchSocieties(){
@@ -271,10 +284,10 @@
     const n=societyName.value.trim(),a=societyAddress.value.trim(),c=societyContact.value.trim();
     if(editSocietyId)await supabase.from('societies').update({name:n,address:a,contact_number:c}).eq('id',editSocietyId);
     else await supabase.from('societies').insert([{name:n,address:a,contact_number:c}]);
-    closeSocietyForm();fetchSocieties();
+    closeSocietyForm();fetchSocieties(); refreshDashboardCountsAndStatuses();
   }
   function editSociety(id){const s=societies.find(x=>x.id===id);editSocietyId=id;openSocietyForm();societyName.value=s.name;societyAddress.value=s.address||"";societyContact.value=s.contact_number||""}
-  async function deleteSociety(id){await supabase.from('societies').delete().eq('id',id);fetchSocieties();}
+  async function deleteSociety(id){await supabase.from('societies').delete().eq('id',id);fetchSocieties(); refreshDashboardCountsAndStatuses();}
 
   // ---------- ORDERS ----------
   // Modified: fetchOrders accepts optional statusId to filter orders
@@ -304,102 +317,8 @@
       <td class="border p-2"><button onclick="deleteOrder(${o.id})" class="px-2 py-1 bg-red-600 text-white rounded">Delete</button></td></tr>`).join('');
     document.getElementById("card-orders").innerText = data.length;
   }
-  async function deleteOrder(id){await supabase.from('orders').delete().eq('id',id);fetchOrders();}
+  async function deleteOrder(id){await supabase.from('orders').delete().eq('id',id);fetchOrders(); refreshDashboardCountsAndStatuses();}
 
-  // ---------- STATUS CARDS (NEW) ----------
-  // Render one card per status and the "All" card
-  async function fetchAndRenderStatusCards(){
-    const container = document.getElementById('status-cards');
-    container.innerHTML = `<div class="col-span-full text-sm text-gray-500">Loading...</div>`;
-
-    // fetch statuses
-    const { data: statuses, error: statusErr } = await supabase.from('order_statuses').select('*').order('id');
-    if(statusErr) {
-      console.error(statusErr);
-      container.innerHTML = `<div class="col-span-full text-sm text-red-600">Failed to load statuses</div>`;
-      return;
-    }
-
-    // prepare an array of promises to fetch counts per status
-    const cards = [];
-
-    // First: "All" card — total orders count
-    const { count: totalCount } = await supabase.from('orders').select('id', { count: 'exact', head: true });
-    cards.push({
-      id: null,
-      name: 'All',
-      count: totalCount || 0,
-      bg: 'bg-white'
-    });
-
-    // For each status, fetch count via head:true to get exact count
-    for(const st of statuses){
-      const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status_id', st.id);
-      cards.push({
-        id: st.id,
-        name: st.status_name,
-        count: count || 0,
-        bg: 'bg-white'
-      });
-    }
-
-    // render cards
-    container.innerHTML = cards.map(c => `
-      <div class="p-4 rounded-lg shadow bg-white cursor-pointer hover:shadow-md flex flex-col items-start justify-between"
-           onclick="onStatusCardClick(${c.id === null ? 'null' : c.id})">
-        <div class="text-sm text-gray-600">${c.name}</div>
-        <div class="mt-2 text-2xl font-bold">${c.count}</div>
-      </div>
-    `).join('');
-  }
-
-  // When a status card clicked: open Orders section and filter by statusId (null -> all)
-  function onStatusCardClick(statusId) {
-    showSection('orders');
-    if(statusId === null) fetchOrders(); // show all
-    else fetchOrders(statusId);
-    // scroll to top of orders section
-    setTimeout(()=> { document.getElementById('section-orders').scrollIntoView({behavior:'smooth'}); }, 50);
-  }
-
-  // call the status cards loader when dashboard is shown
-  // We will also refresh counts periodically / after relevant operations (like deleteOrder)
-  async function refreshDashboardCountsAndStatuses() {
-    // top-level counts you already had (configs etc.)
-    try {
-      const { data: configsData } = await supabase.from('Configuration').select('*').order('id');
-      document.getElementById("card-configs").innerText = configsData ? configsData.length : 0;
-    } catch(e){ console.error(e); }
-
-    try {
-      const { data: societiesData } = await supabase.from('societies').select('*');
-      document.getElementById("card-societies").innerText = societiesData ? societiesData.length : 0;
-    } catch(e){ console.error(e); }
-
-    try {
-      const { data: grainsData } = await supabase.from('Grain_for_sell').select('*');
-      document.getElementById("card-grains").innerText = grainsData ? grainsData.length : 0;
-    } catch(e){ console.error(e); }
-
-    try {
-      // total orders count (for top card)
-      const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true });
-      document.getElementById("card-orders").innerText = count || 0;
-    } catch(e){ console.error(e); }
-
-    try {
-      const { data: usersData } = await supabase.from('customers').select('*');
-      document.getElementById("card-users").innerText = usersData ? usersData.length : 0;
-    } catch(e){ console.error(e); }
-
-    // status cards
-    await fetchAndRenderStatusCards();
-  }
-
-  // call refresh when app starts and whenever dashboard shown
-  refreshDashboardCountsAndStatuses();
-
-  // Re-use existing fetchGrains/fetchSocieties/fetchConfigs functions below...
   // ---------- GRAINS ----------
   async function fetchGrains(){
     const {data,error}=await supabase.from('Grain_for_sell').select('*').order('id');
@@ -430,8 +349,203 @@
   function editGrain(id){const g=grains.find(x=>x.id===id);editGrainId=id;openGrainForm();grainProductName.value=g.product_name;grainType.value=g.grain||"";grainPrice.value=g.price_per_kg;grainMillingPrice.value=g.milling_price_per_kg;grainStock.value=g.stock_qty;grainActive.checked=g.is_active;}
   async function deleteGrain(id){if(!confirm("Delete this grain?"))return;await supabase.from('Grain_for_sell').delete().eq('id',id);fetchGrains(); refreshDashboardCountsAndStatuses();}
 
-  // ---------- remaining functions (users/societies/configs/orders) remain same except we call refreshDashboardCountsAndStatuses() where needed ----------
-  // (we already defined fetchConfigs(), fetchSocieties(), fetchOrders(), deleteOrder(), saveConfig(), saveSociety(), etc above)
+  // ---------- STATUS CARDS + AUTO-REFRESH (NEW) ----------
+  // Mapping status names -> badge classes
+  const STATUS_CLASS_MAP = {
+    "NEW":               "bg-yellow-100 text-yellow-800",
+    "IN PROCESS":        "bg-blue-100 text-blue-800",
+    "MILLING COMPLETED": "bg-green-100 text-green-800",
+    "DELIVERED":         "bg-gray-200 text-gray-800",
+    "PICKED UP":         "bg-purple-100 text-purple-800",
+    "RECEIVED AT MILL":  "bg-orange-100 text-orange-800",
+    "OUT FOR DELIVERY":  "bg-pink-100 text-pink-800"
+  };
+
+  let prevNewCount = null;         // previous NEW orders count to detect new orders
+  let refreshIntervalMs = 60000;   // 1 minute
+  let refreshTimer = null;
+
+  // Play a short chime using Web Audio API (no external files)
+  function playChime() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 880; // A5
+      g.gain.value = 0;
+      o.connect(g);
+      g.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.12, now + 0.01);
+      o.start(now);
+      // quick upward glide
+      o.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      o.stop(now + 0.55);
+      // close context after short delay
+      setTimeout(()=>{ try{ ctx.close(); }catch(e){} }, 800);
+    } catch (e) {
+      // If AudioContext not available or blocked, fail silently
+      console.warn("Audio chime failed:", e);
+    }
+  }
+
+  // Format small time for "Last refreshed"
+  function formatTime(ts) {
+    try { return new Date(ts).toLocaleString(); } catch(e) { return new Date().toLocaleString(); }
+  }
+
+  // Manual refresh handler from button
+  async function manualRefresh() {
+    await refreshDashboardCountsAndStatuses(true);
+  }
+
+  // Fetch statuses, counts and render cards.
+  async function fetchAndRenderStatusCards() {
+    const container = document.getElementById('status-cards');
+    container.innerHTML = `<div class="col-span-full text-sm text-gray-500">Loading...</div>`;
+
+    // fetch statuses
+    const { data: statuses, error: statusErr } = await supabase.from('order_statuses').select('*').order('id');
+    if(statusErr) {
+      console.error(statusErr);
+      container.innerHTML = `<div class="col-span-full text-sm text-red-600">Failed to load statuses</div>`;
+      return;
+    }
+
+    // Build cards: First "All" then statuses
+    const cards = [];
+    const { count: totalCount } = await supabase.from('orders').select('id', { count: 'exact', head: true });
+    cards.push({
+      id: null,
+      name: 'ALL',
+      count: totalCount || 0,
+      badgeClass: 'bg-white text-gray-800'
+    });
+
+    // Fetch counts per status (we use head:true exact count queries)
+    for(const st of statuses){
+      const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status_id', st.id);
+      // choose badge classes from STATUS_CLASS_MAP; default fallback
+      const badgeClass = STATUS_CLASS_MAP[(st.status_name || '').toUpperCase()] || 'bg-white text-gray-800';
+      cards.push({
+        id: st.id,
+        name: st.status_name || 'UNKNOWN',
+        count: count || 0,
+        badgeClass
+      });
+    }
+
+    // Render cards
+    container.innerHTML = cards.map(c => `
+      <div class="p-4 rounded-lg shadow bg-white cursor-pointer hover:shadow-md flex flex-col items-start justify-between"
+           onclick="onStatusCardClick(${c.id === null ? 'null' : c.id})"
+           role="button" aria-pressed="false">
+        <div class="flex items-center gap-2 w-full">
+          <div class="status-badge ${c.badgeClass}">${escapeHtml(c.name)}</div>
+          <div class="text-sm text-gray-500 ml-auto">${c.count}</div>
+        </div>
+        <div class="mt-2 text-xs text-gray-500">Click to filter</div>
+      </div>
+    `).join('');
+
+    return cards;
+  }
+
+  // Escape small HTML in case statuses contain special chars
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]); }
+
+  // When a status card clicked: open Orders section and filter by statusId (null -> all)
+  function onStatusCardClick(statusId) {
+    showSection('orders');
+    if(statusId === null) fetchOrders(); // show all
+    else fetchOrders(statusId);
+    // scroll to top of orders section
+    setTimeout(()=> { document.getElementById('section-orders').scrollIntoView({behavior:'smooth'}); }, 50);
+  }
+
+  // Refresh top counts and status cards.
+  // if manual = true, we always update timestamp and treat it as a manual refresh.
+  async function refreshDashboardCountsAndStatuses(manual = false) {
+    try {
+      // capture NEW count before refresh for comparison
+      const prevNew = prevNewCount;
+
+      // refresh top-level counts
+      try {
+        const { data: configsData } = await supabase.from('Configuration').select('*').order('id');
+        document.getElementById("card-configs").innerText = configsData ? configsData.length : 0;
+      } catch(e){ console.error(e); }
+
+      try {
+        const { data: societiesData } = await supabase.from('societies').select('*');
+        document.getElementById("card-societies").innerText = societiesData ? societiesData.length : 0;
+      } catch(e){ console.error(e); }
+
+      try {
+        const { data: grainsData } = await supabase.from('Grain_for_sell').select('*');
+        document.getElementById("card-grains").innerText = grainsData ? grainsData.length : 0;
+      } catch(e){ console.error(e); }
+
+      try {
+        const { count } = await supabase.from('orders').select('id', { count: 'exact', head: true });
+        document.getElementById("card-orders").innerText = count || 0;
+      } catch(e){ console.error(e); }
+
+      try {
+        const { data: usersData } = await supabase.from('customers').select('*');
+        document.getElementById("card-users").innerText = usersData ? usersData.length : 0;
+      } catch(e){ console.error(e); }
+
+      // fetch + render status cards and get card data back
+      const cards = await fetchAndRenderStatusCards();
+
+      // find NEW count from cards (case-insensitive match)
+      const newCard = cards.find(c => (c.name || '').toString().toUpperCase() === 'NEW') || null;
+      const currentNewCount = newCard ? (Number(newCard.count) || 0) : 0;
+
+      // if prevNewCount is not null and currentNewCount > prevNewCount, play chime
+      if (prevNewCount !== null && currentNewCount > prevNewCount) {
+        playChime();
+      }
+
+      // update prevNewCount for next run
+      prevNewCount = currentNewCount;
+
+      // update last refreshed timestamp element
+      const now = new Date();
+      document.getElementById('last-refresh').innerText = `Last refreshed: ${formatTime(now)}`;
+
+      // if this was a manual refresh, also update status filter label if we're in orders page
+      if (manual) {
+        // if currently showing orders with a filter, re-run fetchOrders with the same filter label if present
+        // (we don't change the filter here — fetchOrders will show what's selected)
+        const lbl = document.getElementById('orders-filter-label').innerText;
+        if (lbl && lbl.startsWith('Filtered:')) {
+          // keep current filter; do nothing here
+        }
+      }
+
+    } catch (err) {
+      console.error("Error refreshing dashboard:", err);
+    }
+  }
+
+  // call refresh when app starts and whenever dashboard shown
+  refreshDashboardCountsAndStatuses();
+
+  // start periodic refresh (1 minute)
+  function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(()=> refreshDashboardCountsAndStatuses(false), refreshIntervalMs);
+  }
+  startAutoRefresh();
+
+  // Re-use existing fetchGrains/fetchSocieties/fetchConfigs functions below...
+  // (functions already defined earlier — fetchGrains(), etc.)
 
   // ensure that after an order is deleted or created, dashboard counts refresh
   async function deleteOrder(id){
@@ -441,7 +555,8 @@
     await refreshDashboardCountsAndStatuses();
   }
 
-  // Example: if you have an order-create flow elsewhere, call refreshDashboardCountsAndStatuses() after creation.
+  // Call refreshDashboardCountsAndStatuses after operations that change counts
+  // (saveGrain, saveSociety, saveConfig already call it above)
 
   </script>
 </body>
