@@ -11,10 +11,7 @@
   <style>
     body { font-family: "Inter", sans-serif; }
   </style>
-  <!-- <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#007bff">
-  <link rel="icon" href="/icons/icon-192.png" sizes="192x192">-->
-  <script defer src="/common.js"></script> 
+  <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 md:p-8">
 
@@ -46,237 +43,252 @@
   <!-- Orders -->
   <div id="orders-container" class="space-y-4"></div>
 
-<script src="config.js"></script>
- 
-     
+  <!-- 1) Supabase global CDN (non-module) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
- 
+  <!-- 2) Load config (must populate window._env_) -->
+  <script src="config.js"></script>
 
-  
-<script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+  <!-- 3) Guard: create a single window.supabaseClient only when config is valid -->
+  <script>
+    (function initSupabaseGuard(){
+      const SUPABASE_URL = window._env_?.SUPABASE_URL ?? null;
+      const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY ?? null;
 
-// ✅ Read Supabase credentials from config.js (populated by Netlify)
-  const SUPABASE_URL = window._env_.SUPABASE_URL;
-  const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
-  
-  
+      console.groupCollapsed('[Supabase Guard]');
+      console.log('window._env_ present?', !!window._env_);
+      console.log('SUPABASE_URL host:', SUPABASE_URL ? (() => { try { return new URL(SUPABASE_URL).host } catch(e){ return SUPABASE_URL } })() : SUPABASE_URL);
+      console.log('SUPABASE_KEY length:', SUPABASE_KEY ? SUPABASE_KEY.length : SUPABASE_KEY);
+      console.groupEnd();
 
-  const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+      const hasPlaceholder = (v) => !v || String(v).includes('%%') || String(v).trim() === '';
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const phone = urlParams.get('phone');
-  let user = null;
-  let millingTimePerKg = 5; // default fallback
-
-async function fetchConfig() {
-  const { data, error } = await supabase
-    .from('Configuration')
-    .select('config_value')
-    .eq('config_key', 'Time_for_Milling_1kg') // ✅ correct key
-    .maybeSingle();
-
-  console.log("Config fetch result:", { data, error });
-
-  if (!error && data) {
-    millingTimePerKg = Number(data.config_value) || 5;
-    console.log("✅ Milling time per kggg (from config):", millingTimePerKg);
-  } else {
-    console.warn("⚠️ Using default milling time per kg:", millingTimePerKg);
-  }
-}
-
-
-  // ✅ Status color mapping
-  function getStatusClass(status) {
-    const map = {
-      "NEW": "bg-yellow-100 text-yellow-800",
-      "IN PROCESS": "bg-blue-100 text-blue-800",
-      "MILLING COMPLETED": "bg-green-100 text-green-800",
-      "DELIVERED": "bg-gray-200 text-gray-800",
-      "PICKED UP": "bg-purple-100 text-purple-800",
-      "RECEIVED AT MILL": "bg-orange-100 text-orange-800",
-      "OUT FOR DELIVERY": "bg-pink-100 text-pink-800",
-      "ARCHIVED": "bg-gray-300 text-gray-800"
-    };
-    return map[status] || "bg-gray-100 text-gray-700";
-  }
-
-  async function fetchCustomer() {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('phone_number', phone)
-      .maybeSingle();
-
-    if (error || !data) {
-      document.getElementById('user-info').innerHTML =
-        `<p class="text-red-500">Customer not found!</p>`;
-      return;
-    }
-
-    user = data;
-    document.getElementById('user-info').innerHTML = `
-      <p><strong>${user.name}</strong> (${user.phone_number})</p>
-      <p>${user.flat_number}, ${user.wing}, ${user.society_name}</p>
-    `;
-
-    document.getElementById("newOrderBtn").href = `select-order-type.html?phone=${phone}`;
-  }
-
-  async function loadOrders() {
-    const container = document.getElementById('orders-container');
-    container.innerHTML = '';
-
-    const { data: allOrders, error } = await supabase
-      .from('orders')
-      .select(`
-        id,
-        customer_id,
-        grain_details,
-        total_price,
-        token_number,
-        created_at,
-        order_type,
-        serve_at,
-        status_id,
-        order_statuses:order_statuses!orders_status_id_fkey (
-          id,
-          status_name
-        )
-      `)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error(error);
-      container.innerHTML = '<p class="text-red-500">Failed to load orders.</p>';
-      return;
-    }
-
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-const myOrders = (allOrders || [])
-  .filter(o => {
-    if (o.customer_id !== user.id) return false;
-
-    const status = o.order_statuses?.status_name;
-
-    // 🚫 never show archived
-    if (status === 'ARCHIVED') return false;
-
-    // ✅ show delivered only if created_at is today
-    if (status === 'DELIVERED') {
-      const orderDate = new Date(o.created_at).toISOString().split('T')[0];
-      return orderDate === today;
-    }
-
-    // ✅ other active statuses
-    return ['NEW','PICKED UP','RECEIVED AT MILL','IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY']
-      .includes(status);
-  })
-  .reverse();
-
-
-
-    if (!myOrders.length) {
-      container.innerHTML = '<p class="text-gray-500 text-center">No active orders found.</p>';
-      return;
-    }
-
-    myOrders.forEach(order => {
-      const indexInQueue = allOrders.findIndex(o => o.id === order.id);
-
-      // ✅ Exclude delivered, milling completed, out for delivery, archived
-      const validOrdersBefore = allOrders.slice(0, indexInQueue).filter(o => 
-        !['DELIVERED','MILLING COMPLETED','OUT FOR DELIVERY','ARCHIVED']
-        .includes(o.order_statuses?.status_name)
-      );
-
-      let totalKgBefore = 0;
-
-// sum valid orders before
-validOrdersBefore.forEach(o => {
-  try {
-    (o.grain_details || []).forEach(g => {
-      totalKgBefore += Number(g.quantity || 0);
-    });
-  } catch (e) { console.warn("Bad grain_details format", o.grain_details); }
-});
-
-// ✅ also add this order’s own grains
-let totalKgIncludingSelf = totalKgBefore;
-try {
-  (order.grain_details || []).forEach(g => {
-    totalKgIncludingSelf += Number(g.quantity || 0);
-  });
-} catch (e) { console.warn("Bad grain_details format", order.grain_details); }
-
-// ✅ use config (minutes per kg)
-const timeInMinutes = Math.ceil(totalKgIncludingSelf * millingTimePerKg);
-
-      const hours = Math.floor(timeInMinutes / 60);
-      const minutes = timeInMinutes % 60;
-
-      // ✅ ETA logic
-      let estimatedTime;
-      if (hours > 4 || (hours === 4 && minutes > 0)) {
-        estimatedTime = "4+ hrs";
-      } else {
-        estimatedTime = hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+      if (hasPlaceholder(SUPABASE_URL) || hasPlaceholder(SUPABASE_KEY)) {
+        console.error('[Supabase Guard] config.js missing or contains placeholders — not creating client.');
+        window.supabaseClient = null;
+        return;
       }
 
-      const grainsHTML = (order.grain_details || [])
-        .map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        if (!window.supabaseClient || !window.supabaseClient._initialized) {
+          try {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            window.supabaseClient._initialized = true;
+            console.log('[Supabase Guard] window.supabaseClient created for', new URL(SUPABASE_URL).host);
+          } catch (err) {
+            console.error('[Supabase Guard] failed to create client', err);
+            window.supabaseClient = null;
+          }
+        } else {
+          console.log('[Supabase Guard] reusing existing window.supabaseClient');
+        }
+      } else {
+        console.warn('[Supabase Guard] supabase global SDK not loaded yet');
+        window.supabaseClient = null;
+      }
+    })();
+  </script>
 
-      const date = window.convertUTCToIST(order.created_at);
-      const statusLabel = order.order_statuses?.status_name || 'PENDING';
-      const statusClass = getStatusClass(statusLabel);
+  <!-- 4) Main page logic (uses window.supabaseClient). No business logic or UI changed. -->
+  <script>
+    // Use the guarded global client (or null)
+    const supabase = window.supabaseClient;
 
-      const card = document.createElement('div');
-      card.className = 'bg-white shadow rounded-lg p-4';
-      card.innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-          <div>
-            <p class="font-semibold text-gray-800">Token: ${order.token_number || 'N/A'}</p>
-            <p class="text-sm text-gray-600">Date: ${date}</p>
-          </div>
-          <span class="px-2 py-1 text-xs rounded font-medium ${statusClass}">
-            ${statusLabel}
-          </span>
-        </div>
-        <ul class="list-disc ml-5 text-sm text-gray-700 mb-2">${grainsHTML}</ul>
-        <p class="text-sm"><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
-       ${statusLabel !== 'DELIVERED' ? `
-  <p class="text-sm text-gray-600">Orders before you: ${validOrdersBefore.length}</p>
-  <p class="text-sm text-gray-600">Estimated Time: ${estimatedTime}</p>
-` : ''}
+    // If supabase client not available, fail gracefully and show message
+    if (!supabase) {
+      console.warn('Supabase client not available — DB-backed UI disabled. Fix /config.js or loading order.');
+      document.getElementById('orders-container').innerHTML =
+        `<div class="bg-yellow-50 border border-yellow-200 rounded p-4 text-sm text-yellow-800">
+            ⚠️ Supabase not configured. Check <code>/config.js</code> or environment injection. See console for details.
+        </div>`;
+      // Expose no-op functions so buttons don't blow up
+      window.loadOrders = () => console.warn('loadOrders disabled (no supabase client)');
+      window.fetchConfig = async () => null;
+      window.fetchCustomer = async () => null;
+      // nothing else to do.
+    } else {
+      // ---------- Begin original business logic ----------
+      const urlParams = new URLSearchParams(window.location.search);
+      const phone = urlParams.get('phone');
+      let user = null;
+      let millingTimePerKg = 5; // default fallback
 
-      `;
+      async function fetchConfig() {
+        const { data, error } = await supabase
+          .from('Configuration')
+          .select('config_value')
+          .eq('config_key', 'Time_for_Milling_1kg')
+          .maybeSingle();
 
-      container.appendChild(card);
-    });
-  }
+        console.log("Config fetch result:", { data, error });
 
-  // ✅ Toast for success token
-  const token = new URLSearchParams(window.location.search).get("token");
-  if (token) {
-    const toast = document.getElementById("toast");
-    toast.textContent = "✅ Order placed successfully! Token: " + token;
-    toast.classList.remove("hidden");
-    setTimeout(() => { toast.classList.add("hidden"); }, 3000);
-  }
+        if (!error && data) {
+          millingTimePerKg = Number(data.config_value) || 5;
+          console.log("✅ Milling time per kg (from config):", millingTimePerKg);
+        } else {
+          console.warn("⚠️ Using default milling time per kg:", millingTimePerKg);
+        }
+      }
 
- // ✅ Ensure config + customer are loaded before orders
-(async () => {
-  await fetchConfig();
-  await fetchCustomer();
-  if (user) loadOrders();
-  window.loadOrders = loadOrders;
-})();
+      function getStatusClass(status) {
+        const map = {
+          "NEW": "bg-yellow-100 text-yellow-800",
+          "IN PROCESS": "bg-blue-100 text-blue-800",
+          "MILLING COMPLETED": "bg-green-100 text-green-800",
+          "DELIVERED": "bg-gray-200 text-gray-800",
+          "PICKED UP": "bg-purple-100 text-purple-800",
+          "RECEIVED AT MILL": "bg-orange-100 text-orange-800",
+          "OUT FOR DELIVERY": "bg-pink-100 text-pink-800",
+          "ARCHIVED": "bg-gray-300 text-gray-800"
+        };
+        return map[status] || "bg-gray-100 text-gray-700";
+      }
 
-</script>
+      async function fetchCustomer() {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone_number', phone)
+          .maybeSingle();
+
+        if (error || !data) {
+          document.getElementById('user-info').innerHTML =
+            `<p class="text-red-500">Customer not found!</p>`;
+          return;
+        }
+
+        user = data;
+        document.getElementById('user-info').innerHTML = `
+          <p><strong>${user.name}</strong> (${user.phone_number})</p>
+          <p>${user.flat_number || ''} ${user.wing ? ', ' + user.wing : ''} ${user.society_name || ''}</p>
+        `;
+
+        document.getElementById("newOrderBtn").href = `select-order-type.html?phone=${phone}`;
+      }
+
+      async function loadOrders() {
+        const container = document.getElementById('orders-container');
+        container.innerHTML = '';
+
+        const { data: allOrders, error } = await supabase
+          .from('orders')
+          .select(`
+            id,
+            customer_id,
+            grain_details,
+            total_price,
+            token_number,
+            created_at,
+            order_type,
+            serve_at,
+            status_id,
+            order_statuses:order_statuses!orders_status_id_fkey (
+              id,
+              status_name
+            )
+          `)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error(error);
+          container.innerHTML = '<p class="text-red-500">Failed to load orders.</p>';
+          return;
+        }
+
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+        const myOrders = (allOrders || [])
+          .filter(o => {
+            if (o.customer_id !== user.id) return false;
+            const status = o.order_statuses?.status_name;
+            if (status === 'ARCHIVED') return false;
+            if (status === 'DELIVERED') {
+              const orderDate = new Date(o.created_at).toISOString().split('T')[0];
+              return orderDate === today;
+            }
+            return ['NEW','PICKED UP','RECEIVED AT MILL','IN PROCESS','MILLING COMPLETED','OUT FOR DELIVERY']
+              .includes(status);
+          })
+          .reverse();
+
+        if (!myOrders.length) {
+          container.innerHTML = '<p class="text-gray-500 text-center">No active orders found.</p>';
+          return;
+        }
+
+        myOrders.forEach(order => {
+          const indexInQueue = allOrders.findIndex(o => o.id === order.id);
+
+          const validOrdersBefore = allOrders.slice(0, indexInQueue).filter(o => 
+            !['DELIVERED','MILLING COMPLETED','OUT FOR DELIVERY','ARCHIVED']
+            .includes(o.order_statuses?.status_name)
+          );
+
+          let totalKgBefore = 0;
+          validOrdersBefore.forEach(o => {
+            try { (o.grain_details || []).forEach(g => { totalKgBefore += Number(g.quantity || 0); }); }
+            catch (e) { console.warn("Bad grain_details format", o.grain_details); }
+          });
+
+          let totalKgIncludingSelf = totalKgBefore;
+          try { (order.grain_details || []).forEach(g => { totalKgIncludingSelf += Number(g.quantity || 0); }); }
+          catch (e) { console.warn("Bad grain_details format", order.grain_details); }
+
+          const timeInMinutes = Math.ceil(totalKgIncludingSelf * millingTimePerKg);
+          const hours = Math.floor(timeInMinutes / 60);
+          const minutes = timeInMinutes % 60;
+          let estimatedTime;
+          if (hours > 4 || (hours === 4 && minutes > 0)) estimatedTime = "4+ hrs";
+          else estimatedTime = hours > 0 ? `${hours} hr ${minutes} min` : `${minutes} min`;
+
+          const grainsHTML = (order.grain_details || []).map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('');
+          const date = window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : new Date(order.created_at).toLocaleString();
+          const statusLabel = order.order_statuses?.status_name || 'PENDING';
+          const statusClass = getStatusClass(statusLabel);
+
+          const card = document.createElement('div');
+          card.className = 'bg-white shadow rounded-lg p-4';
+          card.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <p class="font-semibold text-gray-800">Token: ${order.token_number || 'N/A'}</p>
+                <p class="text-sm text-gray-600">Date: ${date}</p>
+              </div>
+              <span class="px-2 py-1 text-xs rounded font-medium ${statusClass}">
+                ${statusLabel}
+              </span>
+            </div>
+            <ul class="list-disc ml-5 text-sm text-gray-700 mb-2">${grainsHTML}</ul>
+            <p class="text-sm"><strong>Total:</strong> ₹${order.total_price?.toFixed(2) || 0}</p>
+            ${statusLabel !== 'DELIVERED' ? `
+              <p class="text-sm text-gray-600">Orders before you: ${validOrdersBefore.length}</p>
+              <p class="text-sm text-gray-600">Estimated Time: ${estimatedTime}</p>
+            ` : ''}
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      // Show toast if token present
+      const token = new URLSearchParams(window.location.search).get("token");
+      if (token) {
+        const toast = document.getElementById("toast");
+        toast.textContent = "✅ Order placed successfully! Token: " + token;
+        toast.classList.remove("hidden");
+        setTimeout(() => { toast.classList.add("hidden"); }, 3000);
+      }
+
+      // Kick off: load config, customer, orders
+      (async () => {
+        await fetchConfig();
+        await fetchCustomer();
+        if (user) loadOrders();
+        window.loadOrders = loadOrders;
+      })();
+
+      // ---------- End original business logic ----------
+    }
+  </script>
+
 </body>
 </html>
