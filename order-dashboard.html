@@ -15,7 +15,7 @@
   <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-  <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard</h1>
+  <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard ch </h1>
 
   <!-- Controls -->
   <div class="bg-white shadow rounded-lg p-4 mb-6">
@@ -123,26 +123,29 @@
   // cache role here
   window._currentUserRole = window._currentUserRole || null;
 
-  // Robust fetchUserRole: try globals, supabase auth metadata, then public.users table
+  // Robust fetchUserRole: try globals, supabase auth metadata, config, then public.users table
   async function fetchUserRole() {
     if (window._currentUserRole) {
       console.debug('fetchUserRole: returning cached role ->', window._currentUserRole);
       return window._currentUserRole;
     }
 
-    // 1) try common globals
+    // 1) try common globals & config.js (many apps place user in global objects or window._env_)
     const maybe =
+      window._env_?.USER_ROLE ||
+      window._env_?.ROLE ||
       window.currentUser?.role ||
       window.user?.role ||
       window.userRole ||
       window.APP_USER?.role ||
       window.__USER__?.role ||
       document?.body?.dataset?.role ||
+      localStorage.getItem('user_role') ||
       null;
 
     if (maybe) {
       window._currentUserRole = String(maybe).toLowerCase();
-      console.debug('fetchUserRole: resolved from global/dataset ->', window._currentUserRole);
+      console.debug('fetchUserRole: resolved from global/dataset/config/localStorage ->', window._currentUserRole);
       return window._currentUserRole;
     }
 
@@ -272,7 +275,7 @@
 
   function getNextStatus(order) {
     const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
-    // try direct type map lookup, fallback to patterns
+    // try direct type map lookup, fallback to patterns and finally default to home-milling (safe)
     const flow = statusFlows[orderTypeNorm] || statusFlows[(order.order_type||'').toString()] || statusFlows['home-milling'] || [];
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
@@ -282,6 +285,12 @@
 
   function getStatusNameById(id) {
     return statusesCache.find(s => s.id === id)?.status_name || null;
+  }
+
+  // Helper: keyword-based match for safety (handles variations like "PICKED_UP", "Picked Up", "PICKED-UP")
+  function nameIncludesKeyword(name, keyword) {
+    if (!name) return false;
+    return String(name).toUpperCase().replace(/[-_]/g,' ').includes(keyword.toUpperCase());
   }
 
   // Strong authoritative guard in updateOrderStatus – server row + robust checks
@@ -314,9 +323,9 @@
     }
 
     // normalize
-    const currentStatusName = (getStatusNameById(order.status_id) || '').toString().trim().toUpperCase();
+    const currentStatusName = (getStatusNameById(order.status_id) || '').toString().trim();
     const nextStatus = statusesCache.find(s => String(s.id) === String(newStatusId));
-    const nextStatusName = (nextStatus?.status_name || '').toString().trim().toUpperCase();
+    const nextStatusName = (nextStatus?.status_name || '').toString().trim();
     const orderTypeNorm = (order.order_type || '').toString().toLowerCase();
 
     // fetch role
@@ -328,7 +337,7 @@
     // Broaden match: check for keywords rather than strict equality (handles variations)
     const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
     const isOperator = String(role||'').toLowerCase() === 'operator';
-    const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+    const isFromNewToPicked = nameIncludesKeyword(currentStatusName, 'NEW') && nameIncludesKeyword(nextStatusName, 'PICK');
 
     if (isOperator && isHomeMilling && isFromNewToPicked) {
       alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
@@ -336,7 +345,7 @@
     }
 
     // Delivered special-case (payment method required)
-    if (nextStatus?.status_name === "DELIVERED") {
+    if (nameIncludesKeyword(nextStatus?.status_name, "DELIVERED")) {
       const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
       let selected = null;
       radios.forEach(r => { if (r.checked) selected = r.value; });
@@ -497,13 +506,14 @@ div.innerHTML = `
     try {
       const role = await fetchUserRole();
       const roleNorm = (role || '').toString().toLowerCase();
-      const curName = (statusLabel || '').toString().trim().toUpperCase();
-      const nextName = (next?.status_name || '').toString().trim().toUpperCase();
+      const curName = (statusLabel || '').toString().trim();
+      const nextName = (next?.status_name || '').toString().trim();
       const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
 
       const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
       const isOperator = roleNorm === 'operator';
-      const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+      // robust check for NEW -> PICKED UP using keyword matching
+      const isNewToPicked = nameIncludesKeyword(curName, 'NEW') && nameIncludesKeyword(nextName, 'PICK');
 
       console.debug('openModal guard check', { roleNorm, orderTypeNorm, curName, nextName, isHomeMilling, isOperator, isNewToPicked });
 
@@ -512,13 +522,13 @@ div.innerHTML = `
       console.warn('openModal: role check failed', e);
     }
 
-    // build move button (disabled visually if blocked)
+    // build move button (disabled visually & functionally if blocked)
     const moveButtonHtml = next ? (blockedTransition ? `
       <button
-        class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
+        class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 pointer-events-none"
         aria-disabled="true"
+        disabled
         title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
-        onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
       >
         Move to ${next.status_name}
       </button>
@@ -545,7 +555,7 @@ div.innerHTML = `
 
       ${next 
         ? `
-          ${next.status_name === "DELIVERED" ? `
+          ${nameIncludesKeyword(next.status_name, "DELIVERED") ? `
           <div class="mt-4">
             <p class="font-medium mb-2">Payment Method:</p>
             <label class="flex items-center gap-2 py-2">
