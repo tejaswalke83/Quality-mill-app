@@ -235,16 +235,48 @@
   }
 
   // Use larger top icons like the newer file (openmoji images, w-7 h-7)
-  function getOrderTypeIcon(type) {
-    const pinwheelIcon = `<img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />`;
-    const scooterIcon = `<img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />`;
-    if (!type) return "";
-    const t = String(type).toLowerCase();
-    if (t.includes('shop-buy-mill') || t.includes('shop_buy_mill')) return pinwheelIcon;
-    if (t.includes('home-milling') || t.includes('home_milling') || (t.includes('home') && t.includes('mill'))) return scooterIcon;
-    if (t.includes('home-buy-mill') || t.includes('home_buy_mill')) return pinwheelIcon + scooterIcon;
-    return "";
+function getOrderTypeIcon(type) {
+  if (!type) return "";
+  // normalize: lower-case, replace underscores and multiple separators with single dash
+  const t = String(type).toLowerCase().trim().replace(/[_\s]+/g, '-');
+
+  const pinwheelIcon = `<img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />`;
+  const scooterIcon  = `<img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />`;
+
+  // specific combos first
+  if (t.includes('home-buy-mill') || t.includes('home-buy') || t.includes('home_buy_mill') ) {
+    // show both: pinwheel + scooter (pinwheel first as you requested)
+    return pinwheelIcon + scooterIcon;
   }
+  if (t.includes('shop-buy-mill') || t.includes('shop-buy') || t.includes('shop_buy_mill')) {
+    return pinwheelIcon;
+  }
+
+  // then the narrower milling/buy cases
+  if (t.includes('home-milling') || t.includes('home-mill') || (t.includes('home') && t.includes('milling'))) {
+    return scooterIcon;
+  }
+  if (t.includes('shop-milling') || t.includes('shop-mill') || t.includes('shop')) {
+    return pinwheelIcon;
+  }
+
+  // fallback: no icon
+  return "";
+}
+
+
+
+  
+  // function getOrderTypeIcon(type) {
+  //   const pinwheelIcon = `<img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />`;
+  //   const scooterIcon = `<img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />`;
+  //   if (!type) return "";
+  //   const t = String(type).toLowerCase();
+  //   if (t.includes('shop-buy-mill') || t.includes('shop_buy_mill')) return pinwheelIcon;
+  //   if (t.includes('home-milling') || t.includes('home_milling') || (t.includes('home') && t.includes('mill'))) return scooterIcon;
+  //   if (t.includes('home-buy-mill') || t.includes('home_buy_mill')) return pinwheelIcon + scooterIcon;
+  //   return "";
+  // }
 
   async function fetchAllOrders() {
     const { data, error } = await supabase
