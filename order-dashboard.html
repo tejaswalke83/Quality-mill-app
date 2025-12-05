@@ -229,7 +229,8 @@
       "DELIVERED": "bg-gray-200 text-gray-800",
       "PICKED UP": "bg-purple-100 text-purple-800",
       "RECEIVED AT MILL": "bg-orange-100 text-orange-800",
-      "OUT FOR DELIVERY": "bg-pink-100 text-pink-800"
+      "OUT FOR DELIVERY": "bg-pink-100 text-pink-800",
+      "ARCHIVED": "bg-gray-50 text-gray-700"
     };
     return map[status] || "bg-gray-100 text-gray-700";
   }
@@ -262,21 +263,6 @@ function getOrderTypeIcon(type) {
   // default → no icon
   return "";
 }
-
-
-
-
-  
-  // function getOrderTypeIcon(type) {
-  //   const pinwheelIcon = `<img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />`;
-  //   const scooterIcon = `<img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />`;
-  //   if (!type) return "";
-  //   const t = String(type).toLowerCase();
-  //   if (t.includes('shop-buy-mill') || t.includes('shop_buy_mill')) return pinwheelIcon;
-  //   if (t.includes('home-milling') || t.includes('home_milling') || (t.includes('home') && t.includes('mill'))) return scooterIcon;
-  //   if (t.includes('home-buy-mill') || t.includes('home_buy_mill')) return pinwheelIcon + scooterIcon;
-  //   return "";
-  // }
 
   async function fetchAllOrders() {
     const { data, error } = await supabase
@@ -315,11 +301,12 @@ function getOrderTypeIcon(type) {
     const statusMap = {};
     statuses.forEach(s => statusMap[s.status_name] = s.id);
 
+    // Added ARCHIVED at the end of each flow
     return {
-      "shop-milling": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"]],
-      "shop-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"]],
-      "home-milling": [statusMap["NEW"], statusMap["PICKED UP"], statusMap["RECEIVED AT MILL"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"]],
-      "home-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"]]
+      "shop-milling": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"], statusMap["ARCHIVED"]],
+      "shop-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"], statusMap["ARCHIVED"]],
+      "home-milling": [statusMap["NEW"], statusMap["PICKED UP"], statusMap["RECEIVED AT MILL"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"], statusMap["ARCHIVED"]],
+      "home-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"], statusMap["ARCHIVED"]]
     };
   }
 
@@ -375,34 +362,35 @@ function getOrderTypeIcon(type) {
     console.debug('updateOrderStatus: guard check', { role, orderTypeNorm, currentStatusName, nextStatusName, orderId });
 
     // Broaden match: check for keywords rather than strict equality (handles variations)
-
     const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-const isOperator = String(role||'').toLowerCase() === 'operator';
-const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+    const isOperator = String(role||'').toLowerCase() === 'operator';
+    const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
 
-// NEW guard: operator cannot mark OUT FOR DELIVERY -> DELIVERED (applies to all order types)
-const isOutToDelivered = currentStatusName === 'OUT FOR DELIVERY' && nextStatusName === 'DELIVERED';
+    // NEW guard: operator cannot mark OUT FOR DELIVERY -> DELIVERED (applies to all order types)
+    const isOutToDelivered = currentStatusName === 'OUT FOR DELIVERY' && nextStatusName === 'DELIVERED';
 
-// keep previous home-milling NEW->PICKED UP guard
-if (isOperator && isHomeMilling && isFromNewToPicked) {
-  alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
-  return;
-}
+    // keep previous home-milling NEW->PICKED UP guard
+    if (isOperator && isHomeMilling && isFromNewToPicked) {
+      alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
+      return;
+    }
 
-// new universal guard for operators
-if (isOperator && isOutToDelivered) {
-  alert('Action not allowed: Operators are not permitted to mark orders OUT FOR DELIVERY → DELIVERED.');
-  return;
-}
+    // new universal guard for operators: block Out For Delivery -> Delivered
+    if (isOperator && isOutToDelivered) {
+      alert('Action not allowed: Operators are not permitted to mark orders OUT FOR DELIVERY → DELIVERED.');
+      return;
+    }
 
-    // const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-    // const isOperator = String(role||'').toLowerCase() === 'operator';
-    // const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+    // UNIVERSAL: allow Delivered -> Archived for everyone
+    if (nextStatusName === "ARCHIVED") {
+      await supabase.from('orders').update({
+        status_id: newStatusId
+      }).eq('id', orderId);
 
-    // if (isOperator && isHomeMilling && isFromNewToPicked) {
-    //   alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
-    //   return;
-    // }
+      closeModal();
+      await loadOrders();
+      return;
+    }
 
     // Delivered special-case (payment method required)
     if (nextStatus?.status_name === "DELIVERED") {
@@ -550,7 +538,7 @@ div.innerHTML = `
     return String(name).toUpperCase().replace(/[-_]/g,' ').includes(keyword.toUpperCase());
   }
 
-// make openModal async so we can await role and compute blockedTransition
+  // make openModal async so we can await role and compute blockedTransition
 async function openModal(order) {
   const modal = document.getElementById("orderModal");
   const content = document.getElementById("modalContent");
@@ -610,191 +598,76 @@ async function openModal(order) {
   const curName = (statusLabel || '').toString().trim().toUpperCase();
   const nextName = (next?.status_name || '').toString().trim().toUpperCase();
 
+  const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+  const isOperator = String(role||'').toLowerCase() === 'operator';
+  const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
 
-const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-const isOperator = String(role||'').toLowerCase() === 'operator';
-const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+  // block operator marking Out For Delivery -> Delivered (applies to all order types)
+  const isOutToDelivered = curName === 'OUT FOR DELIVERY' && nextName === 'DELIVERED';
 
-// block operator marking Out For Delivery -> Delivered (applies to all order types)
-const isOutToDelivered = curName === 'OUT FOR DELIVERY' && nextName === 'DELIVERED';
-
-// blocked if either (home-milling NEW->PICKED UP) OR (operator trying OUT->DELIVERED)
-const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isOperator && isOutToDelivered);
-
-  
-  // const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-  // const isOperator = String(role||'').toLowerCase() === 'operator';
-  // const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
-
-  // const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
+  // blocked if either (home-milling NEW->PICKED UP) OR (operator trying OUT->DELIVERED)
+  const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isOperator && isOutToDelivered);
 
   // Render payment method UI if next is DELIVERED
   if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
+    // If blockedTransition, disable the radios and show a helper note
+    const disabledAttr = blockedTransition ? 'disabled' : '';
+    const disabledNote = blockedTransition ? `<div class="text-sm text-red-600 mt-2">Operators cannot complete this transition; payment selection is disabled.</div>` : '';
+
     actionsContainer.innerHTML += `
       <div class="mt-4">
         <p class="font-medium mb-2">Payment Method:</p>
         <label class="flex items-center gap-2 py-2">
           <input type="radio" name="payment_${order.id}" value="online"
             ${order.payment_status === 'online' ? 'checked' : ''}
-            onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
+            ${disabledAttr}
+            onchange="!${blockedTransition} && savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
         </label>
         <label class="flex items-center gap-2 py-2">
           <input type="radio" name="payment_${order.id}" value="cash"
             ${order.payment_status === 'cash' ? 'checked' : ''}
-            onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
+            ${disabledAttr}
+            onchange="!${blockedTransition} && savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
         </label>
         <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
+        ${disabledNote}
       </div>
     `;
   }
 
-  // Move button (disabled if blocked)
+  // Move button handling
   if (blockedTransition) {
+    // If blocked, show disabled move button (also when next is DELIVERED, payment radios will be disabled as above)
     actionsContainer.innerHTML += `
       <button
         class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
         aria-disabled="true"
-        title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
-        onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
+        title="${isOutToDelivered ? 'Operators are not permitted to move OUT FOR DELIVERY → DELIVERED' : 'Operators are not permitted to move home-milling NEW → PICKED UP'}"
+        onclick="(function(){ alert('Action blocked: You are not permitted to perform this transition.'); })()"
       >
         Move to ${next.status_name}
       </button>
     `;
   } else {
-    actionsContainer.innerHTML += `
-      <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-        class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-        Move to ${next.status_name}
-      </button>
-    `;
+    // Not blocked
+    // Special: if next is ARCHIVED -> allow for everyone and show "Move to Archived"
+    if (nextName === "ARCHIVED") {
+      actionsContainer.innerHTML += `
+        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+          class="mt-4 w-full bg-gray-700 text-white py-2 rounded hover:bg-gray-800">
+          Move to Archived
+        </button>
+      `;
+    } else {
+      actionsContainer.innerHTML += `
+        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+          class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+          Move to ${next.status_name}
+        </button>
+      `;
+    }
   }
 }
-
-
-  
-  // make openModal async so we can await role and compute blockedTransition
-  // async function openModal(order) {
-  //   const modal = document.getElementById("orderModal");
-  //   const content = document.getElementById("modalContent");
-
-  //   currentOpenOrder = order;
-
-  //   const grainsHTML = Array.isArray(order.grain_details)
-  //     ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
-  //       order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
-  //       '</ul>' : '';
-
-  //   const statusObj = statusesCache.find(s => s.id === order.status_id);
-  //   const statusLabel = statusObj ? statusObj.status_name : "Unknown";
-  //   const statusClass = getStatusClass(statusLabel);
-  //   const next = getNextStatus(order);
-
-  //   // show immediate fetching badge
-  //   content.innerHTML = `
-  //     <div class="flex justify-between items-center mb-2">
-  //       <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
-  //       <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
-  //     </div>
-  //     <div class="flex items-center justify-between">
-  //       <div>
-  //         <h2 class="text-xl font-bold mb-2 inline-block">${order.customers?.name || 'N/A'}</h2>
-  //         <span id="modalRoleBadge" class="role-badge ml-2">Fetching…</span>
-  //         <p class="text-sm text-gray-500 mt-1">${order.customers?.phone_number ? `<a href="tel:${order.customers?.phone_number}" class="text-blue-600 underline">${order.customers?.phone_number}</a>` : 'N/A'}</p>
-  //       </div>
-  //       <div class="text-sm text-gray-600"><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
-  //     </div>
-
-  //     <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
-
-  //     ${grainsHTML}
-  //     <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
-  //     <div id="modalActions"></div>
-  //   `;
-  //   modal.classList.remove("hidden");
-
-  //   // resolve role and recompute actions
-  //   let role = null;
-  //   try {
-  //     role = await fetchUserRole();
-  //   } catch (e) {
-  //     console.warn('openModal: fetchUserRole failed', e);
-  //   }
-
-  //   const roleBadge = document.getElementById('modalRoleBadge');
-  //   if (roleBadge) {
-  //     if (role) {
-  //       roleBadge.textContent = String(role).toUpperCase();
-  //       roleBadge.title = 'Resolved role';
-  //     } else {
-  //       roleBadge.textContent = 'ROLE UNAVAILABLE';
-  //       roleBadge.title = 'Role could not be determined. Check console -> window.debugRoleSources';
-  //       const hint = document.createElement('div');
-  //       hint.className = 'text-xs text-gray-500 mt-1';
-  //       hint.textContent = 'Role not found — check console (window.debugRoleSources) or provide USER_PHONE in config.';
-  //       roleBadge.insertAdjacentElement('afterend', hint);
-  //     }
-  //   }
-
-  //   // Now build actions based on resolved role + next status
-  //   const actionsContainer = document.getElementById('modalActions');
-  //   actionsContainer.innerHTML = '';
-
-  //   if (!next) {
-  //     // no next status -> nothing to show
-  //     return;
-  //   }
-
-  //   const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
-  //   const curName = (statusLabel || '').toString().trim().toUpperCase();
-  //   const nextName = (next?.status_name || '').toString().trim().toUpperCase();
-
-  //   const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-  //   const isOperator = String(role||'').toLowerCase() === 'operator';
-  //   const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
-
-  //   const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
-
-  //   // Render payment method UI if next is DELIVERED
-  //   if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
-  //     actionsContainer.innerHTML += `
-  //       <div class="mt-4">
-  //         <p class="font-medium mb-2">Payment Method:</p>
-  //         <label class="flex items-center gap-2 py-2">
-  //           <input type="radio" name="payment_${order.id}" value="online"
-  //             ${order.payment_status === 'online' ? 'checked' : ''}
-  //             onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
-  //         </label>
-  //         <label class="flex items-center gap-2 py-2">
-  //           <input type="radio" name="payment_${order.id}" value="cash"
-  //             ${order.payment_status === 'cash' ? 'checked' : ''}
-  //             onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
-  //         </label>
-  //         <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-  //       </div>
-  //     `;
-  //   }
-
-  //   // Move button (disabled if blocked)
-  //   if (blockedTransition) {
-  //     actionsContainer.innerHTML += `
-  //       <button
-  //         class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
-  //         aria-disabled="true"
-  //         title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
-  //         onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
-  //       >
-  //         Move to ${next.status_name}
-  //       </button>
-  //     `;
-  //   } else {
-  //     actionsContainer.innerHTML += `
-  //       <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-  //         class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-  //         Move to ${next.status_name}
-  //       </button>
-  //     `;
-  //   }
-  // }
   window.openModal = openModal;
 
   function closeModal() { 
@@ -823,7 +696,7 @@ const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isO
     await loadOrders();
     
     const container = document.getElementById('ordersList');
-    const firstOrder = container.querySelector('.order-card');
+    the firstOrder = container.querySelector('.order-card');
     if (firstOrder) {
       firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
       firstOrder.classList.add("ring-2", "ring-blue-400");
@@ -848,3 +721,4 @@ const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isO
 </script>
 </body>
 </html>
+
