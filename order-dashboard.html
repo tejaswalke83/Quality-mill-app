@@ -291,42 +291,65 @@
     return statusesCache.find(s => s.id === id)?.status_name || null;
   }
 
+  // ---------- REPLACED updateOrderStatus (strong authoritative guard) ----------
   async function updateOrderStatus(orderId, newStatusId) {
-    // --- Guard: prevent operator from moving a home-milling order from NEW -> PICKED UP ---
+    // Ensure statuses are loaded
+    if (!Array.isArray(statusesCache) || statusesCache.length === 0) {
+      await fetchStatuses();
+    }
+
+    // fetch fresh order from DB (authoritative)
+    let order;
     try {
-      const nextStatus = statusesCache.find(s => s.id === newStatusId);
-      // obtain order data: prefer currentOpenOrder, otherwise fetch minimal fields
-      let order = currentOpenOrder;
-      if (!order || String(order.id) !== String(orderId)) {
-        const { data, error } = await supabase.from('orders').select('id, order_type, status_id').eq('id', orderId).maybeSingle();
-        if (error) console.warn('updateOrderStatus: could not fetch order for guard check', error);
-        order = data || order;
+      const { data: orderData, error: orderErr } = await supabase
+        .from('orders')
+        .select('id, order_type, status_id')
+        .eq('id', orderId)
+        .maybeSingle();
+
+      if (orderErr) {
+        console.warn('updateOrderStatus: could not fetch order for guard check', orderErr);
+        alert('Unable to validate order before updating. Status update aborted.');
+        return;
       }
-
-      const currentStatusName = getStatusNameById(order?.status_id);
-      const nextStatusName = nextStatus?.status_name;
-
-      const role = await fetchUserRole();
-
-      if (role === 'operator' &&
-          order?.order_type === 'home-milling' &&
-          String(currentStatusName)?.toUpperCase() === 'NEW' &&
-          String(nextStatusName)?.toUpperCase() === 'PICKED UP') {
-        // Block the action
-        alert('Action not allowed: Operators are not permitted to move home-milling orders from NEW to PICKED UP.');
+      order = orderData;
+      if (!order) {
+        alert('Order not found. Status update aborted.');
         return;
       }
     } catch (e) {
-      console.warn('Guard check failed in updateOrderStatus', e);
-      // proceed carefully if guard check fails (fail-open could be dangerous; failing closed is safer)
-      // we'll abort to be safe
-      alert('Unable to validate permissions. Status update aborted.');
+      console.warn('updateOrderStatus: fetch error', e);
+      alert('Unable to validate order before updating. Status update aborted.');
       return;
     }
 
-    // Existing logic for marking delivered / other statuses
-    const nextStatus = statusesCache.find(s => s.id === newStatusId);
+    // get names & normalized values
+    const currentStatusName = (getStatusNameById(order.status_id) || '').toString().trim().toUpperCase();
+    const nextStatus = statusesCache.find(s => String(s.id) === String(newStatusId));
+    const nextStatusName = (nextStatus?.status_name || '').toString().trim().toUpperCase();
+    const orderType = (order.order_type || '').toString().trim().toLowerCase();
 
+    // fetch role
+    let role;
+    try {
+      role = await fetchUserRole();
+    } catch (e) {
+      console.warn('updateOrderStatus: fetchUserRole failed', e);
+      role = null;
+    }
+
+    console.debug('Guard check:', { role, orderType, currentStatusName, nextStatusName });
+
+    // Guard: operator cannot move home-milling from NEW -> PICKED UP
+    if (String(role) === 'operator' &&
+        orderType === 'home-milling' &&
+        currentStatusName === 'NEW' &&
+        nextStatusName === 'PICKED UP') {
+      alert('Action not allowed: Operators are not permitted to move home-milling orders from NEW to PICKED UP.');
+      return;
+    }
+
+    // Proceed with existing logic (DELIVERED special-case + normal update)
     if (nextStatus?.status_name === "DELIVERED") {
       const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
       let selected = null;
@@ -354,6 +377,7 @@
     await loadOrders();
   }
   window.updateOrderStatus = updateOrderStatus;
+  // ---------- end replaced updateOrderStatus ----------
 
   async function savePaymentMethod(orderId, value) {
     await supabase.from('orders').update({ payment_status: value }).eq('id', orderId);
@@ -468,7 +492,7 @@ div.innerHTML = `
     });
   }
 
-  // openModal is now async so we can check role and hide button when needed
+  // openModal is now async so we can check role and hide/disable button when needed
   async function openModal(order) {
     const modal = document.getElementById("orderModal");
     const content = document.getElementById("modalContent");
@@ -489,15 +513,35 @@ div.innerHTML = `
     let blockedTransition = false;
     try {
       const role = await fetchUserRole();
-      if (role === 'operator' &&
-          order?.order_type === 'home-milling' &&
-          String(statusLabel).toUpperCase() === 'NEW' &&
-          next?.status_name && String(next.status_name).toUpperCase() === 'PICKED UP') {
+      const roleNorm = (role || '').toString().toLowerCase();
+      const nextName = (next?.status_name || '').toString().trim().toUpperCase();
+      const curName = (statusLabel || '').toString().trim().toUpperCase();
+      if (roleNorm === 'operator' &&
+          (order?.order_type || '').toString().toLowerCase() === 'home-milling' &&
+          curName === 'NEW' &&
+          nextName === 'PICKED UP') {
         blockedTransition = true;
       }
     } catch (e) {
       console.warn('openModal: role check failed', e);
     }
+
+    // Render modal content — if blockedTransition then render a disabled but identical button
+    const moveButtonHtml = next ? (blockedTransition ? `
+      <button
+        class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
+        aria-disabled="true"
+        title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
+        onclick="(function(){ alert('Action not allowed: Operators are not permitted to move home-milling orders from NEW to PICKED UP.'); })()"
+      >
+        Move to ${next.status_name}
+      </button>
+    ` : `
+      <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+        class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+        Move to ${next.status_name}
+      </button>
+    `) : '';
 
     content.innerHTML = `
       <div class="flex justify-between items-center mb-2">
@@ -533,16 +577,7 @@ div.innerHTML = `
             <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
           </div>` : ''}
 
-          ${ blockedTransition ? `
-            <div class="mt-4">
-              <p class="text-sm text-red-600">Operators are not allowed to move <strong>home-milling</strong> orders from <strong>NEW → PICKED UP</strong>.</p>
-            </div>
-          ` : `
-            <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-              class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-              Move to ${next.status_name}
-            </button>
-          `}
+          ${moveButtonHtml}
         `
         : ''}
     `;
@@ -600,7 +635,3 @@ div.innerHTML = `
 </script>
 </body>
 </html>
-
-
-
-
