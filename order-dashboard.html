@@ -441,12 +441,12 @@ async function resolveDelivererNames(orders) {
     }
   }
 
-  // map order id -> deliverer name (delivered_by_name override -> users table -> customer name -> placeholder)
+  // map order id -> deliverer name (delivered_by override -> users table -> customer name -> placeholder)
   const map = {};
   orders.forEach(o => {
     let name = null;
-    if (o.delivered_by_name && String(o.delivered_by_name).trim() !== '') {
-      name = o.delivered_by_name;
+    if (o.delivered_by && String(o.delivered_by).trim() !== '') {
+      name = o.delivered_by;
     } else if (o.delivered_by && usersById[o.delivered_by]) {
       name = usersById[o.delivered_by];
     } else if (o.customers && o.customers.name) {
@@ -469,7 +469,7 @@ async function resolveDelivererNames(orders) {
     // fetch delivered orders delivered_at between start and end
     const { data, error } = await supabase
       .from('orders')
-      .select(`id, token_number, total_price, payment_status, delivered_at, delivered_by, delivered_by_name, delivered_by_id, serve_at, status_backup, customers(name)`)
+      .select(`id, token_number, total_price, payment_status, delivered_at, delivered_by, delivered_by, delivered_by_id, serve_at, status_backup, customers(name)`)
       .gte('delivered_at', startISO)
       .lt('delivered_at', endISO)
       .order('delivered_at', { ascending: false });
