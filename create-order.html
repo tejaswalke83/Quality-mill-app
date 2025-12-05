@@ -52,7 +52,6 @@
     .pricing .row .value { text-align:right; display:inline-block; min-width:100px; }
 
     /* Total row placed below delivery row and right aligned */
-    /* Total row placed below delivery row: label left, value right */
 .pricing .total-row {
   margin-top: 8px;
   border-top: 1px solid rgba(0,0,0,0.06);
@@ -187,524 +186,499 @@
   <!-- Toast -->
   <div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow"></div>
 
+  <!-- ================== SCRIPT ORDER FIXES START HERE ================== -->
 
+  <!-- 1) Load config first (must contain real values, not placeholders) -->
+  <script src="/config.js"></script>
 
+  <!-- 2) Load Supabase global SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    
-  <script src="script.js"></script>
-  <script src="config.js"></script>
-  <script type="module">
+  <!-- 3) Create a single global client (guarded) and diagnostics -->
+  <script>
+    (function initSupabaseGlobal(){
+      const SUPABASE_URL = window._env_?.SUPABASE_URL ?? null;
+      const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY ?? null;
 
+      console.group('[Init] Supabase');
+      console.log('window._env_ present?', !!window._env_);
+      console.log('SUPABASE_URL host:', SUPABASE_URL ? (new URL(SUPABASE_URL).host) : SUPABASE_URL);
+      console.log('SUPABASE_KEY length:', SUPABASE_KEY ? SUPABASE_KEY.length : SUPABASE_KEY);
+      console.groupEnd();
 
-
-    
-    
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    // ✅ Read Supabase credentials from config.js (populated by Netlify)
-    const SUPABASE_URL = window._env_.SUPABASE_URL;
-    const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
-    
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY
-    );
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const phone = urlParams.get('phone');
-
-    let grainList = [];
-    let user = null;
-    let deliveryCharge = 0; // global delivery charge (numeric, rupees)
-    let isSubmitting = false;  // prevent double submit
-
-    const orderRows = document.getElementById('order-rows');
-    const totalPriceEl = document.getElementById('total-price');
-    const subtotalEl = document.getElementById('subtotal');
-    const toast = document.getElementById('toast');
-    const deliveryRowEl = document.getElementById('delivery-row');
-    const deliveryCostEl = document.getElementById('delivery-cost');
-    const cancelBtn = document.getElementById('cancel-btn');
-    const submitBtn = document.getElementById('submit-btn');
-    const selectionSummaryEl = document.getElementById('selection-summary');
-    const selectionSummaryTextEl = document.getElementById('selection-summary-text');
-    const deliveryInfoEl = document.getElementById('delivery-info');
-
-    // ✅ Toast function
-    function showToast(message, type = "success") {
-      toast.textContent = message;
-      toast.className = `fixed bottom-5 right-5 px-4 py-2 rounded shadow text-white ${
-        type === "success" ? "bg-green-600" : "bg-red-600"
-      }`;
-      toast.style.display = "block";
-      setTimeout(() => { toast.style.display = "none"; }, 3000);
-    }
-
-    // Cancel should go back to previous page (browser history)
-    cancelBtn.addEventListener('click', () => {
-      history.back();
-    });
-
-    document.addEventListener("DOMContentLoaded", () => {
-      fetchData();
-    });
-
-    // compute selection summary (one of four human readable strings)
-    function computeSelectionSummary() {
-      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
-      const orderType = (localStorage.getItem('orderType') || '').toLowerCase();
-
-      if (orderType.includes('home') && orderType.includes('buy')) {
-        return "Home delivery — Atta Order";
-      }
-      if (orderType.includes('shop') && orderType.includes('buy')) {
-        return "At shop — Atta Order";
-      }
-      if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) {
-        return "Home delivery — Pickup & Drop";
-      }
-      if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) {
-        return "At shop — Pickup & Drop";
-      }
-
-      // Fallback
-      if (serveAt.includes('home') || serveAt.includes('homeservice')) return "Home delivery";
-      return "At shop";
-    }
-
-    function updateSelectionSummaryDisplay() {
-      const txt = computeSelectionSummary();
-      if (txt) {
-        selectionSummaryTextEl.textContent = txt;
-        selectionSummaryEl.style.display = 'block';
-      } else {
-        selectionSummaryEl.style.display = 'none';
-      }
-
-      // Show delivery info ONLY when home delivery (reuse the same computed text)
-      try {
-        const lower = (txt || '').toLowerCase();
-        if (lower.includes('home')) {
-          deliveryInfoEl.style.display = 'block';
-        } else {
-          deliveryInfoEl.style.display = 'none';
-        }
-      } catch (e) {
-        // fallback: hide if anything goes wrong
-        deliveryInfoEl.style.display = 'none';
-      }
-    }
-
-    /* Masking utility for user display only (raw values preserved on data-raw attributes).
-       More visible: shows 3 left characters and 2 right characters for name/flat/society.
-       For phone, shows country code (if present) + last 3 digits, masks the middle.
-    */
-    function maskValueGeneric(value, left = 3, right = 2) {
-      if (!value) return '';
-      const s = String(value).trim();
-      if (s.length <= left + right + 2) {
-        return s.slice(0, left) + '*'.repeat(Math.max(2, s.length - left));
-      }
-      const leftPart = s.slice(0, left);
-      const rightPart = s.slice(s.length - right);
-      const mid = '*'.repeat(Math.max(3, s.length - left - right));
-      return leftPart + mid + rightPart;
-    }
-
-    function maskPhone(value) {
-      if (!value) return '';
-      const s = String(value).trim();
-      // If starts with + and country code, keep +CC...
-      if (s.startsWith('+')) {
-        // keep up to first 3 chars (like +91) then mask middle, show last 3
-        const keepLeft = Math.min(3, s.length - 4);
-        const left = s.slice(0, keepLeft);
-        const right = s.slice(-3);
-        const midStars = '*'.repeat(Math.max(3, s.length - keepLeft - 3));
-        return left + midStars + right;
-      }
-      // fallback: show 3 left, 3 right
-      return maskValueGeneric(s, 3, 3);
-    }
-
-    async function generateTokenNumber() {
-      const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
-
-      const { data: activeOrders, error } = await supabase
-        .from("orders")
-        .select(`id, token_number, order_statuses ( status_name )`);
-
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
-
-      const activeTokens = new Set(
-        (activeOrders || [])
-          .filter(o => {
-            const status = o.order_statuses?.status_name;
-            return !inactiveStatuses.includes(status);
-          })
-          .map(o => o.token_number)
-      );
-
-      let maxTokenNum = 0;
-      activeTokens.forEach(token => {
-        const num = parseInt(token?.slice(2), 10);
-        if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
-      });
-
-      for (let attempt = 1; attempt <= 999; attempt++) {
-        let nextNum = maxTokenNum + attempt;
-        if (nextNum > 999) nextNum -= 999;
-        const token = `QA${nextNum}`;
-        if (!activeTokens.has(token)) {
-          return token;
-        }
-      }
-      throw new Error("All token numbers are in use.");
-    }
-
-    async function fetchData() {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone_number', phone)
-        .maybeSingle();
-
-      if (!data) {
-        document.getElementById('user-info').innerHTML =
-          `<p class="text-red-600">Customer not found!</p>`;
+      if (!SUPABASE_URL || !SUPABASE_KEY || SUPABASE_URL.includes('%%')) {
+        console.error('[Init] Supabase config missing or placeholders present. Check /config.js');
+        window.supabaseClient = null;
         return;
       }
 
-      user = data;
+      if (!window.supabaseClient || !window.supabaseClient._initialized) {
+        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        window.supabaseClient._initialized = true;
+        console.log('[Init] Created window.supabaseClient for', new URL(SUPABASE_URL).host);
+      } else {
+        console.log('[Init] Reusing existing window.supabaseClient');
+      }
+    })();
+  </script>
 
-      // Instead of printing raw values, keep them as data-raw and show masked versions
-      const uiName = document.getElementById('ui-name');
-      const uiMobile = document.getElementById('ui-mobile');
-      const uiFlat = document.getElementById('ui-flat');
-      const uiSociety = document.getElementById('ui-society');
+  <!-- 4) Load script.js after client exists so it can rely on window.supabaseClient -->
+  <script src="script.js"></script>
 
-      const rawName = user.name || '';
-      const rawPhone = user.phone_number || '';
-      const rawFlat = `${user.flat_number || ''}${user.wing ? ', ' + user.wing : ''}`.trim();
-      const rawSociety = user.society_name || '';
+  <!-- 5) Page module code — uses the global client (NO createClient import) -->
+  <script type="module">
+    // Use the global single client
+    const supabase = window.supabaseClient;
 
-      // Preserve raw values in data attribute (so any other logic can still access them if needed)
-      uiName.setAttribute('data-raw', rawName);
-      uiMobile.setAttribute('data-raw', rawPhone);
-      uiFlat.setAttribute('data-raw', rawFlat);
-      uiSociety.setAttribute('data-raw', rawSociety);
+    if (!supabase) {
+      console.error('[Page Init] No supabase client available. Aborting DB calls.');
+      const userInfoEl = document.getElementById('user-info');
+      if (userInfoEl) userInfoEl.innerHTML = '<div style="color:#b45309">Supabase not configured. Check /config.js</div>';
+      // stop execution — nothing else will run if supabase is missing
+    } else {
+      // All original business logic follows unchanged — I only removed the import and createClient call
+      const urlParams = new URLSearchParams(window.location.search);
+      const phone = urlParams.get('phone');
 
-      // Display masked versions (more visible)
-      uiName.textContent = maskValueGeneric(rawName, 3, 2);
-      uiMobile.textContent = maskPhone(rawPhone);
-      uiFlat.textContent = maskValueGeneric(rawFlat, 3, 2);
-      uiSociety.textContent = maskValueGeneric(rawSociety, 3, 2);
+      let grainList = [];
+      let user = null;
+      let deliveryCharge = 0; // global delivery charge (numeric, rupees)
+      let isSubmitting = false;  // prevent double submit
 
-      // restore Order Type UI
-      updateSelectionSummaryDisplay();
+      const orderRows = document.getElementById('order-rows');
+      const totalPriceEl = document.getElementById('total-price');
+      const subtotalEl = document.getElementById('subtotal');
+      const toast = document.getElementById('toast');
+      const deliveryRowEl = document.getElementById('delivery-row');
+      const deliveryCostEl = document.getElementById('delivery-cost');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const submitBtn = document.getElementById('submit-btn');
+      const selectionSummaryEl = document.getElementById('selection-summary');
+      const selectionSummaryTextEl = document.getElementById('selection-summary-text');
+      const deliveryInfoEl = document.getElementById('delivery-info');
 
-      // Load grain prices and then add a default row
-      await loadMillingGrains();
+      // ✅ Toast function
+      function showToast(message, type = "success") {
+        toast.textContent = message;
+        toast.className = `fixed bottom-5 right-5 px-4 py-2 rounded shadow text-white ${
+          type === "success" ? "bg-green-600" : "bg-red-600"
+        }`;
+        toast.style.display = "block";
+        setTimeout(() => { toast.style.display = "none"; }, 3000);
+      }
 
-      // fetch delivery pricing for current selection (if applicable)
-      await fetchDeliveryChargeForSelection();
-
-      // initial totals
-      await updateTotal();
-    }
-
-    async function loadMillingGrains() {
-      // Fetch grains ordered by sort_order (DB-level ordering)
-      const { data: grains, error } = await supabase
-        .from('grain_prices')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
-      grainList = grains || [];
-
-      const preferredOrder = ['Wheat', 'Jowar', 'Bajra', 'Rice', 'Chana Dal'];
-      grainList.sort((a, b) => {
-        const ai = preferredOrder.indexOf(a.grain);
-        const bi = preferredOrder.indexOf(b.grain);
-        if (ai === -1 && bi === -1) return 0;
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
+      // Cancel should go back to previous page (browser history)
+      cancelBtn.addEventListener('click', () => {
+        history.back();
       });
 
-      // add an initial row if none exist
-      if (orderRows.children.length === 0) addRow();
-    }
-
-    window.addRow = function () {
-      const row = document.createElement('div');
-      // changed to white background as requested and .grain-row will have 4px gap
-      row.className = 'p-3 border rounded-lg shadow-sm grain-row';
-
-      row.innerHTML = `
-        <!-- Line 1: Grain + Qty -->
-        <div class="flex items-center gap-3">
-          <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
-            <option value="">Select Grain</option>
-            ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
-          </select>
-
-          <input type="number" min="1" placeholder="Qty (kg)" 
-            oninput="updateTotal()" 
-            class="w-28 p-2 border rounded" />
-        </div>
-
-        <!-- Line 2: Milling price + Total + Remove -->
-        <div class="flex items-center justify-between text-sm text-gray-700">
-          <span class="milling-price">Milling Price: ₹0/kg</span>
-          <span>Total: ₹<span class="row-total">0</span></span>
-          <button class="text-red-600 border border-red-600 px-2 py-1 rounded text-xs" 
-            onclick="this.closest('.p-3').remove(); updateTotal();">Remove</button>
-        </div>
-
-        <!-- Line 3: Error -->
-        <div class="error text-red-500 text-sm"></div>
-      `;
-      orderRows.appendChild(row);
-    }
-
-    window.updatePrice = function () {
-      updateTotal();
-    }
-
-    /**
-     * Helper: compute current total weight from orderRows
-     */
-    function computeTotalWeight() {
-      let totalWeight = 0;
-      [...orderRows.children].forEach(row => {
-        const qtyInput = row.querySelector('input');
-        const qty = parseFloat(qtyInput.value || 0);
-        if (!isNaN(qty) && qty > 0) totalWeight += qty;
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchData();
       });
-      return totalWeight;
-    }
 
-    async function fetchPerKgRateFromConfig() {
-      try {
+      // compute selection summary (one of four human readable strings)
+      function computeSelectionSummary() {
+        const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+        const orderType = (localStorage.getItem('orderType') || '').toLowerCase();
+
+        if (orderType.includes('home') && orderType.includes('buy')) {
+          return "Home delivery — Atta Order";
+        }
+        if (orderType.includes('shop') && orderType.includes('buy')) {
+          return "At shop — Atta Order";
+        }
+        if (orderType.includes('home') && (orderType.includes('mill') || orderType.includes('milling'))) {
+          return "Home delivery — Pickup & Drop";
+        }
+        if (orderType.includes('shop') && (orderType.includes('mill') || orderType.includes('milling'))) {
+          return "At shop — Pickup & Drop";
+        }
+
+        // Fallback
+        if (serveAt.includes('home') || serveAt.includes('homeservice')) return "Home delivery";
+        return "At shop";
+      }
+
+      function updateSelectionSummaryDisplay() {
+        const txt = computeSelectionSummary();
+        if (txt) {
+          selectionSummaryTextEl.textContent = txt;
+          selectionSummaryEl.style.display = 'block';
+        } else {
+          selectionSummaryEl.style.display = 'none';
+        }
+
+        // Show delivery info ONLY when home delivery (reuse the same computed text)
+        try {
+          const lower = (txt || '').toLowerCase();
+          if (lower.includes('home')) {
+            deliveryInfoEl.style.display = 'block';
+          } else {
+            deliveryInfoEl.style.display = 'none';
+          }
+        } catch (e) {
+          // fallback: hide if anything goes wrong
+          deliveryInfoEl.style.display = 'none';
+        }
+      }
+
+      /* Masking utility for user display only (raw values preserved on data-raw attributes).
+         More visible: shows 3 left characters and 2 right characters for name/flat/society.
+         For phone, shows country code (if present) + last 3 digits, masks the middle.
+      */
+      function maskValueGeneric(value, left = 3, right = 2) {
+        if (!value) return '';
+        const s = String(value).trim();
+        if (s.length <= left + right + 2) {
+          return s.slice(0, left) + '*'.repeat(Math.max(2, s.length - left));
+        }
+        const leftPart = s.slice(0, left);
+        const rightPart = s.slice(s.length - right);
+        const mid = '*'.repeat(Math.max(3, s.length - left - right));
+        return leftPart + mid + rightPart;
+      }
+
+      function maskPhone(value) {
+        if (!value) return '';
+        const s = String(value).trim();
+        // If starts with + and country code, keep +CC...
+        if (s.startsWith('+')) {
+          // keep up to first 3 chars (like +91) then mask middle, show last 3
+          const keepLeft = Math.min(3, s.length - 4);
+          const left = s.slice(0, keepLeft);
+          const right = s.slice(-3);
+          const midStars = '*'.repeat(Math.max(3, s.length - keepLeft - 3));
+          return left + midStars + right;
+        }
+        // fallback: show 3 left, 3 right
+        return maskValueGeneric(s, 3, 3);
+      }
+
+      async function generateTokenNumber() {
+        const inactiveStatuses = ["DELIVERED", "CANCELLED", "REJECTED"];
+
+        const { data: activeOrders, error } = await supabase
+          .from("orders")
+          .select(`id, token_number, order_statuses ( status_name )`);
+
+        if (error) {
+          console.error("Supabase error:", error);
+          throw error;
+        }
+
+        const activeTokens = new Set(
+          (activeOrders || [])
+            .filter(o => {
+              const status = o.order_statuses?.status_name;
+              return !inactiveStatuses.includes(status);
+            })
+            .map(o => o.token_number)
+        );
+
+        let maxTokenNum = 0;
+        activeTokens.forEach(token => {
+          const num = parseInt(token?.slice(2), 10);
+          if (!isNaN(num) && num > maxTokenNum) maxTokenNum = num;
+        });
+
+        for (let attempt = 1; attempt <= 999; attempt++) {
+          let nextNum = maxTokenNum + attempt;
+          if (nextNum > 999) nextNum -= 999;
+          const token = `QA${nextNum}`;
+          if (!activeTokens.has(token)) {
+            return token;
+          }
+        }
+        throw new Error("All token numbers are in use.");
+      }
+
+      async function fetchData() {
         const { data, error } = await supabase
-          .from('Configuration')
-          .select('config_value')
-          .eq('config_key', 'delivery_per_kg')
-          .limit(1)
+          .from('customers')
+          .select('*')
+          .eq('phone_number', phone)
           .maybeSingle();
 
-        const row = data ?? null;
-        if (!error && row && row.config_value != null) {
-          const v = Number(row.config_value);
-          if (!isNaN(v)) return v;
-        }
-      } catch (e) {
-        // ignore, return null below
-      }
-      return null;
-    }
-
-    window.updateTotal = async function() {
-      let grandTotal = 0;
-
-      [...orderRows.children].forEach(row => {
-        const select = row.querySelector('select');
-        const qtyInput = row.querySelector('input');
-        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(qtyInput.value || 0);
-        const rowTotal = price * qty;
-
-        // Update row values
-        row.querySelector('.row-total').textContent = rowTotal.toFixed(2);
-        row.querySelector('.milling-price').textContent =
-          price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
-
-        grandTotal += rowTotal;
-      });
-
-      // Round the item subtotal
-      const roundedGrandTotal = Math.round(grandTotal);
-
-      // Ensure delivery charge is up-to-date for current selection
-      await fetchDeliveryChargeForSelection();
-
-      // final total includes deliveryCharge
-      const finalTotal = Math.round(roundedGrandTotal + (Number(deliveryCharge) || 0));
-
-      subtotalEl.textContent = `₹${roundedGrandTotal}`;
-      // show or hide delivery row depending on charge
-      if (deliveryCharge && Number(deliveryCharge) > 0) {
-        deliveryRowEl.style.display = 'flex';
-        deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
-      } else {
-        deliveryRowEl.style.display = 'none';
-        deliveryCostEl.textContent = `₹0.00`;
-      }
-      totalPriceEl.textContent = `₹${finalTotal}`;
-    };
-
-    window.submitOrder = async function () {
-      if (isSubmitting) return; // guard: prevent double submit
-      isSubmitting = true;
-      submitBtn.disabled = true;
-      const originalText = submitBtn.textContent;
-      submitBtn.textContent = 'Placing...';
-
-      let grainDetails = [];
-      let hasError = false;
-
-      const rows = [...orderRows.children];
-      rows.forEach(row => {
-        const select = row.querySelector('select');
-        const qtyInput = row.querySelector('input');
-        const errorEl = row.querySelector('.error');
-        errorEl.textContent = '';
-
-        const grain = select.value;
-        const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
-        const qty = parseFloat(qtyInput.value || 0);
-
-        if (!grain || qty <= 0) {
-          errorEl.textContent = "Select grain and enter valid quantity.";
-          hasError = true;
+        if (!data) {
+          document.getElementById('user-info').innerHTML =
+            `<p class="text-red-600">Customer not found!</p>`;
           return;
         }
 
-        grainDetails.push({ grain, quantity: qty, price, total: price * qty });
-      });
+        user = data;
 
-      if (hasError || grainDetails.length === 0) {
-        showToast("Please fix errors before submitting.", "error");
-        isSubmitting = false;
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-        return;
+        // Instead of printing raw values, keep them as data-raw and show masked versions
+        const uiName = document.getElementById('ui-name');
+        const uiMobile = document.getElementById('ui-mobile');
+        const uiFlat = document.getElementById('ui-flat');
+        const uiSociety = document.getElementById('ui-society');
+
+        const rawName = user.name || '';
+        const rawPhone = user.phone_number || '';
+        const rawFlat = `${user.flat_number || ''}${user.wing ? ', ' + user.wing : ''}`.trim();
+        const rawSociety = user.society_name || '';
+
+        // Preserve raw values in data attribute (so any other logic can still access them if needed)
+        uiName.setAttribute('data-raw', rawName);
+        uiMobile.setAttribute('data-raw', rawPhone);
+        uiFlat.setAttribute('data-raw', rawFlat);
+        uiSociety.setAttribute('data-raw', rawSociety);
+
+        // Display masked versions (more visible)
+        uiName.textContent = maskValueGeneric(rawName, 3, 2);
+        uiMobile.textContent = maskPhone(rawPhone);
+        uiFlat.textContent = maskValueGeneric(rawFlat, 3, 2);
+        uiSociety.textContent = maskValueGeneric(rawSociety, 3, 2);
+
+        // restore Order Type UI
+        updateSelectionSummaryDisplay();
+
+        // Load grain prices and then add a default row
+        await loadMillingGrains();
+
+        // fetch delivery pricing for current selection (if applicable)
+        await fetchDeliveryChargeForSelection();
+
+        // initial totals
+        await updateTotal();
       }
 
-      // parse current displayed total and include deliveryCharge (already included in UI)
-      const total_price_display = Math.round(parseFloat(totalPriceEl.textContent.replace("₹", "")));
+      async function loadMillingGrains() {
+        // Fetch grains ordered by sort_order (DB-level ordering)
+        const { data: grains, error } = await supabase
+          .from('grain_prices')
+          .select('*')
+          .order('sort_order', { ascending: true });
 
-      try {
-        const token_number = await generateTokenNumber();
+        grainList = grains || [];
 
-        const { data: statusData } = await supabase
-          .from("order_statuses")
-          .select("id")
-          .eq("status_name", "NEW")
-          .single();
+        const preferredOrder = ['Wheat', 'Jowar', 'Bajra', 'Rice', 'Chana Dal'];
+        grainList.sort((a, b) => {
+          const ai = preferredOrder.indexOf(a.grain);
+          const bi = preferredOrder.indexOf(b.grain);
+          if (ai === -1 && bi === -1) return 0;
+          if (ai === -1) return 1;
+          if (bi === -1) return -1;
+          return ai - bi;
+        });
 
-        const status_id = statusData.id;
-
-        const { error: orderError } = await supabase
-          .from("orders")
-          .insert([{
-            customer_id: user.id,
-            grain_details: grainDetails,
-            total_price: total_price_display,
-            token_number,
-            order_type: localStorage.getItem("orderType") || "pickup",
-            serve_at: localStorage.getItem("serveAt") || null,
-            status_id,
-            status_backup: "new"
-          }]);
-
-        if (orderError) throw orderError;
-
-        showToast("✅ Order placed! Token: " + token_number);
-
-        // on success we redirect; no need to re-enable the button
-        setTimeout(() => {
-          window.location.href = '/my-orders.html?phone=' + phone;
-        }, 2000);
-      } catch (err) {
-        console.error(err);
-        showToast("❌ Error placing order", "error");
-        // re-enable so user can retry
-        isSubmitting = false;
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-      }
-    }
-
-    /**
-     * Fetch delivery charge for current selection using the rule:
-     * ... (kept unchanged)
-     */
-    async function fetchDeliveryChargeForSelection() {
-      const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
-
-      deliveryCharge = 0;
-
-      if (!serveAt.includes('home')) {
-        deliveryRowEl.style.display = 'none';
-        deliveryCostEl.textContent = `₹0.00`;
-        return;
+        // add an initial row if none exist
+        if (orderRows.children.length === 0) addRow();
       }
 
-      // Compute total weight from rows
-      const totalWeight = computeTotalWeight(); // in kg
+      window.addRow = function () {
+        const row = document.createElement('div');
+        // changed to white background as requested and .grain-row will have 4px gap
+        row.className = 'p-3 border rounded-lg shadow-sm grain-row';
 
-      const deliveryTypeKey = 'normal';
+        row.innerHTML = `
+          <!-- Line 1: Grain + Qty -->
+          <div class="flex items-center gap-3">
+            <select onchange="updatePrice(this)" class="flex-1 p-2 border rounded">
+              <option value="">Select Grain</option>
+              ${grainList.map(g => `<option value="${g.grain}" data-price="${g.price}">${g.grain}</option>`).join('')}
+            </select>
 
-      try {
-        if (totalWeight <= 5) {
-          const societyId = user?.society_id || user?.society || null;
-          let foundPrice = null;
+            <input type="number" min="1" placeholder="Qty (kg)" 
+              oninput="updateTotal()" 
+              class="w-28 p-2 border rounded" />
+          </div>
 
-          if (societyId) {
-            const { data: socData, error: socErr } = await supabase
-              .from('delivery_pricing')
-              .select('price')
-              .eq('delivery_type', deliveryTypeKey)
-              .eq('is_active', true)
-              .eq('society_id', societyId)
-              .limit(1)
-              .maybeSingle();
+          <!-- Line 2: Milling price + Total + Remove -->
+          <div class="flex items-center justify-between text-sm text-gray-700">
+            <span class="milling-price">Milling Price: ₹0/kg</span>
+            <span>Total: ₹<span class="row-total">0</span></span>
+            <button class="text-red-600 border border-red-600 px-2 py-1 rounded text-xs" 
+              onclick="this.closest('.p-3').remove(); updateTotal();">Remove</button>
+          </div>
 
-            if (!socErr && socData && socData.price != null) {
-              foundPrice = Number(socData.price);
-            }
+          <!-- Line 3: Error -->
+          <div class="error text-red-500 text-sm"></div>
+        `;
+        orderRows.appendChild(row);
+      }
+
+      window.updatePrice = function () {
+        updateTotal();
+      }
+
+      /**
+       * Helper: compute current total weight from orderRows
+       */
+      function computeTotalWeight() {
+        let totalWeight = 0;
+        [...orderRows.children].forEach(row => {
+          const qtyInput = row.querySelector('input');
+          const qty = parseFloat(qtyInput.value || 0);
+          if (!isNaN(qty) && qty > 0) totalWeight += qty;
+        });
+        return totalWeight;
+      }
+
+      async function fetchPerKgRateFromConfig() {
+        try {
+          const { data, error } = await supabase
+            .from('Configuration')
+            .select('config_value')
+            .eq('config_key', 'delivery_per_kg')
+            .limit(1)
+            .maybeSingle();
+
+          const row = data ?? null;
+          if (!error && row && row.config_value != null) {
+            const v = Number(row.config_value);
+            if (!isNaN(v)) return v;
           }
+        } catch (e) {
+          // ignore, return null below
+        }
+        return null;
+      }
 
-          if (foundPrice == null) {
-            const { data: globData, error: globErr } = await supabase
-              .from('delivery_pricing')
-              .select('price')
-              .eq('delivery_type', deliveryTypeKey)
-              .eq('is_active', true)
-              .is('society_id', null)
-              .limit(1)
-              .maybeSingle();
+      window.updateTotal = async function() {
+        let grandTotal = 0;
 
-            if (!globErr && globData && globData.price != null) {
-              foundPrice = Number(globData.price);
-            }
-          }
+        [...orderRows.children].forEach(row => {
+          const select = row.querySelector('select');
+          const qtyInput = row.querySelector('input');
+          const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+          const qty = parseFloat(qtyInput.value || 0);
+          const rowTotal = price * qty;
 
-          if (foundPrice == null) {
-            const { data: anyData, error: anyErr } = await supabase
-              .from('delivery_pricing')
-              .select('id, price, society_id, delivery_type, is_active')
-              .eq('delivery_type', deliveryTypeKey)
-              .eq('is_active', true)
-              .limit(1);
+          // Update row values
+          row.querySelector('.row-total').textContent = rowTotal.toFixed(2);
+          row.querySelector('.milling-price').textContent =
+            price > 0 ? `Milling Price: ₹${price}/kg` : 'Milling Price: ₹0/kg';
 
-            if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
-              foundPrice = Number(anyData[0].price);
-            }
-          }
+          grandTotal += rowTotal;
+        });
 
-          deliveryCharge = foundPrice != null ? foundPrice : 0;
+        // Round the item subtotal
+        const roundedGrandTotal = Math.round(grandTotal);
+
+        // Ensure delivery charge is up-to-date for current selection
+        await fetchDeliveryChargeForSelection();
+
+        // final total includes deliveryCharge
+        const finalTotal = Math.round(roundedGrandTotal + (Number(deliveryCharge) || 0));
+
+        subtotalEl.textContent = `₹${roundedGrandTotal}`;
+        // show or hide delivery row depending on charge
+        if (deliveryCharge && Number(deliveryCharge) > 0) {
+          deliveryRowEl.style.display = 'flex';
+          deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
         } else {
-          const perKgRate = await fetchPerKgRateFromConfig();
+          deliveryRowEl.style.display = 'none';
+          deliveryCostEl.textContent = `₹0.00`;
+        }
+        totalPriceEl.textContent = `₹${finalTotal}`;
+      };
 
-          if (perKgRate != null && !isNaN(perKgRate)) {
-            deliveryCharge = Number(perKgRate) * Number(totalWeight);
-          } else {
+      window.submitOrder = async function () {
+        if (isSubmitting) return; // guard: prevent double submit
+        isSubmitting = true;
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Placing...';
+
+        let grainDetails = [];
+        let hasError = false;
+
+        const rows = [...orderRows.children];
+        rows.forEach(row => {
+          const select = row.querySelector('select');
+          const qtyInput = row.querySelector('input');
+          const errorEl = row.querySelector('.error');
+          errorEl.textContent = '';
+
+          const grain = select.value;
+          const price = parseFloat(select.selectedOptions[0]?.dataset.price || 0);
+          const qty = parseFloat(qtyInput.value || 0);
+
+          if (!grain || qty <= 0) {
+            errorEl.textContent = "Select grain and enter valid quantity.";
+            hasError = true;
+            return;
+          }
+
+          grainDetails.push({ grain, quantity: qty, price, total: price * qty });
+        });
+
+        if (hasError || grainDetails.length === 0) {
+          showToast("Please fix errors before submitting.", "error");
+          isSubmitting = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+          return;
+        }
+
+        // parse current displayed total and include deliveryCharge (already included in UI)
+        const total_price_display = Math.round(parseFloat(totalPriceEl.textContent.replace("₹", "")));
+
+        try {
+          const token_number = await generateTokenNumber();
+
+          const { data: statusData } = await supabase
+            .from("order_statuses")
+            .select("id")
+            .eq("status_name", "NEW")
+            .single();
+
+          const status_id = statusData.id;
+
+          const { error: orderError } = await supabase
+            .from("orders")
+            .insert([{
+              customer_id: user.id,
+              grain_details: grainDetails,
+              total_price: total_price_display,
+              token_number,
+              order_type: localStorage.getItem("orderType") || "pickup",
+              serve_at: localStorage.getItem("serveAt") || null,
+              status_id,
+              status_backup: "new"
+            }]);
+
+          if (orderError) throw orderError;
+
+          showToast("✅ Order placed! Token: " + token_number);
+
+          // on success we redirect; no need to re-enable the button
+          setTimeout(() => {
+            window.location.href = '/my-orders.html?phone=' + phone;
+          }, 2000);
+        } catch (err) {
+          console.error(err);
+          showToast("❌ Error placing order", "error");
+          // re-enable so user can retry
+          isSubmitting = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      }
+
+      /**
+       * Fetch delivery charge for current selection using the rule:
+       * ... (kept unchanged)
+       */
+      async function fetchDeliveryChargeForSelection() {
+        const serveAt = (localStorage.getItem('serveAt') || '').toLowerCase();
+
+        deliveryCharge = 0;
+
+        if (!serveAt.includes('home')) {
+          deliveryRowEl.style.display = 'none';
+          deliveryCostEl.textContent = `₹0.00`;
+          return;
+        }
+
+        // Compute total weight from rows
+        const totalWeight = computeTotalWeight(); // in kg
+
+        const deliveryTypeKey = 'normal';
+
+        try {
+          if (totalWeight <= 5) {
             const societyId = user?.society_id || user?.society || null;
             let foundPrice = null;
 
@@ -752,22 +726,78 @@
             }
 
             deliveryCharge = foundPrice != null ? foundPrice : 0;
+          } else {
+            const perKgRate = await fetchPerKgRateFromConfig();
+
+            if (perKgRate != null && !isNaN(perKgRate)) {
+              deliveryCharge = Number(perKgRate) * Number(totalWeight);
+            } else {
+              const societyId = user?.society_id || user?.society || null;
+              let foundPrice = null;
+
+              if (societyId) {
+                const { data: socData, error: socErr } = await supabase
+                  .from('delivery_pricing')
+                  .select('price')
+                  .eq('delivery_type', deliveryTypeKey)
+                  .eq('is_active', true)
+                  .eq('society_id', societyId)
+                  .limit(1)
+                  .maybeSingle();
+
+                if (!socErr && socData && socData.price != null) {
+                  foundPrice = Number(socData.price);
+                }
+              }
+
+              if (foundPrice == null) {
+                const { data: globData, error: globErr } = await supabase
+                  .from('delivery_pricing')
+                  .select('price')
+                  .eq('delivery_type', deliveryTypeKey)
+                  .eq('is_active', true)
+                  .is('society_id', null)
+                  .limit(1)
+                  .maybeSingle();
+
+                if (!globErr && globData && globData.price != null) {
+                  foundPrice = Number(globData.price);
+                }
+              }
+
+              if (foundPrice == null) {
+                const { data: anyData, error: anyErr } = await supabase
+                  .from('delivery_pricing')
+                  .select('id, price, society_id, delivery_type, is_active')
+                  .eq('delivery_type', deliveryTypeKey)
+                  .eq('is_active', true)
+                  .limit(1);
+
+                if (!anyErr && Array.isArray(anyData) && anyData.length > 0 && anyData[0].price != null) {
+                  foundPrice = Number(anyData[0].price);
+                }
+              }
+
+              deliveryCharge = foundPrice != null ? foundPrice : 0;
+            }
           }
+        } catch (err) {
+          deliveryCharge = 0;
         }
-      } catch (err) {
-        deliveryCharge = 0;
-      }
 
-      // Update UI now (updateTotal will also re-evaluate)
-      if (deliveryCharge && Number(deliveryCharge) > 0) {
-        deliveryRowEl.style.display = 'flex';
-        deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
-      } else {
-        deliveryRowEl.style.display = 'none';
-        deliveryCostEl.textContent = `₹0.00`;
+        // Update UI now (updateTotal will also re-evaluate)
+        if (deliveryCharge && Number(deliveryCharge) > 0) {
+          deliveryRowEl.style.display = 'flex';
+          deliveryCostEl.textContent = `₹${Number(deliveryCharge).toFixed(2)}`;
+        } else {
+          deliveryRowEl.style.display = 'none';
+          deliveryCostEl.textContent = `₹0.00`;
+        }
       }
-    }
-
+    } // end else (supabase exists)
   </script>
+
+  <!-- ================== SCRIPT ORDER FIXES END HERE ================== -->
+
 </body>
 </html>
