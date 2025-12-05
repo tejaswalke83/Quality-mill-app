@@ -229,8 +229,7 @@
       "DELIVERED": "bg-gray-200 text-gray-800",
       "PICKED UP": "bg-purple-100 text-purple-800",
       "RECEIVED AT MILL": "bg-orange-100 text-orange-800",
-      "OUT FOR DELIVERY": "bg-pink-100 text-pink-800",
-      "ARCHIVED": "bg-gray-50 text-gray-700"
+      "OUT FOR DELIVERY": "bg-pink-100 text-pink-800"
     };
     return map[status] || "bg-gray-100 text-gray-700";
   }
@@ -263,6 +262,21 @@ function getOrderTypeIcon(type) {
   // default → no icon
   return "";
 }
+
+
+
+
+  
+  // function getOrderTypeIcon(type) {
+  //   const pinwheelIcon = `<img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />`;
+  //   const scooterIcon = `<img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />`;
+  //   if (!type) return "";
+  //   const t = String(type).toLowerCase();
+  //   if (t.includes('shop-buy-mill') || t.includes('shop_buy_mill')) return pinwheelIcon;
+  //   if (t.includes('home-milling') || t.includes('home_milling') || (t.includes('home') && t.includes('mill'))) return scooterIcon;
+  //   if (t.includes('home-buy-mill') || t.includes('home_buy_mill')) return pinwheelIcon + scooterIcon;
+  //   return "";
+  // }
 
   async function fetchAllOrders() {
     const { data, error } = await supabase
@@ -301,12 +315,11 @@ function getOrderTypeIcon(type) {
     const statusMap = {};
     statuses.forEach(s => statusMap[s.status_name] = s.id);
 
-    // Added ARCHIVED at the end of each flow
     return {
-      "shop-milling": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"], statusMap["ARCHIVED"]],
-      "shop-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"], statusMap["ARCHIVED"]],
-      "home-milling": [statusMap["NEW"], statusMap["PICKED UP"], statusMap["RECEIVED AT MILL"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"], statusMap["ARCHIVED"]],
-      "home-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"], statusMap["ARCHIVED"]]
+      "shop-milling": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"]],
+      "shop-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"]],
+      "home-milling": [statusMap["NEW"], statusMap["PICKED UP"], statusMap["RECEIVED AT MILL"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"]],
+      "home-buy-mill": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["OUT FOR DELIVERY"], statusMap["DELIVERED"]]
     };
   }
 
@@ -362,35 +375,25 @@ function getOrderTypeIcon(type) {
     console.debug('updateOrderStatus: guard check', { role, orderTypeNorm, currentStatusName, nextStatusName, orderId });
 
     // Broaden match: check for keywords rather than strict equality (handles variations)
+
     const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-    const isOperator = String(role||'').toLowerCase() === 'operator';
-    const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+const isOperator = String(role||'').toLowerCase() === 'operator';
+const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
 
-    // NEW guard: operator cannot mark OUT FOR DELIVERY -> DELIVERED (applies to all order types)
-    const isOutToDelivered = currentStatusName === 'OUT FOR DELIVERY' && nextStatusName === 'DELIVERED';
+// NEW guard: operator cannot mark OUT FOR DELIVERY -> DELIVERED (applies to all order types)
+const isOutToDelivered = currentStatusName === 'OUT FOR DELIVERY' && nextStatusName === 'DELIVERED';
 
-    // keep previous home-milling NEW->PICKED UP guard
-    if (isOperator && isHomeMilling && isFromNewToPicked) {
-      alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
-      return;
-    }
+// keep previous home-milling NEW->PICKED UP guard
+if (isOperator && isHomeMilling && isFromNewToPicked) {
+  alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
+  return;
+}
 
-    // new universal guard for operators: block Out For Delivery -> Delivered
-    if (isOperator && isOutToDelivered) {
-      alert('Action not allowed: Operators are not permitted to mark orders OUT FOR DELIVERY → DELIVERED.');
-      return;
-    }
-
-    // UNIVERSAL: allow Delivered -> Archived for everyone
-    if (nextStatusName === "ARCHIVED") {
-      await supabase.from('orders').update({
-        status_id: newStatusId
-      }).eq('id', orderId);
-
-      closeModal();
-      await loadOrders();
-      return;
-    }
+// new universal guard for operators
+if (isOperator && isOutToDelivered) {
+  alert('Action not allowed: Operators are not permitted to mark orders OUT FOR DELIVERY → DELIVERED.');
+  return;
+}
 
     // Delivered special-case (payment method required)
     if (nextStatus?.status_name === "DELIVERED") {
@@ -538,7 +541,7 @@ div.innerHTML = `
     return String(name).toUpperCase().replace(/[-_]/g,' ').includes(keyword.toUpperCase());
   }
 
-  // make openModal async so we can await role and compute blockedTransition
+// make openModal async so we can await role and compute blockedTransition
 async function openModal(order) {
   const modal = document.getElementById("orderModal");
   const content = document.getElementById("modalContent");
@@ -598,74 +601,64 @@ async function openModal(order) {
   const curName = (statusLabel || '').toString().trim().toUpperCase();
   const nextName = (next?.status_name || '').toString().trim().toUpperCase();
 
-  const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-  const isOperator = String(role||'').toLowerCase() === 'operator';
-  const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
 
-  // block operator marking Out For Delivery -> Delivered (applies to all order types)
-  const isOutToDelivered = curName === 'OUT FOR DELIVERY' && nextName === 'DELIVERED';
+const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+const isOperator = String(role||'').toLowerCase() === 'operator';
+const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
 
-  // blocked if either (home-milling NEW->PICKED UP) OR (operator trying OUT->DELIVERED)
-  const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isOperator && isOutToDelivered);
+// block operator marking Out For Delivery -> Delivered (applies to all order types)
+const isOutToDelivered = curName === 'OUT FOR DELIVERY' && nextName === 'DELIVERED';
 
+// blocked if either (home-milling NEW->PICKED UP) OR (operator trying OUT->DELIVERED)
+const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isOperator && isOutToDelivered);
+
+  
   // Render payment method UI if next is DELIVERED
   if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
-    // If blockedTransition, disable the radios and show a helper note
-    const disabledAttr = blockedTransition ? 'disabled' : '';
-    const disabledNote = blockedTransition ? `<div class="text-sm text-red-600 mt-2">Operators cannot complete this transition; payment selection is disabled.</div>` : '';
+    // if blockedTransition is true, render radios disabled so operator cannot choose payment
+    const disabledAttr = blockedTransition ? 'disabled aria-disabled="true" title="Operators cannot mark Out For Delivery → Delivered"' : '';
+    const onchangeAttr = blockedTransition ? '' : `onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"`;
 
     actionsContainer.innerHTML += `
       <div class="mt-4">
         <p class="font-medium mb-2">Payment Method:</p>
         <label class="flex items-center gap-2 py-2">
           <input type="radio" name="payment_${order.id}" value="online"
-            ${order.payment_status === 'online' ? 'checked' : ''}
-            ${disabledAttr}
-            onchange="!${blockedTransition} && savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
+            ${order.payment_status === 'online' ? 'checked' : ''} ${disabledAttr}
+            ${onchangeAttr} /> Paid Online
         </label>
         <label class="flex items-center gap-2 py-2">
           <input type="radio" name="payment_${order.id}" value="cash"
-            ${order.payment_status === 'cash' ? 'checked' : ''}
-            ${disabledAttr}
-            onchange="!${blockedTransition} && savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
+            ${order.payment_status === 'cash' ? 'checked' : ''} ${disabledAttr}
+            ${onchangeAttr} /> Paid Cash
         </label>
-        <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-        ${disabledNote}
+        <p id="paymentError" class="text-red-600 text-sm mt-2 ${blockedTransition ? '' : 'hidden'}">${blockedTransition ? '⚠ Payment selection disabled for your role.' : '⚠ Please select a payment method before marking as Delivered.'}</p>
       </div>
     `;
   }
 
-  // Move button handling
+  // Move button (disabled if blocked)
   if (blockedTransition) {
-    // If blocked, show disabled move button (also when next is DELIVERED, payment radios will be disabled as above)
+    const titleText = isOperator && isOutToDelivered
+      ? 'Operators cannot mark Out For Delivery → Delivered.'
+      : 'Operators are not permitted to perform this transition.';
     actionsContainer.innerHTML += `
       <button
         class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
         aria-disabled="true"
-        title="${isOutToDelivered ? 'Operators are not permitted to move OUT FOR DELIVERY → DELIVERED' : 'Operators are not permitted to move home-milling NEW → PICKED UP'}"
-        onclick="(function(){ alert('Action blocked: You are not permitted to perform this transition.'); })()"
+        title="${titleText}"
+        onclick="(function(){ alert('Action blocked: You do not have permission to perform this transition.'); })()"
       >
         Move to ${next.status_name}
       </button>
     `;
   } else {
-    // Not blocked
-    // Special: if next is ARCHIVED -> allow for everyone and show "Move to Archived"
-    if (nextName === "ARCHIVED") {
-      actionsContainer.innerHTML += `
-        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-          class="mt-4 w-full bg-gray-700 text-white py-2 rounded hover:bg-gray-800">
-          Move to Archived
-        </button>
-      `;
-    } else {
-      actionsContainer.innerHTML += `
-        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-          class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-          Move to ${next.status_name}
-        </button>
-      `;
-    }
+    actionsContainer.innerHTML += `
+      <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+        class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+        Move to ${next.status_name}
+      </button>
+    `;
   }
 }
   window.openModal = openModal;
@@ -696,7 +689,7 @@ async function openModal(order) {
     await loadOrders();
     
     const container = document.getElementById('ordersList');
-    the firstOrder = container.querySelector('.order-card');
+    const firstOrder = container.querySelector('.order-card');
     if (firstOrder) {
       firstOrder.scrollIntoView({ behavior: 'smooth', block: 'center' });
       firstOrder.classList.add("ring-2", "ring-blue-400");
@@ -721,4 +714,3 @@ async function openModal(order) {
 </script>
 </body>
 </html>
-
