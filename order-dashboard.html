@@ -125,47 +125,86 @@
   // store detected role to avoid repeated lookups
   window._currentUserRole = window._currentUserRole || null;
 
+  // ---------- REPLACED fetchUserRole() ----------
   async function fetchUserRole() {
-    // return cached if present
+    // return cached value if present
     if (window._currentUserRole) return window._currentUserRole;
 
     try {
-      // 1) check common globals / body dataset
+      // 1) quick check: frequently used globals / body dataset
       const maybe =
         window.currentUser?.role ||
         window.user?.role ||
         window.userRole ||
         window.APP_USER?.role ||
         window.__USER__?.role ||
-        document?.body?.dataset?.role || null;
+        document?.body?.dataset?.role ||
+        null;
 
       if (maybe) {
         window._currentUserRole = String(maybe).toLowerCase();
+        console.debug('fetchUserRole: resolved from global/dataset ->', window._currentUserRole);
         return window._currentUserRole;
       }
 
-      // 2) try Supabase auth user metadata (if available)
+      // 2) try supabase.auth.getUser() if available
       if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
         try {
           const { data } = await supabase.auth.getUser();
-          const user = data?.user || data;
-          const roleFromMeta = user?.user_metadata?.role || user?.role || null;
-          if (roleFromMeta) {
-            window._currentUserRole = String(roleFromMeta).toLowerCase();
-            return window._currentUserRole;
+          // supabase v2 may return { data: { user } } or { data: user }, handle both
+          const user = (data && data.user) ? data.user : data;
+          if (user) {
+            // check metadata first
+            const roleFromMeta = user?.user_metadata?.role || user?.role || null;
+            if (roleFromMeta) {
+              window._currentUserRole = String(roleFromMeta).toLowerCase();
+              console.debug('fetchUserRole: resolved from auth metadata ->', window._currentUserRole);
+              return window._currentUserRole;
+            }
+
+            // 3) FALLBACK: query public.users by auth user id (matches your schema)
+            const userId = user?.id || null;
+            if (userId) {
+              try {
+                const { data: row, error } = await supabase
+                  .from('users')
+                  .select('role')
+                  .eq('id', userId)
+                  .maybeSingle();
+
+                if (error) {
+                  console.warn('fetchUserRole: error querying public.users', error);
+                } else if (row && row.role) {
+                  window._currentUserRole = String(row.role).toLowerCase();
+                  console.debug('fetchUserRole: resolved from public.users table ->', window._currentUserRole);
+                  return window._currentUserRole;
+                } else {
+                  console.debug('fetchUserRole: no role found in public.users for userId:', userId);
+                }
+              } catch (e) {
+                console.warn('fetchUserRole: users table lookup failed', e);
+              }
+            } else {
+              console.debug('fetchUserRole: auth returned no user.id');
+            }
+          } else {
+            console.debug('fetchUserRole: supabase.auth.getUser returned no user');
           }
         } catch (e) {
-          // ignore
+          console.warn('fetchUserRole: supabase.auth.getUser failed', e);
         }
+      } else {
+        console.debug('fetchUserRole: supabase auth not available');
       }
     } catch (e) {
       console.warn('fetchUserRole failed', e);
     }
 
-    // fallback to null
+    // fallback: unknown role
     window._currentUserRole = null;
     return null;
   }
+  // ---------- end replaced function ----------
 
   function getStatusClass(status) {
     const map = {
@@ -561,6 +600,7 @@ div.innerHTML = `
 </script>
 </body>
 </html>
+
 
 
 
