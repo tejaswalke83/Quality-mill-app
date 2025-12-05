@@ -104,12 +104,77 @@
   </div>
 
   <script src="config.js"></script>
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-    const SUPABASE_URL = window._env_?.SUPABASE_URL;
-    const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  <!-- Load Supabase UMD bundle then create guarded global client and run your original logic -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    (function initSupabaseGuard(){
+      const SUPABASE_URL = window._env_?.SUPABASE_URL ?? null;
+      const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY ?? null;
+
+      console.groupCollapsed('[Supabase Guard]');
+      console.log('window._env_ present?', !!window._env_);
+      console.log('SUPABASE_URL host:', SUPABASE_URL ? (() => { try { return new URL(SUPABASE_URL).host } catch(e){ return SUPABASE_URL } })() : SUPABASE_URL);
+      console.log('SUPABASE_KEY length:', SUPABASE_KEY ? SUPABASE_KEY.length : SUPABASE_KEY);
+      console.groupEnd();
+
+      const hasPlaceholder = (v) => !v || String(v).includes('%%') || String(v).trim() === '';
+
+      if (hasPlaceholder(SUPABASE_URL) || hasPlaceholder(SUPABASE_KEY)) {
+        console.error('[Supabase Guard] config.js missing or contains placeholders — not creating client.');
+        window.supabaseClient = null;
+        return;
+      }
+
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        if (!window.supabaseClient || !window.supabaseClient._initialized) {
+          try {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            window.supabaseClient._initialized = true;
+            console.log('[Supabase Guard] window.supabaseClient created for', new URL(SUPABASE_URL).host);
+          } catch (err) {
+            console.error('[Supabase Guard] failed to create client', err);
+            window.supabaseClient = null;
+          }
+        } else {
+          console.log('[Supabase Guard] reusing existing window.supabaseClient');
+        }
+      } else {
+        console.warn('[Supabase Guard] supabase global SDK not loaded yet');
+        window.supabaseClient = null;
+      }
+    })();
+  </script>
+
+  <script>
+  (async function(){
+    const supabase = window.supabaseClient;
+
+    if (!supabase) {
+      console.warn('Supabase client not available — DB-backed UI disabled. Fix /config.js or loading order.');
+      const container = document.getElementById('ordersContainer');
+      if (container) {
+        container.innerHTML = `<div class="bg-yellow-50 border border-yellow-200 rounded p-4 text-sm text-yellow-800">
+          ⚠️ Supabase not configured. Check <code>/config.js</code> or environment injection. See console for details.
+        </div>`;
+      }
+      // safe no-op exposures so UI doesn't break
+      window.fetchStatuses = async () => [];
+      window.buildStatusFlows = async () => ({});
+      window.getNextStatus = () => null;
+      window.fetchOrdersFromDB = async () => [];
+      window.renderOrders = async () => {};
+      window.reloadOrders = async () => {};
+      window.debouncedReload = () => {};
+      window.openModal = () => {};
+      window.closeModal = () => {};
+      window.markPickedUp = async () => {};
+      window.updateOrderStatus = async () => {};
+      window.savePaymentMethod = async () => {};
+      return;
+    }
+
+    // ---------- Begin original business logic (unchanged) ----------
     const PINWHEEL_URL = "https://openmoji.org/data/color/svg/1F33E.svg";
     const SCOOTER_URL = "https://openmoji.org/data/color/svg/1F6F5.svg";
 
@@ -696,7 +761,9 @@
 
     // start
     await init();
-
+    // ---------- End original business logic ----------
+  })();
   </script>
 </body>
 </html>
+
