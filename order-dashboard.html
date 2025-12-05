@@ -116,11 +116,56 @@
     return;
   }
 
-  // ---------- Begin original business logic (unchanged) ----------
+  // ---------- Begin original business logic (unchanged except for the operator/home-milling guard) ----------
   let statusesCache = [];
   let statusFlows = {};
   let currentOpenOrder = null;
   let searchTimeout;
+
+  // store detected role to avoid repeated lookups
+  window._currentUserRole = window._currentUserRole || null;
+
+  async function fetchUserRole() {
+    // return cached if present
+    if (window._currentUserRole) return window._currentUserRole;
+
+    try {
+      // 1) check common globals / body dataset
+      const maybe =
+        window.currentUser?.role ||
+        window.user?.role ||
+        window.userRole ||
+        window.APP_USER?.role ||
+        window.__USER__?.role ||
+        document?.body?.dataset?.role || null;
+
+      if (maybe) {
+        window._currentUserRole = String(maybe).toLowerCase();
+        return window._currentUserRole;
+      }
+
+      // 2) try Supabase auth user metadata (if available)
+      if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+        try {
+          const { data } = await supabase.auth.getUser();
+          const user = data?.user || data;
+          const roleFromMeta = user?.user_metadata?.role || user?.role || null;
+          if (roleFromMeta) {
+            window._currentUserRole = String(roleFromMeta).toLowerCase();
+            return window._currentUserRole;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      console.warn('fetchUserRole failed', e);
+    }
+
+    // fallback to null
+    window._currentUserRole = null;
+    return null;
+  }
 
   function getStatusClass(status) {
     const map = {
@@ -203,7 +248,44 @@
     return statusesCache.find(s => s.id === nextId) || null;
   }
 
+  function getStatusNameById(id) {
+    return statusesCache.find(s => s.id === id)?.status_name || null;
+  }
+
   async function updateOrderStatus(orderId, newStatusId) {
+    // --- Guard: prevent operator from moving a home-milling order from NEW -> PICKED UP ---
+    try {
+      const nextStatus = statusesCache.find(s => s.id === newStatusId);
+      // obtain order data: prefer currentOpenOrder, otherwise fetch minimal fields
+      let order = currentOpenOrder;
+      if (!order || String(order.id) !== String(orderId)) {
+        const { data, error } = await supabase.from('orders').select('id, order_type, status_id').eq('id', orderId).maybeSingle();
+        if (error) console.warn('updateOrderStatus: could not fetch order for guard check', error);
+        order = data || order;
+      }
+
+      const currentStatusName = getStatusNameById(order?.status_id);
+      const nextStatusName = nextStatus?.status_name;
+
+      const role = await fetchUserRole();
+
+      if (role === 'operator' &&
+          order?.order_type === 'home-milling' &&
+          String(currentStatusName)?.toUpperCase() === 'NEW' &&
+          String(nextStatusName)?.toUpperCase() === 'PICKED UP') {
+        // Block the action
+        alert('Action not allowed: Operators are not permitted to move home-milling orders from NEW to PICKED UP.');
+        return;
+      }
+    } catch (e) {
+      console.warn('Guard check failed in updateOrderStatus', e);
+      // proceed carefully if guard check fails (fail-open could be dangerous; failing closed is safer)
+      // we'll abort to be safe
+      alert('Unable to validate permissions. Status update aborted.');
+      return;
+    }
+
+    // Existing logic for marking delivered / other statuses
     const nextStatus = statusesCache.find(s => s.id === newStatusId);
 
     if (nextStatus?.status_name === "DELIVERED") {
@@ -347,7 +429,8 @@ div.innerHTML = `
     });
   }
 
-  function openModal(order) {
+  // openModal is now async so we can check role and hide button when needed
+  async function openModal(order) {
     const modal = document.getElementById("orderModal");
     const content = document.getElementById("modalContent");
 
@@ -362,6 +445,20 @@ div.innerHTML = `
     const statusLabel = statusObj ? statusObj.status_name : "Unknown";
     const statusClass = getStatusClass(statusLabel);
     const next = getNextStatus(order);
+
+    // check role and determine if transition should be blocked
+    let blockedTransition = false;
+    try {
+      const role = await fetchUserRole();
+      if (role === 'operator' &&
+          order?.order_type === 'home-milling' &&
+          String(statusLabel).toUpperCase() === 'NEW' &&
+          next?.status_name && String(next.status_name).toUpperCase() === 'PICKED UP') {
+        blockedTransition = true;
+      }
+    } catch (e) {
+      console.warn('openModal: role check failed', e);
+    }
 
     content.innerHTML = `
       <div class="flex justify-between items-center mb-2">
@@ -397,10 +494,16 @@ div.innerHTML = `
             <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
           </div>` : ''}
 
-          <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-            class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-            Move to ${next.status_name}
-          </button>
+          ${ blockedTransition ? `
+            <div class="mt-4">
+              <p class="text-sm text-red-600">Operators are not allowed to move <strong>home-milling</strong> orders from <strong>NEW → PICKED UP</strong>.</p>
+            </div>
+          ` : `
+            <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+              class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+              Move to ${next.status_name}
+            </button>
+          `}
         `
         : ''}
     `;
@@ -458,5 +561,6 @@ div.innerHTML = `
 </script>
 </body>
 </html>
+
 
 
