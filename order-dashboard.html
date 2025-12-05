@@ -499,128 +499,114 @@ div.innerHTML = `
   }
 
   // make openModal async so we can await role and compute blockedTransition
-  async function openModal(order) {
-    const modal = document.getElementById("orderModal");
-    const content = document.getElementById("modalContent");
+  // make openModal async so we can await role and compute blockedTransition
+async function openModal(order) {
+  const modal = document.getElementById("orderModal");
+  const content = document.getElementById("modalContent");
 
-    currentOpenOrder = order;
+  currentOpenOrder = order;
 
-    const grainsHTML = Array.isArray(order.grain_details)
-      ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
-        order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
-        '</ul>' : '';
+  const grainsHTML = Array.isArray(order.grain_details)
+    ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+      order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+      '</ul>' : '';
 
-    const statusObj = statusesCache.find(s => s.id === order.status_id);
-    const statusLabel = statusObj ? statusObj.status_name : "Unknown";
-    const statusClass = getStatusClass(statusLabel);
-    const next = getNextStatus(order);
+  const statusObj = statusesCache.find(s => s.id === order.status_id);
+  const statusLabel = statusObj ? statusObj.status_name : "Unknown";
+  const statusClass = getStatusClass(statusLabel);
+  const next = getNextStatus(order);
 
-    // show immediate fetching badge
-    content.innerHTML = `
-      <div class="flex justify-between items-center mb-2">
-        <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
-        <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
+  // Render modal WITHOUT role badge (we still fetch role silently below)
+  content.innerHTML = `
+    <div class="flex justify-between items-center mb-2">
+      <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
+      <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
+    </div>
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-bold mb-2 inline-block">${order.customers?.name || 'N/A'}</h2>
+        <p class="text-sm text-gray-500 mt-1">${order.customers?.phone_number ? `<a href="tel:${order.customers?.phone_number}" class="text-blue-600 underline">${order.customers?.phone_number}</a>` : 'N/A'}</p>
       </div>
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xl font-bold mb-2 inline-block">${order.customers?.name || 'N/A'}</h2>
-          <span id="modalRoleBadge" class="role-badge ml-2">Fetching…</span>
-          <p class="text-sm text-gray-500 mt-1">${order.customers?.phone_number ? `<a href="tel:${order.customers?.phone_number}" class="text-blue-600 underline">${order.customers?.phone_number}</a>` : 'N/A'}</p>
-        </div>
-        <div class="text-sm text-gray-600"><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
-      </div>
+      <div class="text-sm text-gray-600"><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
+    </div>
 
-      <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
+    <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
 
-      ${grainsHTML}
-      <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
-      <div id="modalActions"></div>
-    `;
-    modal.classList.remove("hidden");
+    ${grainsHTML}
+    <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
+    <div id="modalActions"></div>
+  `;
+  modal.classList.remove("hidden");
 
-    // resolve role and recompute actions
-    let role = null;
-    try {
-      role = await fetchUserRole();
-    } catch (e) {
-      console.warn('openModal: fetchUserRole failed', e);
-    }
-
-    const roleBadge = document.getElementById('modalRoleBadge');
-    if (roleBadge) {
-      if (role) {
-        roleBadge.textContent = String(role).toUpperCase();
-        roleBadge.title = 'Resolved role';
-      } else {
-        roleBadge.textContent = 'ROLE UNAVAILABLE';
-        roleBadge.title = 'Role could not be determined. Check console -> window.debugRoleSources';
-        const hint = document.createElement('div');
-        hint.className = 'text-xs text-gray-500 mt-1';
-        hint.textContent = 'Role not found — check console (window.debugRoleSources) or provide USER_PHONE in config.';
-        roleBadge.insertAdjacentElement('afterend', hint);
-      }
-    }
-
-    // Now build actions based on resolved role + next status
-    const actionsContainer = document.getElementById('modalActions');
-    actionsContainer.innerHTML = '';
-
-    if (!next) {
-      // no next status -> nothing to show
-      return;
-    }
-
-    const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
-    const curName = (statusLabel || '').toString().trim().toUpperCase();
-    const nextName = (next?.status_name || '').toString().trim().toUpperCase();
-
-    const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-    const isOperator = String(role||'').toLowerCase() === 'operator';
-    const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
-
-    const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
-
-    // Render payment method UI if next is DELIVERED
-    if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
-      actionsContainer.innerHTML += `
-        <div class="mt-4">
-          <p class="font-medium mb-2">Payment Method:</p>
-          <label class="flex items-center gap-2 py-2">
-            <input type="radio" name="payment_${order.id}" value="online"
-              ${order.payment_status === 'online' ? 'checked' : ''}
-              onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
-          </label>
-          <label class="flex items-center gap-2 py-2">
-            <input type="radio" name="payment_${order.id}" value="cash"
-              ${order.payment_status === 'cash' ? 'checked' : ''}
-              onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
-          </label>
-          <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-        </div>
-      `;
-    }
-
-    // Move button (disabled if blocked)
-    if (blockedTransition) {
-      actionsContainer.innerHTML += `
-        <button
-          class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
-          aria-disabled="true"
-          title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
-          onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
-        >
-          Move to ${next.status_name}
-        </button>
-      `;
-    } else {
-      actionsContainer.innerHTML += `
-        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-          class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-          Move to ${next.status_name}
-        </button>
-      `;
-    }
+  // Silently resolve role (used only for guard; not shown on UI)
+  let role = null;
+  try {
+    role = await fetchUserRole();
+  } catch (e) {
+    console.warn('openModal: fetchUserRole failed', e);
   }
+
+  // Build actions based on resolved role + next status
+  const actionsContainer = document.getElementById('modalActions');
+  actionsContainer.innerHTML = '';
+
+  if (!next) {
+    // no next status -> nothing to show
+    return;
+  }
+
+  const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
+  const curName = (statusLabel || '').toString().trim().toUpperCase();
+  const nextName = (next?.status_name || '').toString().trim().toUpperCase();
+
+  const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+  const isOperator = String(role||'').toLowerCase() === 'operator';
+  const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+
+  const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
+
+  // Render payment method UI if next is DELIVERED
+  if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
+    actionsContainer.innerHTML += `
+      <div class="mt-4">
+        <p class="font-medium mb-2">Payment Method:</p>
+        <label class="flex items-center gap-2 py-2">
+          <input type="radio" name="payment_${order.id}" value="online"
+            ${order.payment_status === 'online' ? 'checked' : ''}
+            onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
+        </label>
+        <label class="flex items-center gap-2 py-2">
+          <input type="radio" name="payment_${order.id}" value="cash"
+            ${order.payment_status === 'cash' ? 'checked' : ''}
+            onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
+        </label>
+        <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
+      </div>
+    `;
+  }
+
+  // Move button (disabled if blocked)
+  if (blockedTransition) {
+    actionsContainer.innerHTML += `
+      <button
+        class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
+        aria-disabled="true"
+        title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
+        onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
+      >
+        Move to ${next.status_name}
+      </button>
+    `;
+  } else {
+    actionsContainer.innerHTML += `
+      <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+        class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+        Move to ${next.status_name}
+      </button>
+    `;
+  }
+}
+
   window.openModal = openModal;
 
   function closeModal() { 
