@@ -126,119 +126,99 @@
   // cache role here
   window._currentUserRole = window._currentUserRole || null;
 
-    // Improved fetchUserRole with verbose logging + debug info
+  // Helper: extract phone from URL query param
+  function getPhoneFromUrl() {
+    try {
+      const qp = new URLSearchParams(window.location.search);
+      const p = qp.get('phone') || qp.get('mobile') || qp.get('ph');
+      return p ? String(p).trim() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Helper: canonical phone getter for role resolution
+  function getPhoneForRole() {
+    // priority: URL param -> config -> localStorage -> body dataset -> global var
+    const fromUrl = getPhoneFromUrl();
+    const fromEnv = window._env_?.USER_PHONE ?? null;
+    const fromLocal = localStorage.getItem('user_phone') ?? null;
+    const fromBody = document.body?.dataset?.phone ?? null;
+    const fromGlobal = window.loggedInPhone ?? window.currentUserPhone ?? null;
+
+    window.debugRoleSources = {
+      url_phone: fromUrl,
+      env_USER_PHONE: fromEnv,
+      local_user_phone: fromLocal,
+      body_dataset_phone: fromBody,
+      globals: { loggedInPhone: window.loggedInPhone ?? null, currentUserPhone: window.currentUserPhone ?? null }
+    };
+
+    // return first non-empty
+    return (fromUrl || fromEnv || fromLocal || fromBody || fromGlobal) || null;
+  }
+
+  // FINAL fetchUserRole() — queries public.users by phone_number (no supabase.auth)
   async function fetchUserRole() {
     if (window._currentUserRole) {
       console.debug('fetchUserRole: cached ->', window._currentUserRole);
       return window._currentUserRole;
     }
 
-    // container for debugging values (inspectable from console)
-    window.debugRoleSources = {
-      env_user_role: window._env_?.USER_ROLE ?? null,
-      env_role: window._env_?.ROLE ?? null,
-      globals: {
-        currentUser: window.currentUser?.role ?? null,
-        user: window.user?.role ?? null,
-        userRole: window.userRole ?? null,
-        APP_USER: window.APP_USER?.role ?? null,
-        __USER__: window.__USER__?.role ?? null,
-        body_dataset: document?.body?.dataset?.role ?? null,
-      },
-      localStorage_user_role: localStorage.getItem('user_role') ?? null,
-      supabase_auth_user: null,
-      users_table_role: null
-    };
+    const phone = getPhoneForRole();
+    console.debug('fetchUserRole: resolved phone candidate ->', phone, window.debugRoleSources);
 
-    console.groupCollapsed('fetchUserRole: trying simple fallbacks');
-    console.log('window._env_.USER_ROLE:', window.debugRoleSources.env_user_role);
-    console.log('window._env_.ROLE:', window.debugRoleSources.env_role);
-    console.log('globals:', window.debugRoleSources.globals);
-    console.log('localStorage user_role:', window.debugRoleSources.localStorage_user_role);
-    console.groupEnd();
-
-    // 1) quick config/globals/localStorage
-    const maybe =
-      window._env_?.USER_ROLE ??
-      window._env_?.ROLE ??
-      window.currentUser?.role ??
-      window.user?.role ??
-      window.userRole ??
-      window.APP_USER?.role ??
-      window.__USER__?.role ??
-      document?.body?.dataset?.role ??
-      localStorage.getItem('user_role') ??
-      null;
-
-    if (maybe) {
-      window._currentUserRole = String(maybe).toLowerCase();
-      console.debug('fetchUserRole: resolved from quick fallback ->', window._currentUserRole);
-      return window._currentUserRole;
+    if (!phone) {
+      console.warn('fetchUserRole: no phone available to lookup role. Check URL ( ?phone= ), config, or localStorage.');
+      return null;
     }
 
-    // 2) try supabase auth.getUser (v2)
+    // normalize phone: strip spaces, dashes. Do NOT add country code automatically — adapt if needed.
+    const normalized = String(phone).replace(/[^\d]/g, '');
+
     try {
-      if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
-        console.debug('fetchUserRole: calling supabase.auth.getUser()');
-        const res = await supabase.auth.getUser();
-        const user = (res && res.data && res.data.user) ? res.data.user : res.data || res.user || null;
-        window.debugRoleSources.supabase_auth_user = user ?? null;
-        console.debug('fetchUserRole: supabase.auth.getUser ->', user);
-        if (user) {
-          const metaRole = user?.user_metadata?.role || user?.role || null;
-          if (metaRole) {
-            window._currentUserRole = String(metaRole).toLowerCase();
-            console.debug('fetchUserRole: resolved from auth metadata ->', window._currentUserRole);
+      const { data, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('phone_number', normalized)
+        .maybeSingle();
+
+      window.debugRoleSources.users_table_lookup = { data, error };
+
+      if (error) {
+        console.error('fetchUserRole: error querying users table', error);
+        return null;
+      }
+      if (data && data.role) {
+        window._currentUserRole = String(data.role).toLowerCase();
+        console.debug('fetchUserRole: resolved role from users table ->', window._currentUserRole);
+        return window._currentUserRole;
+      } else {
+        // try fallback lookup with original (non-normalized) phone as some rows might store with leading zero or +91
+        try {
+          const { data: d2, error: e2 } = await supabase
+            .from('users')
+            .select('role')
+            .eq('phone_number', String(phone))
+            .maybeSingle();
+          window.debugRoleSources.users_table_lookup_fallback = { d2, e2 };
+          if (!e2 && d2 && d2.role) {
+            window._currentUserRole = String(d2.role).toLowerCase();
+            console.debug('fetchUserRole: resolved role from users table (fallback match) ->', window._currentUserRole);
             return window._currentUserRole;
           }
+        } catch (ex) {
+          console.warn('fetchUserRole: fallback query failed', ex);
         }
-      } else {
-        console.debug('fetchUserRole: supabase.auth.getUser not available');
+
+        console.warn('fetchUserRole: no role found for phone', phone);
+        return null;
       }
     } catch (e) {
-      console.warn('fetchUserRole: supabase.auth.getUser failed', e);
+      console.error('fetchUserRole failed:', e);
+      return null;
     }
-
-    // 3) try querying public.users table (fallback)
-    try {
-      // attempt to get user id from auth session (if available)
-      let userId = null;
-      try {
-        const s = await supabase.auth.getUser();
-        const u = (s && s.data && s.data.user) ? s.data.user : s.data || s.user || null;
-        userId = u?.id ?? null;
-      } catch (_) {
-        // ignore
-      }
-
-      if (userId) {
-        console.debug('fetchUserRole: querying users table for id', userId);
-        const { data: row, error } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', userId)
-          .maybeSingle();
-        window.debugRoleSources.users_table_role = row ?? (error ? { error: error.message } : null);
-        if (!error && row && row.role) {
-          window._currentUserRole = String(row.role).toLowerCase();
-          console.debug('fetchUserRole: resolved from users table ->', window._currentUserRole);
-          return window._currentUserRole;
-        } else {
-          console.debug('fetchUserRole: users table had no role or error', error || row);
-        }
-      } else {
-        console.debug('fetchUserRole: no userId from auth to query users table');
-      }
-    } catch (e) {
-      console.warn('fetchUserRole: users table lookup failed', e);
-    }
-
-    // Nothing found — set sentinel and keep debug info
-    window._currentUserRole = null;
-    console.info('fetchUserRole: role not found in any source. See window.debugRoleSources in console.');
-    return null;
   }
-
   window.fetchUserRole = fetchUserRole; // expose for console
 
   function getStatusClass(status) {
@@ -314,17 +294,66 @@
   async function initializeFlows() { statusFlows = await buildStatusFlows(); }
 
   function getNextStatus(order) {
-    const flow = statusFlows[order.order_type] || [];
+    const flow = statusFlows[(order.order_type || '').toString()] || statusFlows[(order.order_type || '').toString().toLowerCase()] || [];
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
     const nextId = flow[idx + 1];
     return statusesCache.find(s => s.id === nextId) || null;
   }
 
+  // Strong authoritative guard in updateOrderStatus – server row + robust checks
   async function updateOrderStatus(orderId, newStatusId) {
-    const nextStatus = statusesCache.find(s => s.id === newStatusId);
+    // ensure statuses
+    if (!Array.isArray(statusesCache) || statusesCache.length === 0) await fetchStatuses();
 
-    if (nextStatus && String(nextStatus.status_name).toUpperCase().includes("DELIVERED")) {
+    // fetch authoritative order row
+    let order;
+    try {
+      const { data: orderData, error: orderErr } = await supabase
+        .from('orders')
+        .select('id, order_type, status_id')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (orderErr) {
+        console.warn('updateOrderStatus: order fetch error', orderErr);
+        alert('Unable to validate order. Aborting update.');
+        return;
+      }
+      order = orderData;
+      if (!order) {
+        alert('Order not found. Aborting update.');
+        return;
+      }
+    } catch (e) {
+      console.warn('updateOrderStatus: fetch failed', e);
+      alert('Unable to validate order. Aborting update.');
+      return;
+    }
+
+    // normalize
+    const currentStatusName = (statusesCache.find(s => s.id === order.status_id)?.status_name || '').toString().trim().toUpperCase();
+    const nextStatus = statusesCache.find(s => String(s.id) === String(newStatusId));
+    const nextStatusName = (nextStatus?.status_name || '').toString().trim().toUpperCase();
+    const orderTypeNorm = (order.order_type || '').toString().toLowerCase();
+
+    // fetch role
+    let role = null;
+    try { role = await fetchUserRole(); } catch (e) { console.warn('fetchUserRole failed', e); }
+
+    console.debug('updateOrderStatus: guard check', { role, orderTypeNorm, currentStatusName, nextStatusName, orderId });
+
+    // Broaden match: check for keywords rather than strict equality (handles variations)
+    const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+    const isOperator = String(role||'').toLowerCase() === 'operator';
+    const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+
+    if (isOperator && isHomeMilling && isFromNewToPicked) {
+      alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
+      return;
+    }
+
+    // Delivered special-case (payment method required)
+    if (nextStatus?.status_name === "DELIVERED") {
       const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
       let selected = null;
       radios.forEach(r => { if (r.checked) selected = r.value; });
@@ -346,11 +375,12 @@
       return;
     }
 
+    // normal update
     await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
     closeModal();
     await loadOrders();
   }
-  window.updateOrderStatus = updateOrderStatus;
+  window.updateOrderStatus = updateOrderStatus; // expose
 
   async function savePaymentMethod(orderId, value) {
     await supabase.from('orders').update({ payment_status: value }).eq('id', orderId);
@@ -468,27 +498,24 @@ div.innerHTML = `
     return String(name).toUpperCase().replace(/[-_]/g,' ').includes(keyword.toUpperCase());
   }
 
-  function openModal(order) {
-  const modal = document.getElementById("orderModal");
-  const content = document.getElementById("modalContent");
+  // make openModal async so we can await role and compute blockedTransition
+  async function openModal(order) {
+    const modal = document.getElementById("orderModal");
+    const content = document.getElementById("modalContent");
 
-  currentOpenOrder = order;
+    currentOpenOrder = order;
 
-  const grainsHTML = Array.isArray(order.grain_details)
-    ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
-      order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
-      '</ul>' : '';
+    const grainsHTML = Array.isArray(order.grain_details)
+      ? '<ul class="list-disc ml-6 text-sm text-gray-600">' +
+        order.grain_details.map(g => `<li>${g.grain} - ${g.quantity} kg</li>`).join('') +
+        '</ul>' : '';
 
-  const statusObj = statusesCache.find(s => s.id === order.status_id);
-  const statusLabel = statusObj ? statusObj.status_name : "Unknown";
-  const statusClass = getStatusClass(statusLabel);
-  const next = getNextStatus(order);
+    const statusObj = statusesCache.find(s => s.id === order.status_id);
+    const statusLabel = statusObj ? statusObj.status_name : "Unknown";
+    const statusClass = getStatusClass(statusLabel);
+    const next = getNextStatus(order);
 
-  // NEW: fetch and display role badge
-  fetchUserRole().then(role => {
-    const roleText = role ? String(role).toUpperCase() : 'UNKNOWN';
-    const roleBadgeHTML = `<span class="role-badge ml-2" id="modalRoleBadge">${roleText}</span>`;
-
+    // show immediate fetching badge
     content.innerHTML = `
       <div class="flex justify-between items-center mb-2">
         <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
@@ -497,7 +524,7 @@ div.innerHTML = `
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-xl font-bold mb-2 inline-block">${order.customers?.name || 'N/A'}</h2>
-          ${roleBadgeHTML}
+          <span id="modalRoleBadge" class="role-badge ml-2">Fetching…</span>
           <p class="text-sm text-gray-500 mt-1">${order.customers?.phone_number ? `<a href="tel:${order.customers?.phone_number}" class="text-blue-600 underline">${order.customers?.phone_number}</a>` : 'N/A'}</p>
         </div>
         <div class="text-sm text-gray-600"><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</div>
@@ -507,75 +534,94 @@ div.innerHTML = `
 
       ${grainsHTML}
       <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
-
-      ${next 
-        ? `
-          ${nameIncludesKeyword(next.status_name, "DELIVERED") ? `
-          <div class="mt-4">
-            <p class="font-medium mb-2">Payment Method:</p>
-            <label class="flex items-center gap-2 py-2">
-              <input type="radio" name="payment_${order.id}" value="online"
-                ${order.payment_status === 'online' ? 'checked' : ''}
-                onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Online
-            </label>
-            <label class="flex items-center gap-2 py-2">
-              <input type="radio" name="payment_${order.id}" value="cash"
-                ${order.payment_status === 'cash' ? 'checked' : ''}
-                onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Cash
-            </label>
-            <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-          </div>` : ''}
-
-          <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-            class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-            Move to ${next.status_name}
-          </button>
-        `
-        : ''}
+      <div id="modalActions"></div>
     `;
-  }).catch(e => {
-    // if role fetch fails, still show modal without badge
-    content.innerHTML = `
-      <div class="flex justify-between items-center mb-2">
-        <div class="flex items-center gap-2">${getOrderTypeIcon(order.order_type)}</div>
-        <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
-      </div>
-      <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
-      <p><strong>Phone:</strong> <a href="tel:${order.customers?.phone_number || ''}" class="text-blue-600 underline">${order.customers?.phone_number || 'N/A'}</a></p>
-      <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
-      ${grainsHTML}
-      <p class="mt-2"><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></p>
+    modal.classList.remove("hidden");
 
-      ${next 
-        ? `
-          ${nameIncludesKeyword(next.status_name, "DELIVERED") ? `
-          <div class="mt-4">
-            <p class="font-medium mb-2">Payment Method:</p>
-            <label class="flex items-center gap-2 py-2">
-              <input type="radio" name="payment_${order.id}" value="online"
-                ${order.payment_status === 'online' ? 'checked' : ''}
-                onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Online
-            </label>
-            <label class="flex items-center gap-2 py-2">
-              <input type="radio" name="payment_${order.id}" value="cash"
-                ${order.payment_status === 'cash' ? 'checked' : ''}
-                onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError').classList.add('hidden');"/> Paid Cash
-            </label>
-            <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
-          </div>` : ''}
+    // resolve role and recompute actions
+    let role = null;
+    try {
+      role = await fetchUserRole();
+    } catch (e) {
+      console.warn('openModal: fetchUserRole failed', e);
+    }
 
-          <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
-            class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-            Move to ${next.status_name}
-          </button>
-        `
-        : ''}
-    `;
-    console.warn('Failed to fetch role for modal display', e);
-  });
+    const roleBadge = document.getElementById('modalRoleBadge');
+    if (roleBadge) {
+      if (role) {
+        roleBadge.textContent = String(role).toUpperCase();
+        roleBadge.title = 'Resolved role';
+      } else {
+        roleBadge.textContent = 'ROLE UNAVAILABLE';
+        roleBadge.title = 'Role could not be determined. Check console -> window.debugRoleSources';
+        const hint = document.createElement('div');
+        hint.className = 'text-xs text-gray-500 mt-1';
+        hint.textContent = 'Role not found — check console (window.debugRoleSources) or provide USER_PHONE in config.';
+        roleBadge.insertAdjacentElement('afterend', hint);
+      }
+    }
 
-  modal.classList.remove("hidden");
-}
+    // Now build actions based on resolved role + next status
+    const actionsContainer = document.getElementById('modalActions');
+    actionsContainer.innerHTML = '';
+
+    if (!next) {
+      // no next status -> nothing to show
+      return;
+    }
+
+    const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
+    const curName = (statusLabel || '').toString().trim().toUpperCase();
+    const nextName = (next?.status_name || '').toString().trim().toUpperCase();
+
+    const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+    const isOperator = String(role||'').toLowerCase() === 'operator';
+    const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+
+    const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
+
+    // Render payment method UI if next is DELIVERED
+    if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
+      actionsContainer.innerHTML += `
+        <div class="mt-4">
+          <p class="font-medium mb-2">Payment Method:</p>
+          <label class="flex items-center gap-2 py-2">
+            <input type="radio" name="payment_${order.id}" value="online"
+              ${order.payment_status === 'online' ? 'checked' : ''}
+              onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Online
+          </label>
+          <label class="flex items-center gap-2 py-2">
+            <input type="radio" name="payment_${order.id}" value="cash"
+              ${order.payment_status === 'cash' ? 'checked' : ''}
+              onchange="savePaymentMethod('${order.id}', this.value); document.getElementById('paymentError')?.classList.add('hidden');"/> Paid Cash
+          </label>
+          <p id="paymentError" class="text-red-600 text-sm mt-2 hidden">⚠ Please select a payment method before marking as Delivered.</p>
+        </div>
+      `;
+    }
+
+    // Move button (disabled if blocked)
+    if (blockedTransition) {
+      actionsContainer.innerHTML += `
+        <button
+          class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
+          aria-disabled="true"
+          title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
+          onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
+        >
+          Move to ${next.status_name}
+        </button>
+      `;
+    } else {
+      actionsContainer.innerHTML += `
+        <button onclick="updateOrderStatus('${order.id}', '${next.id}')" 
+          class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+          Move to ${next.status_name}
+        </button>
+      `;
+    }
+  }
+  window.openModal = openModal;
 
   function closeModal() { 
     document.getElementById("orderModal").classList.add("hidden"); 
@@ -628,3 +674,4 @@ div.innerHTML = `
 </script>
 </body>
 </html>
+
