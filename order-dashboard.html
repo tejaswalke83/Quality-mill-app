@@ -15,7 +15,7 @@
   <script defer src="/common.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-  <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard ch </h1>
+  <h1 class="text-2xl font-bold text-center mb-6">Order Dashboard</h1>
 
   <!-- Controls -->
   <div class="bg-white shadow rounded-lg p-4 mb-6">
@@ -50,8 +50,6 @@
   </div>
 
 <script src="config.js"></script>
-
-<!-- Load Supabase UMD (non-module) and create guarded client, then run your original logic -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   (function initSupabaseGuard(){
@@ -113,104 +111,90 @@
     window.closeModal = () => {};
     window.updateOrderStatus = () => {};
     window.savePaymentMethod = () => {};
-    window.fetchUserRole = async () => null;
     return;
   }
 
-  // ---------- Begin original business logic (unchanged except for the operator/home-milling guard) ----------
+  // ---------- Business logic ----------
   let statusesCache = [];
   let statusFlows = {};
   let currentOpenOrder = null;
   let searchTimeout;
 
-  // expose statusesCache for console checks
-  window.statusesCache = statusesCache;
-
-  // store detected role to avoid repeated lookups
+  // cache role here
   window._currentUserRole = window._currentUserRole || null;
 
-  // ---------- REPLACED fetchUserRole() ----------
+  // Robust fetchUserRole: try globals, supabase auth metadata, then public.users table
   async function fetchUserRole() {
-    // return cached value if present
-    if (window._currentUserRole) return window._currentUserRole;
+    if (window._currentUserRole) {
+      console.debug('fetchUserRole: returning cached role ->', window._currentUserRole);
+      return window._currentUserRole;
+    }
 
+    // 1) try common globals
+    const maybe =
+      window.currentUser?.role ||
+      window.user?.role ||
+      window.userRole ||
+      window.APP_USER?.role ||
+      window.__USER__?.role ||
+      document?.body?.dataset?.role ||
+      null;
+
+    if (maybe) {
+      window._currentUserRole = String(maybe).toLowerCase();
+      console.debug('fetchUserRole: resolved from global/dataset ->', window._currentUserRole);
+      return window._currentUserRole;
+    }
+
+    // 2) try supabase auth getUser
     try {
-      // 1) quick check: frequently used globals / body dataset
-      const maybe =
-        window.currentUser?.role ||
-        window.user?.role ||
-        window.userRole ||
-        window.APP_USER?.role ||
-        window.__USER__?.role ||
-        document?.body?.dataset?.role ||
-        null;
-
-      if (maybe) {
-        window._currentUserRole = String(maybe).toLowerCase();
-        console.debug('fetchUserRole: resolved from global/dataset ->', window._currentUserRole);
-        return window._currentUserRole;
-      }
-
-      // 2) try supabase.auth.getUser() if available
       if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
-        try {
-          const { data } = await supabase.auth.getUser();
-          // supabase v2 may return { data: { user } } or { data: user }, handle both
-          const user = (data && data.user) ? data.user : data;
-          if (user) {
-            // check metadata first
-            const roleFromMeta = user?.user_metadata?.role || user?.role || null;
-            if (roleFromMeta) {
-              window._currentUserRole = String(roleFromMeta).toLowerCase();
-              console.debug('fetchUserRole: resolved from auth metadata ->', window._currentUserRole);
-              return window._currentUserRole;
-            }
+        const res = await supabase.auth.getUser();
+        const user = (res && res.data && res.data.user) ? res.data.user : res.data || res.user || null;
+        if (user) {
+          const metaRole = user?.user_metadata?.role || user?.role || null;
+          if (metaRole) {
+            window._currentUserRole = String(metaRole).toLowerCase();
+            console.debug('fetchUserRole: resolved from auth metadata ->', window._currentUserRole);
+            return window._currentUserRole;
+          }
 
-            // 3) FALLBACK: query public.users by auth user id (matches your schema)
-            const userId = user?.id || null;
-            if (userId) {
-              try {
-                const { data: row, error } = await supabase
-                  .from('users')
-                  .select('role')
-                  .eq('id', userId)
-                  .maybeSingle();
-
-                if (error) {
-                  console.warn('fetchUserRole: error querying public.users', error);
-                } else if (row && row.role) {
-                  window._currentUserRole = String(row.role).toLowerCase();
-                  console.debug('fetchUserRole: resolved from public.users table ->', window._currentUserRole);
-                  return window._currentUserRole;
-                } else {
-                  console.debug('fetchUserRole: no role found in public.users for userId:', userId);
-                }
-              } catch (e) {
-                console.warn('fetchUserRole: users table lookup failed', e);
+          // 3) fallback: query public.users table
+          const userId = user?.id || null;
+          if (userId) {
+            try {
+              const { data: row, error } = await supabase
+                .from('users')
+                .select('role')
+                .eq('id', userId)
+                .maybeSingle();
+              if (!error && row && row.role) {
+                window._currentUserRole = String(row.role).toLowerCase();
+                console.debug('fetchUserRole: resolved from public.users ->', window._currentUserRole);
+                return window._currentUserRole;
+              } else {
+                console.debug('fetchUserRole: no role in users table for id', userId, error || '');
               }
-            } else {
-              console.debug('fetchUserRole: auth returned no user.id');
+            } catch (e) {
+              console.warn('fetchUserRole: users table lookup failed', e);
             }
           } else {
-            console.debug('fetchUserRole: supabase.auth.getUser returned no user');
+            console.debug('fetchUserRole: no user.id from auth');
           }
-        } catch (e) {
-          console.warn('fetchUserRole: supabase.auth.getUser failed', e);
+        } else {
+          console.debug('fetchUserRole: supabase.auth.getUser returned no user');
         }
       } else {
-        console.debug('fetchUserRole: supabase auth not available');
+        console.debug('fetchUserRole: supabase.auth.getUser not available');
       }
     } catch (e) {
       console.warn('fetchUserRole failed', e);
     }
 
-    // fallback: unknown role
     window._currentUserRole = null;
     return null;
   }
-  // expose to console
-  window.fetchUserRole = fetchUserRole;
-  // ---------- end replaced function ----------
+  window.fetchUserRole = fetchUserRole; // expose for console
 
   function getStatusClass(status) {
     const map = {
@@ -226,15 +210,13 @@
   }
 
   function getOrderTypeIcon(type) {
-    const pinwheelIcon = `
-      <img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />
-    `;
-    const scooterIcon = `
-      <img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />
-    `;
-    if (type === "shop-buy-mill") return pinwheelIcon;
-    if (type === "home-milling") return scooterIcon;
-    if (type === "home-buy-mill") return pinwheelIcon + scooterIcon;
+    const pinwheelIcon = `<img src="https://openmoji.org/data/color/svg/1F33E.svg" class="order-icon w-7 h-7" />`;
+    const scooterIcon = `<img src="https://openmoji.org/data/color/svg/1F6F5.svg" class="order-icon w-7 h-7" />`;
+    if (!type) return "";
+    const t = String(type).toLowerCase();
+    if (t.includes('shop-buy-mill') || t.includes('shop_buy_mill')) return pinwheelIcon;
+    if (t.includes('home-milling') || t.includes('home_milling') || (t.includes('home') && t.includes('mill'))) return scooterIcon;
+    if (t.includes('home-buy-mill') || t.includes('home_buy_mill')) return pinwheelIcon + scooterIcon;
     return "";
   }
 
@@ -267,15 +249,16 @@
     } else {
       statusesCache = data || [];
     }
-    // mirror to window for console visibility
-    window.statusesCache = statusesCache;
+    window.statusesCache = statusesCache; // expose for debugging
     return statusesCache;
   }
 
   async function buildStatusFlows() {
     const statuses = await fetchStatuses();
     const statusMap = {};
-    statuses.forEach(s => statusMap[s.status_name] = s.id);
+    statuses.forEach(s => {
+      if (s && s.status_name) statusMap[String(s.status_name).toUpperCase().trim()] = s.id;
+    });
 
     return {
       "shop-milling": [statusMap["NEW"], statusMap["IN PROCESS"], statusMap["MILLING COMPLETED"], statusMap["DELIVERED"]],
@@ -288,7 +271,9 @@
   async function initializeFlows() { statusFlows = await buildStatusFlows(); }
 
   function getNextStatus(order) {
-    const flow = statusFlows[order.order_type] || [];
+    const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
+    // try direct type map lookup, fallback to patterns
+    const flow = statusFlows[orderTypeNorm] || statusFlows[(order.order_type||'').toString()] || statusFlows['home-milling'] || [];
     const idx = flow.indexOf(order.status_id);
     if (idx === -1 || idx + 1 >= flow.length) return null;
     const nextId = flow[idx + 1];
@@ -299,14 +284,12 @@
     return statusesCache.find(s => s.id === id)?.status_name || null;
   }
 
-  // ---------- REPLACED updateOrderStatus (strong authoritative guard) ----------
+  // Strong authoritative guard in updateOrderStatus – server row + robust checks
   async function updateOrderStatus(orderId, newStatusId) {
-    // Ensure statuses are loaded
-    if (!Array.isArray(statusesCache) || statusesCache.length === 0) {
-      await fetchStatuses();
-    }
+    // ensure statuses
+    if (!Array.isArray(statusesCache) || statusesCache.length === 0) await fetchStatuses();
 
-    // fetch fresh order from DB (authoritative)
+    // fetch authoritative order row
     let order;
     try {
       const { data: orderData, error: orderErr } = await supabase
@@ -314,50 +297,45 @@
         .select('id, order_type, status_id')
         .eq('id', orderId)
         .maybeSingle();
-
       if (orderErr) {
-        console.warn('updateOrderStatus: could not fetch order for guard check', orderErr);
-        alert('Unable to validate order before updating. Status update aborted.');
+        console.warn('updateOrderStatus: order fetch error', orderErr);
+        alert('Unable to validate order. Aborting update.');
         return;
       }
       order = orderData;
       if (!order) {
-        alert('Order not found. Status update aborted.');
+        alert('Order not found. Aborting update.');
         return;
       }
     } catch (e) {
-      console.warn('updateOrderStatus: fetch error', e);
-      alert('Unable to validate order before updating. Status update aborted.');
+      console.warn('updateOrderStatus: fetch failed', e);
+      alert('Unable to validate order. Aborting update.');
       return;
     }
 
-    // get names & normalized values
+    // normalize
     const currentStatusName = (getStatusNameById(order.status_id) || '').toString().trim().toUpperCase();
     const nextStatus = statusesCache.find(s => String(s.id) === String(newStatusId));
     const nextStatusName = (nextStatus?.status_name || '').toString().trim().toUpperCase();
-    const orderType = (order.order_type || '').toString().trim().toLowerCase();
+    const orderTypeNorm = (order.order_type || '').toString().toLowerCase();
 
     // fetch role
-    let role;
-    try {
-      role = await fetchUserRole();
-    } catch (e) {
-      console.warn('updateOrderStatus: fetchUserRole failed', e);
-      role = null;
-    }
+    let role = null;
+    try { role = await fetchUserRole(); } catch (e) { console.warn('fetchUserRole failed', e); }
 
-    console.debug('Guard check:', { role, orderType, currentStatusName, nextStatusName });
+    console.debug('updateOrderStatus: guard check', { role, orderTypeNorm, currentStatusName, nextStatusName, orderId });
 
-    // Guard: operator cannot move home-milling from NEW -> PICKED UP
-    if (String(role) === 'operator' &&
-        orderType === 'home-milling' &&
-        currentStatusName === 'NEW' &&
-        nextStatusName === 'PICKED UP') {
-      alert('Action not allowed: Operators are not permitted to move home-milling orders from NEW to PICKED UP.');
+    // Broaden match: check for keywords rather than strict equality (handles variations)
+    const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+    const isOperator = String(role||'').toLowerCase() === 'operator';
+    const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+
+    if (isOperator && isHomeMilling && isFromNewToPicked) {
+      alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
       return;
     }
 
-    // Proceed with existing logic (DELIVERED special-case + normal update)
+    // Delivered special-case (payment method required)
     if (nextStatus?.status_name === "DELIVERED") {
       const radios = document.querySelectorAll(`input[name="payment_${orderId}"]`);
       let selected = null;
@@ -380,12 +358,12 @@
       return;
     }
 
+    // normal update
     await supabase.from('orders').update({ status_id: newStatusId }).eq('id', orderId);
     closeModal();
     await loadOrders();
   }
-  window.updateOrderStatus = updateOrderStatus;
-  // ---------- end replaced updateOrderStatus ----------
+  window.updateOrderStatus = updateOrderStatus; // expose for console
 
   async function savePaymentMethod(orderId, value) {
     await supabase.from('orders').update({ payment_status: value }).eq('id', orderId);
@@ -485,9 +463,7 @@ div.innerHTML = `
   <!-- Added spacing + bigger Total row like popup -->
   <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
 
-  <!-- ADDED milling preference next to Grains label (small font inside brackets) -->
    ${grainsHTML ? `<div class="mt-2"><strong>Grains <span class="text-xs text-gray-600">(${millingPref})</span>:</strong>${grainsHTML}</div>` : ''}
-
 
   <div class="mt-2 flex justify-between items-center">
     <span><strong>Status:</strong> <span class="px-2 py-1 text-xs rounded ${statusClass}">${statusLabel}</span></span>
@@ -500,7 +476,7 @@ div.innerHTML = `
     });
   }
 
-  // openModal is now async so we can check role and hide/disable button when needed
+  // openModal: check with broadened matching and show disabled button if necessary
   async function openModal(order) {
     const modal = document.getElementById("orderModal");
     const content = document.getElementById("modalContent");
@@ -517,30 +493,32 @@ div.innerHTML = `
     const statusClass = getStatusClass(statusLabel);
     const next = getNextStatus(order);
 
-    // check role and determine if transition should be blocked
     let blockedTransition = false;
     try {
       const role = await fetchUserRole();
       const roleNorm = (role || '').toString().toLowerCase();
-      const nextName = (next?.status_name || '').toString().trim().toUpperCase();
       const curName = (statusLabel || '').toString().trim().toUpperCase();
-      if (roleNorm === 'operator' &&
-          (order?.order_type || '').toString().toLowerCase() === 'home-milling' &&
-          curName === 'NEW' &&
-          nextName === 'PICKED UP') {
-        blockedTransition = true;
-      }
+      const nextName = (next?.status_name || '').toString().trim().toUpperCase();
+      const orderTypeNorm = (order?.order_type || '').toString().toLowerCase();
+
+      const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+      const isOperator = roleNorm === 'operator';
+      const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+
+      console.debug('openModal guard check', { roleNorm, orderTypeNorm, curName, nextName, isHomeMilling, isOperator, isNewToPicked });
+
+      if (isOperator && isHomeMilling && isNewToPicked) blockedTransition = true;
     } catch (e) {
       console.warn('openModal: role check failed', e);
     }
 
-    // Render modal content — if blockedTransition then render a disabled but identical button
+    // build move button (disabled visually if blocked)
     const moveButtonHtml = next ? (blockedTransition ? `
       <button
         class="mt-4 w-full bg-blue-500 text-white py-2 rounded opacity-50 cursor-not-allowed"
         aria-disabled="true"
         title="Operators are not permitted to move home-milling orders from NEW → PICKED UP"
-        onclick="(function(){ alert('Action not allowed: Operators are not permitted to move home-milling orders from NEW to PICKED UP.'); })()"
+        onclick="(function(){ alert('Action blocked: Operators cannot move home-milling orders from NEW → PICKED UP.'); })()"
       >
         Move to ${next.status_name}
       </button>
@@ -557,11 +535,9 @@ div.innerHTML = `
         <div class="text-sm text-gray-600"><strong>Token:</strong> ${order.token_number || ''}</div>
       </div>
       <h2 class="text-xl font-bold mb-2">${order.customers?.name || 'N/A'}</h2>
-      <!-- CLICKABLE PHONE IN MODAL -->
       <p><strong>Phone:</strong> <a href="tel:${order.customers?.phone_number || ''}" class="text-blue-600 underline">${order.customers?.phone_number || 'N/A'}</a></p>
       <p><strong>Created:</strong> ${window.convertUTCToIST ? window.convertUTCToIST(order.created_at) : order.created_at}</p>
 
-      <!-- Added more spacing before Total -->
       <p class="mt-4 text-lg"><strong>Total:</strong> ₹${(order.total_price || 0).toFixed(2)}</p>
 
       ${grainsHTML}
@@ -591,6 +567,7 @@ div.innerHTML = `
     `;
     modal.classList.remove("hidden");
   }
+  window.openModal = openModal;
 
   function closeModal() { 
     document.getElementById("orderModal").classList.add("hidden"); 
@@ -638,7 +615,7 @@ div.innerHTML = `
   await initializeFlows();
   await loadFilterButtons();
   await loadOrders();
-  // ---------- End original business logic ----------
+  // ---------- End business logic ----------
 })();
 </script>
 </body>
