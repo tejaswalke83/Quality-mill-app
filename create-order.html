@@ -190,6 +190,57 @@
   <script src="script.js"></script>
   <script src="config.js"></script>
   <script type="module">
+
+
+//-----------------------------------Remove later------------------------------------------------
+
+    // 1. show how config.js was read
+console.log("window._env_:", window._env_);
+
+// 2. SUPABASE URL and key (length only)
+console.log("SUPABASE_URL:", window._env_?.SUPABASE_URL);
+console.log("SUPABASE_KEY length:", window._env_?.SUPABASE_ANON_KEY?.length);
+
+// 3. global SDK or client presence
+console.log("global supabase SDK present?:", !!window.supabase);
+console.log("global supabase.createClient?:", !!(window.supabase && window.supabase.createClient));
+console.log("supabaseClient on window?:", !!window.supabaseClient);
+
+// 4. If a client exists, show the project's host (parses URL)
+if (window._env_?.SUPABASE_URL) {
+  try {
+    console.log("project host:", new URL(window._env_.SUPABASE_URL).host);
+  } catch(e) { console.log("bad SUPABASE_URL"); }
+}
+
+// 5. Try a quick read of customers (safe, read-only)
+(async () => {
+  if (window.supabaseClient) {
+    try {
+      const { data, error } = await window.supabaseClient.from('customers').select('*').limit(5);
+      console.log("customers sample:", data, "error:", error);
+    } catch(e) {
+      console.error("query failed:", e);
+    }
+  } else if (window.supabase && window.supabase.createClient && window._env_?.SUPABASE_URL && window._env_?.SUPABASE_ANON_KEY) {
+    // fallback: create a temporary client just for debugging (won't persist)
+    const temp = window.supabase.createClient(window._env_.SUPABASE_URL, window._env_.SUPABASE_ANON_KEY);
+    const { data, error } = await temp.from('customers').select('*').limit(5);
+    console.log("temp client customers sample:", data, "error:", error);
+  } else {
+    console.warn("No supabase client available for querying.");
+  }
+})();
+
+//-----------------------------------Remove later------------------------------------------------
+
+
+
+
+
+
+    
+    
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     // ✅ Read Supabase credentials from config.js (populated by Netlify)
