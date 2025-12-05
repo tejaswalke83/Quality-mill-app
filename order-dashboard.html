@@ -416,66 +416,48 @@ function getOrderTypeIcon(type) {
   }
 
   // Best-effort deliverer name resolver
-  async function resolveDelivererNames(orders) {
-    // collect candidate ids to fetch from users table
-    const userIdCandidates = new Set();
-    orders.forEach(o => {
-      if (o.delivered_by && typeof o.delivered_by === 'string') {
-        // simple UUID-ish check (length + dashes)
-        if (/^[0-9a-fA-F-]{8,}$/.test(o.delivered_by)) userIdCandidates.add(o.delivered_by);
-      }
-      // sometimes an id is in delivered_by_id
-      if (o.delivered_by_id && typeof o.delivered_by_id === 'string') {
-        if (/^[0-9a-fA-F-]{8,}$/.test(o.delivered_by_id)) userIdCandidates.add(o.delivered_by_id);
-      }
-    });
+ // Best-effort deliverer name resolver (updated to use delivered_by column)
+async function resolveDelivererNames(orders) {
+  // collect delivered_by ids
+  const idList = Array.from(new Set(
+    orders
+      .map(o => o.delivered_by)
+      .filter(v => v && typeof v === 'string')
+  ));
 
-    const idList = Array.from(userIdCandidates);
-    const usersById = {};
+  const usersById = {};
+  if (idList.length > 0) {
+    const { data: usersData, error: usersErr } = await supabase
+      .from('users')
+      .select('id, name')
+      .in('id', idList);
 
-    if (idList.length > 0) {
-      const { data: usersData, error: usersErr } = await supabase
-        .from('users')
-        .select('id, name')
-        .in('id', idList);
-
-      if (!usersErr && Array.isArray(usersData)) {
-        usersData.forEach(u => {
-          usersById[u.id] = u.name || null;
-        });
-      } else {
-        console.warn('resolveDelivererNames: users fetch failed', usersErr);
-      }
+    if (!usersErr && Array.isArray(usersData)) {
+      usersData.forEach(u => {
+        usersById[u.id] = u.name || null;
+      });
+    } else {
+      console.warn('resolveDelivererNames: users fetch failed', usersErr);
     }
-
-    // build map of orderId -> delivererName using best-effort fallbacks
-    const map = {};
-    orders.forEach(o => {
-      let name = null;
-      if (o.delivered_by_name) name = o.delivered_by_name;
-      if (!name && o.delivered_by && usersById[o.delivered_by]) name = usersById[o.delivered_by];
-      if (!name && o.delivered_by_id && usersById[o.delivered_by_id]) name = usersById[o.delivered_by_id];
-      // fallback: serve_at may contain a name in some setups
-      if (!name && o.serve_at && typeof o.serve_at === 'string' && o.serve_at.trim() !== '') name = o.serve_at;
-      // fallback: maybe status_backup contains name as plain text (best-effort)
-      if (!name && o.status_backup && typeof o.status_backup === 'string' && o.status_backup.trim() !== '') {
-        // try to strip JSON-like and use shortest token as name
-        try {
-          const maybe = JSON.parse(o.status_backup);
-          if (maybe && typeof maybe === 'object' && maybe.name) name = maybe.name;
-        } catch (e) {
-          // not JSON, use the string if short
-          if (o.status_backup.length < 80) name = o.status_backup;
-        }
-      }
-      // fallback: show customer name if nothing else
-      if (!name && o.customers && o.customers.name) name = `(customer) ${o.customers.name}`;
-
-      map[o.id] = name || '—';
-    });
-
-    return map;
   }
+
+  // map order id -> deliverer name (delivered_by_name override -> users table -> customer name -> placeholder)
+  const map = {};
+  orders.forEach(o => {
+    let name = null;
+    if (o.delivered_by_name && String(o.delivered_by_name).trim() !== '') {
+      name = o.delivered_by_name;
+    } else if (o.delivered_by && usersById[o.delivered_by]) {
+      name = usersById[o.delivered_by];
+    } else if (o.customers && o.customers.name) {
+      name = `(customer) ${o.customers.name}`;
+    }
+    map[o.id] = name || '—';
+  });
+
+  return map;
+}
+
 
   // Fetch today's delivered orders and compute totals, then render accordion
   async function fetchAndRenderDeliveredTotals() {
