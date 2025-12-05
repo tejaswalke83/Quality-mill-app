@@ -375,14 +375,34 @@ function getOrderTypeIcon(type) {
     console.debug('updateOrderStatus: guard check', { role, orderTypeNorm, currentStatusName, nextStatusName, orderId });
 
     // Broaden match: check for keywords rather than strict equality (handles variations)
-    const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-    const isOperator = String(role||'').toLowerCase() === 'operator';
-    const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
 
-    if (isOperator && isHomeMilling && isFromNewToPicked) {
-      alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
-      return;
-    }
+    const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+const isOperator = String(role||'').toLowerCase() === 'operator';
+const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+
+// NEW guard: operator cannot mark OUT FOR DELIVERY -> DELIVERED (applies to all order types)
+const isOutToDelivered = currentStatusName === 'OUT FOR DELIVERY' && nextStatusName === 'DELIVERED';
+
+// keep previous home-milling NEW->PICKED UP guard
+if (isOperator && isHomeMilling && isFromNewToPicked) {
+  alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
+  return;
+}
+
+// new universal guard for operators
+if (isOperator && isOutToDelivered) {
+  alert('Action not allowed: Operators are not permitted to mark orders OUT FOR DELIVERY → DELIVERED.');
+  return;
+}
+
+    // const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+    // const isOperator = String(role||'').toLowerCase() === 'operator';
+    // const isFromNewToPicked = currentStatusName === 'NEW' && nextStatusName === 'PICKED UP';
+
+    // if (isOperator && isHomeMilling && isFromNewToPicked) {
+    //   alert('Action not allowed: Operators cannot move home-milling orders from NEW → PICKED UP.');
+    //   return;
+    // }
 
     // Delivered special-case (payment method required)
     if (nextStatus?.status_name === "DELIVERED") {
@@ -590,11 +610,23 @@ async function openModal(order) {
   const curName = (statusLabel || '').toString().trim().toUpperCase();
   const nextName = (next?.status_name || '').toString().trim().toUpperCase();
 
-  const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
-  const isOperator = String(role||'').toLowerCase() === 'operator';
-  const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
 
-  const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
+const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+const isOperator = String(role||'').toLowerCase() === 'operator';
+const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+
+// block operator marking Out For Delivery -> Delivered (applies to all order types)
+const isOutToDelivered = curName === 'OUT FOR DELIVERY' && nextName === 'DELIVERED';
+
+// blocked if either (home-milling NEW->PICKED UP) OR (operator trying OUT->DELIVERED)
+const blockedTransition = (isOperator && isHomeMilling && isNewToPicked) || (isOperator && isOutToDelivered);
+
+  
+  // const isHomeMilling = orderTypeNorm.includes('home') && orderTypeNorm.includes('mill');
+  // const isOperator = String(role||'').toLowerCase() === 'operator';
+  // const isNewToPicked = curName === 'NEW' && nextName === 'PICKED UP';
+
+  // const blockedTransition = isOperator && isHomeMilling && isNewToPicked;
 
   // Render payment method UI if next is DELIVERED
   if (nameIncludesKeyword(next.status_name, "DELIVERED")) {
