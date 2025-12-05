@@ -113,6 +113,7 @@
     window.closeModal = () => {};
     window.updateOrderStatus = () => {};
     window.savePaymentMethod = () => {};
+    window.fetchUserRole = async () => null;
     return;
   }
 
@@ -122,13 +123,13 @@
   let currentOpenOrder = null;
   let searchTimeout;
 
-  // expose statusesCache to window for debugging/console use
+  // expose statusesCache for console checks
   window.statusesCache = statusesCache;
 
   // store detected role to avoid repeated lookups
   window._currentUserRole = window._currentUserRole || null;
 
-  // ---------- REPLACED fetchUserRole() (exposed as window.fetchUserRole) ----------
+  // ---------- REPLACED fetchUserRole() ----------
   async function fetchUserRole() {
     // return cached value if present
     if (window._currentUserRole) return window._currentUserRole;
@@ -266,7 +267,7 @@
     } else {
       statusesCache = data || [];
     }
-    // reflect to window for console debugging
+    // mirror to window for console visibility
     window.statusesCache = statusesCache;
     return statusesCache;
   }
@@ -298,7 +299,7 @@
     return statusesCache.find(s => s.id === id)?.status_name || null;
   }
 
-  // ---------- REPLACED updateOrderStatus (authoritative guard) ----------
+  // ---------- REPLACED updateOrderStatus (strong authoritative guard) ----------
   async function updateOrderStatus(orderId, newStatusId) {
     // Ensure statuses are loaded
     if (!Array.isArray(statusesCache) || statusesCache.length === 0) {
