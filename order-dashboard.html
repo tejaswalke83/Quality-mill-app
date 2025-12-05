@@ -122,6 +122,9 @@
   let currentOpenOrder = null;
   let searchTimeout;
 
+  // mirror statusesCache to window for console access; will be updated inside fetchStatuses
+  window.statusesCache = statusesCache;
+
   // store detected role to avoid repeated lookups
   window._currentUserRole = window._currentUserRole || null;
 
@@ -204,6 +207,8 @@
     window._currentUserRole = null;
     return null;
   }
+  // expose to console
+  window.fetchUserRole = fetchUserRole;
   // ---------- end replaced function ----------
 
   function getStatusClass(status) {
@@ -260,6 +265,8 @@
       statusesCache = [];
     } else {
       statusesCache = data || [];
+      // mirror to window so console access works
+      window.statusesCache = statusesCache;
     }
     return statusesCache;
   }
