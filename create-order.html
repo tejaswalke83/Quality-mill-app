@@ -190,24 +190,73 @@
 
 
 
-    <!-- 1) Load Supabase global script -->
+    <!-- 1) Load Supabase UMD bundle -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script src="script.js"></script>
-  <script src="config.js"></script>
-  <script type="module">
+<!-- 2) Load config (must populate window._env_); Netlify/hosting provides this -->
+<script src="config.js"></script>
 
-    
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+<!-- 3) Create a guarded global client (same pattern as your 'My Orders' page) -->
+<script>
+  (function initSupabaseGuard(){
+    const SUPABASE_URL = window._env_?.SUPABASE_URL ?? null;
+    const SUPABASE_KEY = window._env_?.SUPABASE_ANON_KEY ?? null;
 
-    // ✅ Read Supabase credentials from config.js (populated by Netlify)
-    const SUPABASE_URL = window._env_.SUPABASE_URL;
-    const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
-    
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY
-    );
+    console.groupCollapsed('[Supabase Guard]');
+    console.log('window._env_ present?', !!window._env_);
+    console.log('SUPABASE_URL host:', SUPABASE_URL ? (() => { try { return new URL(SUPABASE_URL).host } catch(e){ return SUPABASE_URL } })() : SUPABASE_URL);
+    console.log('SUPABASE_KEY length:', SUPABASE_KEY ? SUPABASE_KEY.length : SUPABASE_KEY);
+    console.groupEnd();
+
+    const hasPlaceholder = (v) => !v || String(v).includes('%%') || String(v).trim() === '';
+
+    if (hasPlaceholder(SUPABASE_URL) || hasPlaceholder(SUPABASE_KEY)) {
+      console.error('[Supabase Guard] config.js missing or contains placeholders — not creating client.');
+      window.supabaseClient = null;
+      return;
+    }
+
+    if (window.supabase && typeof window.supabase.createClient === 'function') {
+      if (!window.supabaseClient || !window.supabaseClient._initialized) {
+        try {
+          window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+          window.supabaseClient._initialized = true;
+          console.log('[Supabase Guard] window.supabaseClient created for', new URL(SUPABASE_URL).host);
+        } catch (err) {
+          console.error('[Supabase Guard] failed to create client', err);
+          window.supabaseClient = null;
+        }
+      } else {
+        console.log('[Supabase Guard] reusing existing window.supabaseClient');
+      }
+    } else {
+      console.warn('[Supabase Guard] supabase global SDK not loaded yet');
+      window.supabaseClient = null;
+    }
+  })();
+</script>
+
+<!-- 4) Your other scripts (script.js) — placed after guard so they can rely on window.supabaseClient -->
+<script src="script.js"></script>
+<script src="config.js"></script>
+
+<!-- 5) Main inline page logic (uses the guarded client). This mirrors your original code but uses the guarded 'window.supabaseClient' -->
+<script type="text/javascript">
+  // Use guarded global client
+  const supabase = window.supabaseClient;
+
+  // If supabase client not available, fail gracefully and show message
+  if (!supabase) {
+    console.warn('Supabase client not available — DB-backed UI disabled. Fix /config.js or loading order.');
+    document.getElementById('user-info').innerHTML =
+      `<p class="text-red-600">Supabase not configured — check <code>/config.js</code> and environment injection.</p>`;
+    // Expose no-op functions so buttons don't blow up
+    window.addRow = () => { showToast('Supabase not configured', 'error'); };
+    window.updateTotal = async () => {};
+    window.submitOrder = async () => { showToast('Supabase not configured', 'error'); };
+    window.fetchData = async () => {};
+  } else {
+    // ---------- Begin original business logic (kept exactly as you provided) ----------
 
     const urlParams = new URLSearchParams(window.location.search);
     const phone = urlParams.get('phone');
@@ -767,6 +816,8 @@
       }
     }
 
-  </script>
+    // ---------- End original business logic ----------
+  }
+</script>
 </body>
 </html>
