@@ -126,66 +126,119 @@
   // cache role here
   window._currentUserRole = window._currentUserRole || null;
 
-  // Fetch role helper (tries globals, config, auth, users table)
+    // Improved fetchUserRole with verbose logging + debug info
   async function fetchUserRole() {
     if (window._currentUserRole) {
+      console.debug('fetchUserRole: cached ->', window._currentUserRole);
       return window._currentUserRole;
     }
 
+    // container for debugging values (inspectable from console)
+    window.debugRoleSources = {
+      env_user_role: window._env_?.USER_ROLE ?? null,
+      env_role: window._env_?.ROLE ?? null,
+      globals: {
+        currentUser: window.currentUser?.role ?? null,
+        user: window.user?.role ?? null,
+        userRole: window.userRole ?? null,
+        APP_USER: window.APP_USER?.role ?? null,
+        __USER__: window.__USER__?.role ?? null,
+        body_dataset: document?.body?.dataset?.role ?? null,
+      },
+      localStorage_user_role: localStorage.getItem('user_role') ?? null,
+      supabase_auth_user: null,
+      users_table_role: null
+    };
+
+    console.groupCollapsed('fetchUserRole: trying simple fallbacks');
+    console.log('window._env_.USER_ROLE:', window.debugRoleSources.env_user_role);
+    console.log('window._env_.ROLE:', window.debugRoleSources.env_role);
+    console.log('globals:', window.debugRoleSources.globals);
+    console.log('localStorage user_role:', window.debugRoleSources.localStorage_user_role);
+    console.groupEnd();
+
+    // 1) quick config/globals/localStorage
     const maybe =
-      window._env_?.USER_ROLE ||
-      window._env_?.ROLE ||
-      window.currentUser?.role ||
-      window.user?.role ||
-      window.userRole ||
-      window.APP_USER?.role ||
-      window.__USER__?.role ||
-      document?.body?.dataset?.role ||
-      localStorage.getItem('user_role') ||
+      window._env_?.USER_ROLE ??
+      window._env_?.ROLE ??
+      window.currentUser?.role ??
+      window.user?.role ??
+      window.userRole ??
+      window.APP_USER?.role ??
+      window.__USER__?.role ??
+      document?.body?.dataset?.role ??
+      localStorage.getItem('user_role') ??
       null;
 
     if (maybe) {
       window._currentUserRole = String(maybe).toLowerCase();
+      console.debug('fetchUserRole: resolved from quick fallback ->', window._currentUserRole);
       return window._currentUserRole;
     }
 
-    // supabase auth.getUser
+    // 2) try supabase auth.getUser (v2)
     try {
       if (supabase && supabase.auth && typeof supabase.auth.getUser === 'function') {
+        console.debug('fetchUserRole: calling supabase.auth.getUser()');
         const res = await supabase.auth.getUser();
         const user = (res && res.data && res.data.user) ? res.data.user : res.data || res.user || null;
+        window.debugRoleSources.supabase_auth_user = user ?? null;
+        console.debug('fetchUserRole: supabase.auth.getUser ->', user);
         if (user) {
           const metaRole = user?.user_metadata?.role || user?.role || null;
           if (metaRole) {
             window._currentUserRole = String(metaRole).toLowerCase();
+            console.debug('fetchUserRole: resolved from auth metadata ->', window._currentUserRole);
             return window._currentUserRole;
           }
-
-          const userId = user?.id || null;
-          if (userId) {
-            try {
-              const { data: row, error } = await supabase
-                .from('users')
-                .select('role')
-                .eq('id', userId)
-                .maybeSingle();
-              if (!error && row && row.role) {
-                window._currentUserRole = String(row.role).toLowerCase();
-                return window._currentUserRole;
-              }
-            } catch (e) {
-              console.warn('fetchUserRole: users table lookup failed', e);
-            }
-          }
         }
+      } else {
+        console.debug('fetchUserRole: supabase.auth.getUser not available');
       }
     } catch (e) {
-      console.warn('fetchUserRole failed', e);
+      console.warn('fetchUserRole: supabase.auth.getUser failed', e);
     }
 
+    // 3) try querying public.users table (fallback)
+    try {
+      // attempt to get user id from auth session (if available)
+      let userId = null;
+      try {
+        const s = await supabase.auth.getUser();
+        const u = (s && s.data && s.data.user) ? s.data.user : s.data || s.user || null;
+        userId = u?.id ?? null;
+      } catch (_) {
+        // ignore
+      }
+
+      if (userId) {
+        console.debug('fetchUserRole: querying users table for id', userId);
+        const { data: row, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+        window.debugRoleSources.users_table_role = row ?? (error ? { error: error.message } : null);
+        if (!error && row && row.role) {
+          window._currentUserRole = String(row.role).toLowerCase();
+          console.debug('fetchUserRole: resolved from users table ->', window._currentUserRole);
+          return window._currentUserRole;
+        } else {
+          console.debug('fetchUserRole: users table had no role or error', error || row);
+        }
+      } else {
+        console.debug('fetchUserRole: no userId from auth to query users table');
+      }
+    } catch (e) {
+      console.warn('fetchUserRole: users table lookup failed', e);
+    }
+
+    // Nothing found — set sentinel and keep debug info
     window._currentUserRole = null;
+    console.info('fetchUserRole: role not found in any source. See window.debugRoleSources in console.');
     return null;
   }
+
   window.fetchUserRole = fetchUserRole; // expose for console
 
   function getStatusClass(status) {
