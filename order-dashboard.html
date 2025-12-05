@@ -122,13 +122,13 @@
   let currentOpenOrder = null;
   let searchTimeout;
 
-  // mirror statusesCache to window for console access; will be updated inside fetchStatuses
+  // expose statusesCache to window for debugging/console use
   window.statusesCache = statusesCache;
 
   // store detected role to avoid repeated lookups
   window._currentUserRole = window._currentUserRole || null;
 
-  // ---------- REPLACED fetchUserRole() ----------
+  // ---------- REPLACED fetchUserRole() (exposed as window.fetchUserRole) ----------
   async function fetchUserRole() {
     // return cached value if present
     if (window._currentUserRole) return window._currentUserRole;
@@ -265,9 +265,9 @@
       statusesCache = [];
     } else {
       statusesCache = data || [];
-      // mirror to window so console access works
-      window.statusesCache = statusesCache;
     }
+    // reflect to window for console debugging
+    window.statusesCache = statusesCache;
     return statusesCache;
   }
 
@@ -298,7 +298,7 @@
     return statusesCache.find(s => s.id === id)?.status_name || null;
   }
 
-  // ---------- REPLACED updateOrderStatus (strong authoritative guard) ----------
+  // ---------- REPLACED updateOrderStatus (authoritative guard) ----------
   async function updateOrderStatus(orderId, newStatusId) {
     // Ensure statuses are loaded
     if (!Array.isArray(statusesCache) || statusesCache.length === 0) {
