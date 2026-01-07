@@ -215,6 +215,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Load environment config -->
 <script src="/config.js"></script>
+
+
+
+
+
+
+
   <script>
 
 
@@ -282,7 +289,7 @@ if (!window.supabaseClient) {
   window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-const supabase = window.supabaseClient;
+// const supabase = window.supabaseClient;
 
     let societiesCache = [];
 
@@ -400,38 +407,6 @@ window.verifyStaffPassword = async function() {
 
 
     
-    // ✅ Verify staff login
-  //   window.verifyStaffPassword = async function() {
-  //   const passwordInput = document.getElementById('staff-password').value;
-  //   const staffUser = window.currentStaffUser;
-  //   document.getElementById('password-error').innerText = "";
-
-  //   if (!passwordInput) {
-  //     document.getElementById('password-error').innerText = "Password cannot be empty.";
-  //     return;
-  //   }
-
-  //   if (passwordInput === staffUser.password) {
-  //     document.getElementById('status').innerText = "Login successful! Redirecting...";
-  //     setTimeout(() => {
-  //       if (staffUser.role && staffUser.role.toLowerCase() === "admin") {
-  //         // ✅ Admin login → Admin.html
-  //         window.location.href = `Admin.html?phone=${staffUser.phone_number}`;
-  //       } else if (staffUser.role && staffUser.role.toLowerCase() === "manager") {
-  //         // ✅ Manager login → order-dashboard.html
-  //         window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-  //       } else if (staffUser.role && staffUser.role.toLowerCase() === "delivery") {
-  //         // ✅ Delivery partner login → delivery_partner.html
-  //         window.location.href = `delivery_partner.html?phone=${staffUser.phone_number}`; 
-  //       } else {
-  //         // ✅ Other staff roles (operator, delivery, etc.)
-  //         window.location.href = `order-dashboard.html?phone=${staffUser.phone_number}`;
-  //       }
-  //     }, 1000);
-  //   } else {
-  //     document.getElementById('password-error').innerText = "Incorrect password.";
-  //   }
-  // };
 
     // ✅ Societies typeahead
     async function loadSocieties() {

@@ -13,7 +13,7 @@
   Object.assign(installBtn.style, {
     position: 'fixed',
     right: '20px',
-    bottom: '20px',
+    bottom: '20px', 
     zIndex: 99999,
     display: 'none',
     background: '#007bff',
