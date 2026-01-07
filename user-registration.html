@@ -522,7 +522,7 @@ window.verifyStaffPassword = async function() {
         document.getElementById('status').innerText = "Redirecting...";
         window.location.href = `select-order-type.html?phone=${phoneNumber}`;
       } catch (err) {
-        console.error("Error registering user:", err);
+        console.error("Error registering user :", err);
         showError("Unexpected error. Please try again.");
       }
     };
