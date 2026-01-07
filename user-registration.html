@@ -126,8 +126,9 @@
   <!-- <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#007bff">
   <link rel="icon" href="/icons/icon-192.png" sizes="192x192"> 
-  <script defer src="/common.js"></script>
+
   -->
+    <script defer src="/common.js"></script>
    
 </head>
 <body>
@@ -276,7 +277,12 @@ if (window._env_?.SUPABASE_URL) {
   const SUPABASE_KEY = window._env_.SUPABASE_ANON_KEY;
   
   // ✅ Create Supabase client
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Create SUPABASE CLIENT only once
+if (!window.supabaseClient) {
+  window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+const supabase = window.supabaseClient;
 
     let societiesCache = [];
 
